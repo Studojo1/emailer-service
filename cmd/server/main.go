@@ -148,8 +148,21 @@ func main() {
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 
+	// Wrap mux with a handler that intercepts OPTIONS before routing
+	// This is needed because Go's ServeMux rejects OPTIONS if no route matches
+	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Handle OPTIONS requests before they reach the mux
+		if r.Method == http.MethodOptions {
+			// Apply CORS headers directly (middleware will also add them, but this ensures they're set)
+			middleware.CORS(corsOrigins)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(w, r)
+			return
+		}
+		// For all other requests, pass to mux
+		mux.ServeHTTP(w, r)
+	})
+
 	// Apply CORS middleware
-	handler := middleware.CORS(corsOrigins)(mux)
+	handler := middleware.CORS(corsOrigins)(wrappedHandler)
 
 	// Start RabbitMQ consumer
 	msgCfg := messaging.DefaultConfig(rabbitURL)
@@ -186,4 +199,3 @@ func main() {
 
 	fmt.Println("emailer-service stopped")
 }
-
