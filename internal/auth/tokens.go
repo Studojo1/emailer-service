@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -107,12 +108,19 @@ func (ts *TokenStore) UpdateUserPassword(ctx context.Context, userID, passwordHa
 
 	if err == sql.ErrNoRows {
 		// Create new credential account for OAuth users (hybrid model)
+		// Better Auth expects account_id to be the user's email for credential accounts
+		var userEmail string
+		err = ts.db.QueryRowContext(ctx, `SELECT email FROM "user" WHERE id = $1`, userID).Scan(&userEmail)
+		if err != nil {
+			return fmt.Errorf("failed to get user email: %w", err)
+		}
+		
 		accountID := uuid.New().String()
 		now := time.Now().UTC()
 		_, err = ts.db.ExecContext(ctx, `
 			INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			accountID, userID, "credential", userID, passwordHash, now, now,
+			accountID, userEmail, "credential", userID, passwordHash, now, now,
 		)
 		return err
 	}

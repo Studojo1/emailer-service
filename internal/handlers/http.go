@@ -79,6 +79,7 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	// Don't reveal if user exists or not (security best practice)
 	if user == nil {
 		// Still return success to prevent email enumeration
+		slog.Info("forgot password requested for non-existent user", "email", req.Email)
 		writeJSON(w, map[string]string{"message": "If an account exists, a password reset link has been sent"}, http.StatusOK)
 		return
 	}
@@ -117,12 +118,14 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		emailData["Message"] = "Click the button below to reset your password."
 	}
 	
+	slog.Info("sending password reset email", "user_id", user.ID, "email", user.Email, "has_password", hasPassword)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "forgot-password", emailData)
 	if err != nil {
-		slog.Error("failed to send reset email", "error", err)
+		slog.Error("failed to send reset email", "error", err, "user_id", user.ID, "email", user.Email)
 		writeError(w, "failed to send email", http.StatusInternalServerError)
 		return
 	}
+	slog.Info("password reset email sent successfully", "user_id", user.ID, "email", user.Email)
 
 	writeJSON(w, map[string]string{"message": "If an account exists, a password reset link has been sent"}, http.StatusOK)
 }
@@ -164,6 +167,13 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if user already has a password account (BEFORE updating)
+	wasPasswordAccount, err := h.Store.HasPasswordAccount(ctx, userID)
+	if err != nil {
+		slog.Warn("failed to check password account before reset", "error", err)
+		wasPasswordAccount = false
+	}
+
 	// Hash password using bcrypt
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
 	if err != nil {
@@ -172,18 +182,11 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update password
+	// Update password (creates account if it doesn't exist for OAuth users)
 	if err := h.TokenStore.UpdateUserPassword(ctx, userID, string(passwordHash)); err != nil {
 		slog.Error("failed to update password", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
-	}
-
-	// Check if this is creating a new password (OAuth user) or resetting existing
-	hasPassword, err := h.Store.HasPasswordAccount(ctx, userID)
-	if err != nil {
-		slog.Warn("failed to check password account", "error", err)
-		hasPassword = false
 	}
 
 	// Mark token as used
@@ -193,7 +196,7 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send password changed email only if password was updated (not created)
-	if hasPassword {
+	if wasPasswordAccount {
 		user, err := h.Store.GetUserByID(ctx, userID)
 		if err == nil && user != nil {
 			// Send password changed email (non-blocking)
@@ -208,11 +211,20 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	message := "Password reset successfully"
-	if !hasPassword {
-		message = "Password created successfully! You can now sign in with email and password or continue using Google."
+	// Return success response with indication if password was created vs reset
+	var response map[string]interface{}
+	if !wasPasswordAccount {
+		response = map[string]interface{}{
+			"message":          "Password created successfully! You can now sign in with email and password or continue using Google.",
+			"password_created": "true",
+		}
+	} else {
+		response = map[string]interface{}{
+			"message":          "Password reset successfully",
+			"password_created": "false",
+		}
 	}
-	writeJSON(w, map[string]string{"message": message, "password_created": fmt.Sprintf("%v", !hasPassword)}, http.StatusOK)
+	writeJSON(w, response, http.StatusOK)
 }
 
 // HandleGetEmailPreferences handles GET /v1/email/preferences/:user_id

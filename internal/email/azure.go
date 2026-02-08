@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/smtp"
 	"strings"
 	"time"
 )
@@ -120,54 +121,37 @@ func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string)
 	return nil
 }
 
-// sendViaMailHog sends email via MailHog API (development mode)
+// sendViaMailHog sends email via MailHog SMTP (development mode)
+// MailHog accepts SMTP connections on port 1025
 func (c *Client) sendViaMailHog(ctx context.Context, to, subject, htmlContent string) error {
-	// MailHog API endpoint: http://mailhog:8025/api/v2/messages
-	mailhogURL := strings.TrimSuffix(c.endpoint, "/")
-	if !strings.HasSuffix(mailhogURL, "/api/v2/messages") {
-		mailhogURL = mailhogURL + "/api/v2/messages"
+	// Extract host from endpoint (e.g., http://mailhog:8025 -> mailhog)
+	mailhogHost := strings.TrimPrefix(c.endpoint, "http://")
+	mailhogHost = strings.TrimPrefix(mailhogHost, "https://")
+	mailhogHost = strings.TrimSuffix(mailhogHost, ":8025")
+	mailhogHost = strings.TrimSuffix(mailhogHost, "/")
+	if mailhogHost == "" {
+		mailhogHost = "mailhog"
 	}
 	
-	// MailHog expects a different payload format
-	payload := map[string]interface{}{
-		"from": map[string]string{
-			"mail": c.senderEmail,
-		},
-		"to": []map[string]string{
-			{"mail": to},
-		},
-		"subject": subject,
-		"html":    htmlContent,
-	}
-
-	body, err := json.Marshal(payload)
+	// MailHog SMTP server address
+	addr := mailhogHost + ":1025"
+	
+	// Build email message
+	msg := []byte("From: " + c.senderEmail + "\r\n" +
+		"To: " + to + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-Version: 1.0\r\n" +
+		"Content-Type: text/html; charset=UTF-8\r\n" +
+		"\r\n" +
+		htmlContent + "\r\n")
+	
+	// Send email via SMTP (MailHog doesn't require authentication)
+	err := smtp.SendMail(addr, nil, c.senderEmail, []string{to}, msg)
 	if err != nil {
-		return fmt.Errorf("failed to marshal mailhog payload: %w", err)
+		return fmt.Errorf("failed to send email via MailHog SMTP: %w", err)
 	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", mailhogURL, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("failed to create mailhog request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send mailhog request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read mailhog response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("mailhog send failed with status %d: %s", resp.StatusCode, string(respBody))
-	}
-
-	slog.Info("email sent via MailHog (development)", "to", to, "subject", subject)
+	
+	slog.Info("email sent via MailHog SMTP", "to", to, "subject", subject, "host", addr)
 	return nil
 }
 
