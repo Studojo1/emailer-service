@@ -18,6 +18,7 @@ import (
 	"github.com/studojo/emailer-service/internal/email"
 	"github.com/studojo/emailer-service/internal/handlers"
 	"github.com/studojo/emailer-service/internal/messaging"
+	"github.com/studojo/emailer-service/internal/middleware"
 	"github.com/studojo/emailer-service/internal/store"
 )
 
@@ -66,7 +67,7 @@ func main() {
 	// Frontend URL for email links
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "https://studojo.com"
+		frontendURL = "http://localhost:3000" // Default to localhost for development
 	}
 
 	// Template directory
@@ -79,6 +80,13 @@ func main() {
 	port := os.Getenv("HTTP_PORT")
 	if port == "" {
 		port = "8087"
+	}
+
+	// CORS configuration
+	corsOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+	if len(corsOrigins) == 0 || (len(corsOrigins) == 1 && corsOrigins[0] == "") {
+		// Default to allowing localhost for development
+		corsOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
 	}
 
 	// Connect to database
@@ -140,6 +148,9 @@ func main() {
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 
+	// Apply CORS middleware
+	handler := middleware.CORS(corsOrigins)(mux)
+
 	// Start RabbitMQ consumer
 	msgCfg := messaging.DefaultConfig(rabbitURL)
 	consumer := messaging.NewConsumer(msgCfg, eventHandler)
@@ -152,7 +163,7 @@ func main() {
 
 	// Start HTTP server
 	addr := ":" + port
-	srv := &http.Server{Addr: addr, Handler: mux}
+	srv := &http.Server{Addr: addr, Handler: handler}
 
 	go func() {
 		slog.Info("emailer-service listening", "addr", addr)
