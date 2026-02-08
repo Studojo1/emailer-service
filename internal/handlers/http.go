@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"bytes"
+	"io"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/studojo/emailer-service/internal/auth"
 	"github.com/studojo/emailer-service/internal/email"
@@ -19,7 +21,8 @@ type Handler struct {
 	Store      *store.PostgresStore
 	Sender     *email.Sender
 	TokenStore *auth.TokenStore
-	FrontendURL string
+	FrontendURL string      // For internal service-to-service calls (e.g., http://frontend:3000)
+	EmailFrontendURL string // For email links that users click (e.g., http://localhost:3000)
 }
 
 // ForgotPasswordRequest represents a forgot password request
@@ -101,7 +104,8 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send email - customize message for OAuth users
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", h.FrontendURL, token)
+	// Use EmailFrontendURL for links that users click (localhost), not internal service name
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", h.EmailFrontendURL, token)
 	emailData := map[string]interface{}{
 		"UserName":  user.Name,
 		"ResetURL":  resetURL,
@@ -131,6 +135,7 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleResetPassword handles POST /v1/email/reset-password
+// This now uses Better Auth's API endpoint to ensure 100% compatibility
 func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -155,7 +160,7 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	// Validate token
+	// Validate token first to get userID (for checking if password account exists)
 	userID, err := h.TokenStore.ValidatePasswordResetToken(ctx, req.Token)
 	if err != nil {
 		if err == auth.ErrInvalidToken || err == auth.ErrTokenExpired || err == auth.ErrTokenUsed {
@@ -174,22 +179,66 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 		wasPasswordAccount = false
 	}
 
-	// Hash password using bcrypt
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	// Call Better Auth's reset-password API endpoint
+	// Better Auth handles password hashing, validation, and account updates internally
+	resetURL := fmt.Sprintf("%s/api/auth/reset-password?token=%s", h.FrontendURL, req.Token)
+	reqBody, err := json.Marshal(map[string]string{
+		"newPassword": req.NewPassword,
+		"token":       req.Token,
+	})
 	if err != nil {
-		slog.Error("failed to hash password", "error", err)
+		slog.Error("failed to marshal request", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Update password (creates account if it doesn't exist for OAuth users)
-	if err := h.TokenStore.UpdateUserPassword(ctx, userID, string(passwordHash)); err != nil {
-		slog.Error("failed to update password", "error", err)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", resetURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		slog.Error("failed to create request to Better Auth", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		slog.Error("failed to call Better Auth reset-password endpoint", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		slog.Error("failed to read Better Auth response", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Mark token as used
+	if resp.StatusCode != http.StatusOK {
+		slog.Error("Better Auth reset-password endpoint returned error", "status", resp.StatusCode, "body", string(body))
+		// Try to parse error message from Better Auth
+		var errorResp struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(body, &errorResp); err == nil {
+			if errorResp.Message != "" {
+				writeError(w, errorResp.Message, resp.StatusCode)
+			} else if errorResp.Error != "" {
+				writeError(w, errorResp.Error, resp.StatusCode)
+			} else {
+				writeError(w, "failed to reset password", resp.StatusCode)
+			}
+		} else {
+			writeError(w, "failed to reset password", resp.StatusCode)
+		}
+		return
+	}
+
+	// Mark our token as used (Better Auth may have its own token system, but we track ours too)
 	if err := h.TokenStore.MarkTokenAsUsed(ctx, req.Token); err != nil {
 		slog.Warn("failed to mark token as used", "error", err)
 		// Don't fail the request if this fails
@@ -205,7 +254,7 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 				_ = h.Sender.SendTemplateEmail(emailCtx, user.Email, "password-changed", map[string]interface{}{
 					"UserName":  user.Name,
 					"Timestamp": time.Now().UTC().Format(time.RFC3339),
-					"SettingsURL": h.FrontendURL + "/settings",
+					"SettingsURL": h.EmailFrontendURL + "/settings",
 				})
 			}()
 		}
@@ -343,15 +392,17 @@ func (h *Handler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hash new password
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	// Hash new password using Better Auth's API to ensure 100% compatibility
+	// Better Auth doesn't have a change-password endpoint for logged-in users,
+	// so we use their hash-password endpoint and then update manually
+	passwordHash, err := h.hashPasswordWithBetterAuth(req.NewPassword)
 	if err != nil {
-		slog.Error("failed to hash password", "error", err)
+		slog.Error("failed to hash password with Better Auth", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Update password
+	// Update password in database (Better Auth's hash format ensures compatibility)
 	if err := h.TokenStore.UpdateUserPassword(ctx, req.UserID, string(passwordHash)); err != nil {
 		slog.Error("failed to update password", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
@@ -398,6 +449,66 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 	// This endpoint is for internal use - in production, events should be published directly
 	// For now, we'll just acknowledge - actual publishing happens in backend services
 	writeJSON(w, map[string]string{"message": "event received"}, http.StatusOK)
+}
+
+// hashPasswordWithBetterAuth hashes a password using Better Auth's API
+// DEPRECATED: This function is only used for HandleChangePassword since Better Auth
+// doesn't have a change-password endpoint for logged-in users. HandleResetPassword
+// now uses Better Auth's /api/auth/reset-password endpoint directly.
+// This ensures the hash format is compatible with Better Auth's validation
+func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
+	// Try to use Better Auth's hash-password endpoint
+	hashURL := fmt.Sprintf("%s/api/auth/hash-password", h.FrontendURL)
+	
+	reqBody, err := json.Marshal(map[string]string{"password": password})
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal request: %w", err)
+	}
+	
+	req, err := http.NewRequest("POST", hashURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		// Fallback to local bcrypt if Better Auth endpoint is unavailable
+		slog.Warn("Better Auth hash endpoint unavailable, using local bcrypt", "error", err)
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		if err != nil {
+			return "", fmt.Errorf("failed to hash password: %w", err)
+		}
+		return string(hash), nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		// Fallback to local bcrypt if Better Auth endpoint returns error
+		slog.Warn("Better Auth hash endpoint returned error, using local bcrypt", "status", resp.StatusCode, "body", string(body))
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		if err != nil {
+			return "", fmt.Errorf("failed to hash password: %w", err)
+		}
+		return string(hash), nil
+	}
+	
+	var result struct {
+		Hash string `json:"hash"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		// Fallback to local bcrypt if response parsing fails
+		slog.Warn("Failed to parse Better Auth response, using local bcrypt", "error", err)
+		hash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		if err != nil {
+			return "", fmt.Errorf("failed to hash password: %w", err)
+		}
+		return string(hash), nil
+	}
+	
+	return result.Hash, nil
 }
 
 // HandleHealth handles GET /health

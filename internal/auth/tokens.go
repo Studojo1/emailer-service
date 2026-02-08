@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,8 @@ func GenerateToken() (string, error) {
 }
 
 // CreatePasswordResetToken creates a new password reset token
+// It stores the token in both our password_reset_tokens table (for tracking) 
+// and Better Auth's verification table (for Better Auth API compatibility)
 func (ts *TokenStore) CreatePasswordResetToken(ctx context.Context, userID string, expiresIn time.Duration) (string, error) {
 	token, err := GenerateToken()
 	if err != nil {
@@ -40,14 +43,35 @@ func (ts *TokenStore) CreatePasswordResetToken(ctx context.Context, userID strin
 
 	id := uuid.New()
 	expiresAt := time.Now().UTC().Add(expiresIn)
+	now := time.Now().UTC()
 
+	// Store in our password_reset_tokens table (for tracking and our own validation)
 	_, err = ts.db.ExecContext(ctx, `
 		INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at)
 		VALUES ($1, $2, $3, $4, $5)`,
-		id.String(), userID, token, expiresAt, time.Now().UTC(),
+		id.String(), userID, token, expiresAt, now,
 	)
 	if err != nil {
 		return "", err
+	}
+
+	// Also store in Better Auth's verification table format for API compatibility
+	// Better Auth expects: identifier = "reset-password:${token}", value = userID
+	verificationID := uuid.New().String()
+	identifier := fmt.Sprintf("reset-password:%s", token)
+	// Delete any existing verification entry for this identifier first (in case of re-request)
+	_, _ = ts.db.ExecContext(ctx, `DELETE FROM verification WHERE identifier = $1`, identifier)
+	// Insert new verification entry
+	_, err = ts.db.ExecContext(ctx, `
+		INSERT INTO verification (id, identifier, value, expires_at, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6)`,
+		verificationID, identifier, userID, expiresAt, now, now,
+	)
+	if err != nil {
+		// Log error but don't fail - our token system still works
+		// Better Auth API might not work, but our manual flow will
+		slog.Warn("failed to create Better Auth verification token", "error", err)
+		// Continue - our password_reset_tokens table entry was successful
 	}
 
 	return token, nil
@@ -96,46 +120,66 @@ func (ts *TokenStore) MarkTokenAsUsed(ctx context.Context, token string) error {
 }
 
 // UpdateUserPassword updates or creates a user's password account (hybrid model)
+// This function ensures we never create duplicate accounts - it always updates existing ones if they exist
+// Safe for production migration: will update existing accounts instead of creating duplicates
 func (ts *TokenStore) UpdateUserPassword(ctx context.Context, userID, passwordHash string) error {
-	// Check if credential account exists
-	var existingID string
-	err := ts.db.QueryRowContext(ctx, `
-		SELECT id FROM account
-		WHERE user_id = $1 AND provider_id = 'credential'
-		LIMIT 1`,
-		userID,
-	).Scan(&existingID)
-
-	if err == sql.ErrNoRows {
-		// Create new credential account for OAuth users (hybrid model)
-		// Better Auth expects account_id to be the user's email for credential accounts
-		var userEmail string
-		err = ts.db.QueryRowContext(ctx, `SELECT email FROM "user" WHERE id = $1`, userID).Scan(&userEmail)
-		if err != nil {
-			return fmt.Errorf("failed to get user email: %w", err)
-		}
-		
-		accountID := uuid.New().String()
-		now := time.Now().UTC()
-		_, err = ts.db.ExecContext(ctx, `
-			INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-			accountID, userEmail, "credential", userID, passwordHash, now, now,
-		)
-		return err
-	}
+	// Get user email first (needed for both create and update)
+	var userEmail string
+	err := ts.db.QueryRowContext(ctx, `SELECT email FROM "user" WHERE id = $1`, userID).Scan(&userEmail)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get user email: %w", err)
 	}
 
-	// Update existing account
-	_, err = ts.db.ExecContext(ctx, `
+	// Try to update existing account first (prevents duplicates in production)
+	// This ensures we update existing accounts instead of creating new ones
+	result, err := ts.db.ExecContext(ctx, `
 		UPDATE account
-		SET password = $1, updated_at = $2
-		WHERE id = $3`,
-		passwordHash, time.Now().UTC(), existingID,
+		SET password = $1, account_id = $2, updated_at = $3
+		WHERE user_id = $4 AND provider_id = 'credential'`,
+		passwordHash, userEmail, time.Now().UTC(), userID,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update account: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	// If account was updated, we're done
+	if rowsAffected > 0 {
+		return nil
+	}
+
+	// No account exists - create one for OAuth users (hybrid model)
+	// Better Auth expects account_id to be the user's email for credential accounts
+	accountID := uuid.New().String()
+	now := time.Now().UTC()
+	_, err = ts.db.ExecContext(ctx, `
+		INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		accountID, userEmail, "credential", userID, passwordHash, now, now,
+	)
+	
+	// If INSERT fails (e.g., due to race condition), try UPDATE again
+	if err != nil {
+		// Account might have been created by another process, try update again
+		_, updateErr := ts.db.ExecContext(ctx, `
+			UPDATE account
+			SET password = $1, account_id = $2, updated_at = $3
+			WHERE user_id = $4 AND provider_id = 'credential'`,
+			passwordHash, userEmail, time.Now().UTC(), userID,
+		)
+		if updateErr == nil {
+			// Update succeeded, ignore the INSERT error
+			return nil
+		}
+		// Both failed, return the original INSERT error
+		return fmt.Errorf("failed to create account: %w", err)
+	}
+
+	return nil
 }
 
 // VerifyPassword verifies a user's current password

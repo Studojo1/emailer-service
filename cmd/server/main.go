@@ -64,10 +64,16 @@ func main() {
 		senderEmail = "no-reply@studojo.com"
 	}
 
-	// Frontend URL for email links
+	// Frontend URL for internal service-to-service calls (e.g., http://frontend:3000)
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:3000" // Default to localhost for development
+		frontendURL = "http://frontend:3000" // Default to service name for Docker
+	}
+	
+	// Frontend URL for email links that users click (e.g., http://localhost:3000)
+	emailFrontendURL := os.Getenv("EMAIL_FRONTEND_URL")
+	if emailFrontendURL == "" {
+		emailFrontendURL = "http://localhost:3000" // Default to localhost for email links
 	}
 
 	// Template directory
@@ -130,13 +136,14 @@ func main() {
 
 	// Initialize handlers
 	httpHandler := &handlers.Handler{
-		Store:       store,
-		Sender:      sender,
-		TokenStore:  tokenStore,
-		FrontendURL: frontendURL,
+		Store:            store,
+		Sender:           sender,
+		TokenStore:       tokenStore,
+		FrontendURL:      frontendURL,
+		EmailFrontendURL: emailFrontendURL,
 	}
 
-	eventHandler := handlers.NewEventHandler(store, sender, frontendURL)
+	eventHandler := handlers.NewEventHandler(store, sender, emailFrontendURL)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()

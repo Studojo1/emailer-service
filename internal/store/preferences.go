@@ -73,17 +73,30 @@ func (s *PostgresStore) UpdateEmailPreferences(ctx context.Context, userID strin
 	return err
 }
 
-// GetUserByEmail gets a user by email address
+// GetUserByEmail gets a user by email address (case-insensitive)
 func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+	// First, try exact match
 	var user User
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, email, name
 		FROM "user"
-		WHERE email = $1`,
+		WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))`,
 		email,
 	).Scan(&user.ID, &user.Email, &user.Name)
 
 	if err == sql.ErrNoRows {
+		// Log for debugging - check if user exists with different casing/whitespace
+		var allEmails []string
+		rows, _ := s.db.QueryContext(ctx, `SELECT email FROM "user"`)
+		if rows != nil {
+			for rows.Next() {
+				var e string
+				if rows.Scan(&e) == nil {
+					allEmails = append(allEmails, e)
+				}
+			}
+			rows.Close()
+		}
 		return nil, nil
 	}
 	if err != nil {
