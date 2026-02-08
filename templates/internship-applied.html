@@ -1,0 +1,15 @@
+{{define "content"}}
+<h2>Application Submitted Successfully!</h2>
+<p>Hi {{.UserName}},</p>
+<p>Your application for the <strong>{{.InternshipTitle}}</strong> position at <strong>{{.CompanyName}}</strong> has been submitted successfully.</p>
+<div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 24px 0; border: 2px solid #e5e5e5;">
+    <p style="margin: 0 0 8px 0; color: #171717; font-weight: 500;">Application Details:</p>
+    <p style="margin: 4px 0; color: #525252; font-size: 14px;"><strong>Position:</strong> {{.InternshipTitle}}</p>
+    <p style="margin: 4px 0; color: #525252; font-size: 14px;"><strong>Company:</strong> {{.CompanyName}}</p>
+    <p style="margin: 4px 0; color: #525252; font-size: 14px;"><strong>Submitted:</strong> {{.Timestamp}}</p>
+</div>
+<p>We'll keep you updated on the status of your application. You can track all your applications from your dashboard.</p>
+<a href="{{.ViewApplicationURL}}" class="button">View Applications</a>
+<p style="margin-top: 32px; font-size: 14px; color: #525252;">Good luck with your application!</p>
+{{end}}
+

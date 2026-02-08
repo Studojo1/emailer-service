@@ -1,0 +1,15 @@
+{{define "content"}}
+<h2>Your Resume Has Been Optimized!</h2>
+<p>Hi {{.UserName}},</p>
+<p>Great news! Your resume <strong>{{.ResumeName}}</strong> has been successfully optimized and is ready for review.</p>
+{{if .ImprovementsSummary}}
+<p><strong>Summary of improvements:</strong></p>
+<div style="background-color: #faf5fe; padding: 16px; border-radius: 8px; margin: 16px 0; border: 2px solid #dab2ff;">
+    <p style="margin: 0; color: #171717;">{{.ImprovementsSummary}}</p>
+</div>
+{{end}}
+<p>You can now view and download your optimized resume from your dashboard.</p>
+<a href="{{.ViewResumeURL}}" class="button">View Resume</a>
+<p style="margin-top: 32px; font-size: 14px; color: #525252;">Keep building your career with Studojo!</p>
+{{end}}
+
