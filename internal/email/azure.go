@@ -67,7 +67,9 @@ func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string)
 	}
 	
 	// Azure Communication Services Email REST API endpoint
-	url := fmt.Sprintf("%s/emails:send?api-version=2023-03-31", c.endpoint)
+	// Remove trailing slash from endpoint if present to avoid double slashes
+	endpoint := strings.TrimSuffix(c.endpoint, "/")
+	url := fmt.Sprintf("%s/emails:send?api-version=2023-03-31", endpoint)
 	
 	// Build request payload
 	payload := map[string]interface{}{
