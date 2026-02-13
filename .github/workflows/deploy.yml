@@ -78,4 +78,3 @@ jobs:
               "status": "success",
               "workflow_run": ${{ github.run_id }}
             }' || echo "Failed to record deployment (non-critical)"
-
