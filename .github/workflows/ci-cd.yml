@@ -5,18 +5,15 @@ on:
     branches:
       - main
       - master
-    paths:
-      - 'services/emailer-service/**'
-      - '.github/workflows/service-ci-cd.yml'
   tags:
     - 'v*.*.*'
 
 jobs:
   build-and-deploy:
-    uses: ./.github/workflows/service-ci-cd.yml@main
+    uses: studojo/studojo/.github/workflows/service-ci-cd.yml@master
     with:
       service_name: emailer-service
-      service_path: ./services/emailer-service
+      service_path: .
       k8s_deployment_name: emailer-service
       k8s_container_name: emailer-service
     secrets:
@@ -26,4 +23,3 @@ jobs:
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       KUBECONFIG: ${{ secrets.KUBECONFIG }}
       DEV_PANEL_WEBHOOK_URL: ${{ secrets.DEV_PANEL_WEBHOOK_URL }}
-
