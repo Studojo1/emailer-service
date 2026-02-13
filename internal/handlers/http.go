@@ -125,12 +125,15 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 	slog.Info("sending password reset email", "user_id", user.ID, "email", user.Email, "has_password", hasPassword)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "forgot-password", emailData)
 	if err != nil {
+		// Log error but don't reveal failure to client (security best practice - prevents email enumeration)
 		slog.Error("failed to send reset email", "error", err, "user_id", user.ID, "email", user.Email)
-		writeError(w, "failed to send email", http.StatusInternalServerError)
-		return
+		// Still return success to prevent email enumeration attacks
+		// The token was created successfully, so the user can still reset via direct link if needed
+	} else {
+		slog.Info("password reset email sent successfully", "user_id", user.ID, "email", user.Email)
 	}
-	slog.Info("password reset email sent successfully", "user_id", user.ID, "email", user.Email)
 
+	// Always return success to prevent email enumeration (don't reveal if email was sent or not)
 	writeJSON(w, map[string]string{"message": "If an account exists, a password reset link has been sent"}, http.StatusOK)
 }
 
