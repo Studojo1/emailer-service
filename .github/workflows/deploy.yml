@@ -63,7 +63,7 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'latest'
+          version: "latest"
 
       - name: Get AKS credentials
         run: |
@@ -94,6 +94,7 @@ jobs:
         run: |
           curl -X POST https://api.studojo.com/v1/dev/deployments \
             -H "Content-Type: application/json" \
+            -H "X-Deployment-Secret: ${{ secrets.DEPLOYMENT_SECRET }}" \
             -d '{
               "service": "${{ env.SERVICE_NAME }}",
               "version": "${{ env.IMAGE_TAG }}",
