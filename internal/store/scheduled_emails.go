@@ -56,6 +56,18 @@ func (s *PostgresStore) GetDueScheduledEmails(ctx context.Context) ([]ScheduledE
 	return emails, rows.Err()
 }
 
+// RecordSentEmail inserts an already-sent email into scheduled_emails for tracking
+func (s *PostgresStore) RecordSentEmail(ctx context.Context, userID, emailType string) error {
+	id := uuid.New()
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO scheduled_emails (id, user_id, email_type, scheduled_at, sent_at, created_at)
+		VALUES ($1, $2, $3, $4, $4, $5)`,
+		id.String(), userID, emailType, now, now,
+	)
+	return err
+}
+
 // MarkScheduledEmailSent marks a scheduled email as sent
 func (s *PostgresStore) MarkScheduledEmailSent(ctx context.Context, id uuid.UUID) error {
 	now := time.Now().UTC()

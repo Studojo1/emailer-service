@@ -76,6 +76,11 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 
 	slog.Info("welcome email sent", "user_id", event.UserID, "email", event.Email)
 
+	// Record the sent welcome email for admin tracking
+	if err := h.Store.RecordSentEmail(ctx, event.UserID, "welcome"); err != nil {
+		slog.Error("failed to record welcome email", "error", err)
+	}
+
 	// Schedule nurture sequence
 	now := time.Now().UTC()
 	nurture := []struct {
@@ -128,6 +133,9 @@ func (h *EventHandler) HandleResumeOptimized(ctx context.Context, event *ResumeO
 	}
 
 	slog.Info("resume optimized email sent", "user_id", event.UserID, "job_id", event.JobID)
+	if err := h.Store.RecordSentEmail(ctx, event.UserID, "resume-optimized"); err != nil {
+		slog.Error("failed to record resume optimized email", "error", err)
+	}
 	return nil
 }
 
@@ -165,6 +173,9 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	}
 
 	slog.Info("internship applied email sent", "user_id", event.UserID, "internship_id", event.InternshipID)
+	if err := h.Store.RecordSentEmail(ctx, event.UserID, "internship-applied"); err != nil {
+		slog.Error("failed to record internship applied email", "error", err)
+	}
 	return nil
 }
 
