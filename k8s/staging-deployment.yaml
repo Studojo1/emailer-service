@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: emailer-service
+  namespace: staging
+  labels:
+    app: emailer-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: emailer-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: emailer-service
+    spec:
+      imagePullSecrets:
+        - name: acr-secret
+      containers:
+        - name: emailer-service
+          image: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io/emailer-service:latest
+          ports:
+            - name: http
+              containerPort: 8087
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: database-url
+            - name: RABBITMQ_URL
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: rabbitmq-url
+            - name: AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: azure-communication-connection-string
+            - name: AZURE_EMAIL_SENDER_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: AZURE_EMAIL_SENDER_ADDRESS
+            - name: HTTP_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: HTTP_PORT_EMAILER
+            - name: CORS_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: CORS_ORIGINS
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: FRONTEND_URL
+            - name: EMAIL_FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: EMAIL_FRONTEND_URL
+            - name: TEMPLATE_DIR
+              value: /app/templates
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8087
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8087
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 25m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: emailer-service
+  namespace: staging
+  labels:
+    app: emailer-service
+spec:
+  selector:
+    app: emailer-service
+  ports:
+    - name: http
+      port: 8087
+      targetPort: 8087
+      protocol: TCP
+  type: ClusterIP
