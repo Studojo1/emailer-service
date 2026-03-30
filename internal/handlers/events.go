@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
 	"github.com/studojo/emailer-service/internal/store"
@@ -74,6 +75,24 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 	}
 
 	slog.Info("welcome email sent", "user_id", event.UserID, "email", event.Email)
+
+	// Schedule nurture sequence
+	now := time.Now().UTC()
+	nurture := []struct {
+		emailType string
+		delay     time.Duration
+	}{
+		{"nurture_day3", 3 * 24 * time.Hour},
+		{"nurture_day7", 7 * 24 * time.Hour},
+		{"nurture_day14", 14 * 24 * time.Hour},
+		{"nurture_day30", 30 * 24 * time.Hour},
+	}
+	for _, n := range nurture {
+		if err := h.Store.CreateScheduledEmail(ctx, event.UserID, n.emailType, now.Add(n.delay)); err != nil {
+			slog.Error("failed to schedule nurture email", "type", n.emailType, "user_id", event.UserID, "error", err)
+		}
+	}
+
 	return nil
 }
 

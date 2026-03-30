@@ -18,10 +18,11 @@ import (
 
 // Handler holds HTTP handlers for emailer service
 type Handler struct {
-	Store      *store.PostgresStore
-	Sender     *email.Sender
-	TokenStore *auth.TokenStore
-	FrontendURL string      // For internal service-to-service calls (e.g., http://frontend:3000)
+	Store            *store.PostgresStore
+	Sender           *email.Sender
+	TokenStore       *auth.TokenStore
+	EventHandler     *EventHandler
+	FrontendURL      string // For internal service-to-service calls (e.g., http://frontend:3000)
 	EmailFrontendURL string // For email links that users click (e.g., http://localhost:3000)
 }
 
@@ -449,8 +450,13 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// This endpoint is for internal use - in production, events should be published directly
-	// For now, we'll just acknowledge - actual publishing happens in backend services
+	// Process the event asynchronously so we can return 200 immediately
+	go func() {
+		if err := h.EventHandler.ProcessEvent(context.Background(), event.RoutingKey, event.Event); err != nil {
+			slog.Error("failed to process event", "routing_key", event.RoutingKey, "error", err)
+		}
+	}()
+
 	writeJSON(w, map[string]string{"message": "event received"}, http.StatusOK)
 }
 

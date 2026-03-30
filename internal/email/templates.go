@@ -54,7 +54,7 @@ func (tr *TemplateRenderer) Render(name string, data interface{}) (string, error
 
 // LoadAllTemplates loads all email templates
 func (tr *TemplateRenderer) LoadAllTemplates() error {
-	templates := []string{"welcome", "forgot-password", "resume-optimized", "internship-applied", "password-changed"}
+	templates := []string{"welcome", "forgot-password", "resume-optimized", "internship-applied", "password-changed", "nurture-day3", "nurture-day7", "nurture-day14", "nurture-day30"}
 	for _, name := range templates {
 		if err := tr.LoadTemplate(name); err != nil {
 			return fmt.Errorf("failed to load template %s: %w", name, err)

@@ -19,6 +19,7 @@ import (
 	"github.com/studojo/emailer-service/internal/handlers"
 	"github.com/studojo/emailer-service/internal/messaging"
 	"github.com/studojo/emailer-service/internal/middleware"
+	"github.com/studojo/emailer-service/internal/scheduler"
 	"github.com/studojo/emailer-service/internal/store"
 )
 
@@ -134,16 +135,35 @@ func main() {
 	store := store.NewPostgresStore(db)
 	tokenStore := auth.NewTokenStore(db)
 
+	// Ensure scheduled_emails table exists
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS scheduled_emails (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id TEXT NOT NULL,
+			email_type TEXT NOT NULL,
+			scheduled_at TIMESTAMPTZ NOT NULL,
+			sent_at TIMESTAMPTZ,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due
+			ON scheduled_emails (scheduled_at) WHERE sent_at IS NULL;
+	`)
+	if err != nil {
+		slog.Error("failed to create scheduled_emails table", "error", err)
+		os.Exit(1)
+	}
+
 	// Initialize handlers
+	eventHandler := handlers.NewEventHandler(store, sender, emailFrontendURL)
+
 	httpHandler := &handlers.Handler{
 		Store:            store,
 		Sender:           sender,
 		TokenStore:       tokenStore,
+		EventHandler:     eventHandler,
 		FrontendURL:      frontendURL,
 		EmailFrontendURL: emailFrontendURL,
 	}
-
-	eventHandler := handlers.NewEventHandler(store, sender, emailFrontendURL)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -180,6 +200,10 @@ func main() {
 	go func() {
 		messaging.RunWithRetry(ctx, consumer, 5*time.Second)
 	}()
+
+	// Start nurture email scheduler
+	sched := scheduler.NewScheduler(store, sender, emailFrontendURL)
+	go sched.Run(ctx)
 
 	// Start HTTP server
 	addr := ":" + port

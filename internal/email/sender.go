@@ -59,7 +59,7 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 func (s *Sender) getSubject(templateName string, data interface{}) (string, error) {
 	switch templateName {
 	case "welcome":
-		return "Welcome to Studojo!", nil
+		return "Welcome to Studojo", nil
 	case "forgot-password":
 		return "Reset your Studojo password", nil
 	case "resume-optimized":
@@ -68,6 +68,14 @@ func (s *Sender) getSubject(templateName string, data interface{}) (string, erro
 		return "Application submitted successfully", nil
 	case "password-changed":
 		return "Your password has been changed", nil
+	case "nurture-day3":
+		return "Most students are applying the wrong way", nil
+	case "nurture-day7":
+		return "Still looking?", nil
+	case "nurture-day14":
+		return "A student got 3 interview calls in one week", nil
+	case "nurture-day30":
+		return "One month in — wanted to ask you something", nil
 	default:
 		return "Message from Studojo", nil
 	}
