@@ -1,11 +1,31 @@
 {{define "content"}}
-<h2>Hey {{.UserName}},</h2>
-<p>I started Studojo because I watched too many smart students apply to 200 jobs and hear nothing back.</p>
-<p>Not because they weren't good enough. Because they were doing it the same way as everyone else — job boards, generic applications, silence.</p>
-<p>Studojo is built to change that. The outreach tool finds the right people at the right companies and writes personalised emails to each of them, sent from your Gmail. Students have gotten callbacks within 48 hours from founders who weren't publicly hiring.</p>
-<p>That's what you signed up for. Start here.</p>
-<a href="{{.DashboardURL}}" class="button">Go to your dashboard</a>
-<p style="margin-top: 32px; font-size: 14px; color: #525252;">If anything isn't working or you have a question, reply to this email. I read them.</p>
-<p style="font-size: 14px; color: #525252;">Jeremy<br>Studojo</p>
-{{end}}
+<h2 class="greeting">Hey {{.UserName}} 👋</h2>
 
+<p>I started Studojo because I watched too many smart students apply to 200 jobs and hear nothing back.</p>
+
+<p>Not because they weren't good enough. Because they were doing it the same way as everyone else.</p>
+
+<div class="highlight-box">
+    <p>Studojo's outreach tool finds the right people at the right companies and writes personalised emails to each of them — sent from your Gmail. Students have gotten callbacks within 48 hours.</p>
+</div>
+
+<p style="font-weight:600;color:#171717;margin-bottom:8px;">Here's what you can do right now:</p>
+
+<ol class="steps-list">
+    <li><strong>Upload your resume</strong> — we'll extract your skills and experience automatically</li>
+    <li><strong>Answer 5 quick questions</strong> — so we know what kind of roles you're after</li>
+    <li><strong>We find the people + write the emails</strong> — personalised outreach, sent from your inbox</li>
+</ol>
+
+<div style="text-align:center;">
+    <a href="{{.DashboardURL}}" class="btn-primary">Go to your dashboard →</a>
+</div>
+
+<hr class="divider">
+
+<div class="signature">
+    <p class="name">Jeremy</p>
+    <p>Founder, Studojo</p>
+    <p style="margin-top:8px;font-size:13px;">Reply to this email anytime — I read them all.</p>
+</div>
+{{end}}

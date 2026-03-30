@@ -1,9 +1,63 @@
 {{define "content"}}
-<h2>Hey {{.UserName}},</h2>
-<p>Here's something most students don't know: the best internships are never posted publicly.</p>
-<p>They go to whoever reached out first. Directly. To the founder or hiring manager — before anyone else even knew the role existed.</p>
-<p>That's what the Internship Dojo does. You upload your resume, answer 5 questions, and we find the right people at the right companies and write personalised emails to each of them. Sent from your Gmail.</p>
-<p>It takes about 10 minutes to set up. Students have gotten callbacks within 48 hours.</p>
-<a href="{{.InternshipURL}}" class="button">Find your internship</a>
-<p style="margin-top: 32px; font-size: 14px; color: #525252;">Jeremy<br>Studojo</p>
+<h2 class="greeting">Hey {{.UserName}},</h2>
+
+<p>Here's something most students don't know:</p>
+
+<div class="highlight-box">
+    <p>The best internships are never posted publicly. They go to whoever reached out first — directly to the founder or hiring manager — before anyone else even knew the role existed.</p>
+</div>
+
+<p>That's exactly what the Internship Dojo does.</p>
+
+<div style="margin:24px 0;">
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-purple">📄</div>
+        <div class="feature-text">
+            <h3>Upload your resume</h3>
+            <p>We extract your skills, experience, and what makes you stand out</p>
+        </div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-blue">🎯</div>
+        <div class="feature-text">
+            <h3>Answer 5 questions</h3>
+            <p>So we know the exact roles and companies you're targeting</p>
+        </div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-green">📬</div>
+        <div class="feature-text">
+            <h3>We find the right people</h3>
+            <p>Personalised emails to hiring managers, sent from your Gmail</p>
+        </div>
+    </div>
+</div>
+
+<!--[if mso]>
+<table role="presentation" cellspacing="0" cellpadding="0"><tr><td>
+<![endif]-->
+<div class="stat-row">
+    <div class="stat-box">
+        <span class="stat-number">10 min</span>
+        <span class="stat-label">Setup time</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">48 hrs</span>
+        <span class="stat-label">Avg. first callback</span>
+    </div>
+</div>
+<!--[if mso]>
+</td></tr></table>
+<![endif]-->
+
+<div style="text-align:center;">
+    <a href="{{.InternshipURL}}" class="btn-primary">Find your internship →</a>
+</div>
+
+<hr class="divider">
+
+<div class="signature">
+    <p class="name">Jeremy</p>
+    <p>Founder, Studojo</p>
+</div>
 {{end}}

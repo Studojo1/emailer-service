@@ -1,9 +1,45 @@
 {{define "content"}}
-<h2>Hey {{.UserName}},</h2>
+<h2 class="greeting">Hey {{.UserName}},</h2>
+
 <p>You signed up a month ago. I wanted to personally check in.</p>
-<p>If you've already found something — that's great. Let me know, I'd love to hear about it.</p>
-<p>If you're still looking — the outreach tool is still here, and it's gotten better since you last logged in.</p>
-<p>Either way, if there's something you needed that we didn't have, I actually read replies to this email. Tell me.</p>
-<a href="{{.DashboardURL}}" class="button">Go to Studojo</a>
-<p style="margin-top: 32px; font-size: 14px; color: #525252;">Jeremy<br>Studojo</p>
+
+<div style="margin:24px 0;">
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-green">🎉</div>
+        <div class="feature-text">
+            <h3>Already found something?</h3>
+            <p>That's great — I'd love to hear about it. Reply to this email and let me know.</p>
+        </div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-purple">🔍</div>
+        <div class="feature-text">
+            <h3>Still looking?</h3>
+            <p>The outreach tool is still here, and it's gotten better since you last logged in.</p>
+        </div>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon feature-icon-amber">💬</div>
+        <div class="feature-text">
+            <h3>Something missing?</h3>
+            <p>If there's something you needed that we didn't have, I actually read replies to this email. Tell me.</p>
+        </div>
+    </div>
+</div>
+
+<div class="highlight-box">
+    <p>We've added new features since you joined — better lead matching, smarter email personalisation, and faster setup. Worth another look.</p>
+</div>
+
+<div style="text-align:center;">
+    <a href="{{.DashboardURL}}" class="btn-primary">Go to Studojo →</a>
+</div>
+
+<hr class="divider">
+
+<div class="signature">
+    <p class="name">Jeremy</p>
+    <p>Founder, Studojo</p>
+    <p style="margin-top:8px;font-size:13px;">This isn't an automated follow-up. I actually want to know how it's going.</p>
+</div>
 {{end}}

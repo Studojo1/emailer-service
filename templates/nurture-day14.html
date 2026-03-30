@@ -1,10 +1,50 @@
 {{define "content"}}
-<h2>Hey {{.UserName}},</h2>
+<h2 class="greeting">Hey {{.UserName}},</h2>
+
 <p>Last month, a student from Delhi — second year, no prior internship experience — got 3 interview calls in 7 days.</p>
+
 <p>He didn't apply on Internshala. He didn't send 100 cold emails manually.</p>
-<p>He used Studojo's outreach tool. We found 40 relevant hiring managers, wrote personalised emails for each one, and sent them from his Gmail.</p>
-<p>3 replied. 3 calls booked.</p>
+
+<div class="highlight-box">
+    <p>He used Studojo's outreach tool. We found 40 relevant hiring managers, wrote personalised emails for each one, and sent them from his Gmail.</p>
+</div>
+
+<!--[if mso]>
+<table role="presentation" cellspacing="0" cellpadding="0"><tr><td>
+<![endif]-->
+<div class="stat-row">
+    <div class="stat-box">
+        <span class="stat-number">40</span>
+        <span class="stat-label">Hiring managers</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">3</span>
+        <span class="stat-label">Replies</span>
+    </div>
+    <div class="stat-box">
+        <span class="stat-number">7 days</span>
+        <span class="stat-label">Time to callback</span>
+    </div>
+</div>
+<!--[if mso]>
+</td></tr></table>
+<![endif]-->
+
+<div class="quote-block">
+    <p>"I didn't think cold outreach would work. I had no experience and no connections. But 3 people replied within a week — and one of them wasn't even hiring publicly."</p>
+    <p class="attribution">— 2nd year student, Delhi</p>
+</div>
+
 <p>That's the playbook. It's available to you right now.</p>
-<a href="{{.OutreachURL}}" class="button">Try it</a>
-<p style="margin-top: 32px; font-size: 14px; color: #525252;">Jeremy<br>Studojo</p>
+
+<div style="text-align:center;">
+    <a href="{{.OutreachURL}}" class="btn-primary">Try the outreach tool →</a>
+</div>
+
+<hr class="divider">
+
+<div class="signature">
+    <p class="name">Jeremy</p>
+    <p>Founder, Studojo</p>
+</div>
 {{end}}
