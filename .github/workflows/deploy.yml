@@ -10,6 +10,7 @@ permissions:
 
 env:
   REGISTRY: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io
+  ACR_NAME: acrstudojo
   SERVICE_NAME: emailer-service
   IMAGE_TAG: ${{ github.sha }}
 
@@ -32,8 +33,8 @@ jobs:
 
       - name: Login to Azure Container Registry
         run: |
-          ACR_TOKEN=$(az acr login --name acrstudojo-dhfsdrfhf6a6bbg2 --expose-token --output tsv --query accessToken)
-          echo "$ACR_TOKEN" | docker login acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io --username 00000000-0000-0000-0000-000000000000 --password-stdin
+          TOKEN=$(az acr login --name ${{ env.ACR_NAME }} --expose-token --output tsv --query accessToken)
+          docker login ${{ env.REGISTRY }} -u 00000000-0000-0000-0000-000000000000 -p "$TOKEN"
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -74,18 +75,18 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
-          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n studojo --timeout=10m || {
+          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n staging
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n staging --timeout=10m || {
             echo "Rollout failed or timed out. Checking pod status..."
-            kubectl get pods -n studojo -l app=${{ env.SERVICE_NAME }} -o wide
+            kubectl get pods -n staging -l app=${{ env.SERVICE_NAME }} -o wide
             echo ""
             echo "Recent pod events:"
-            LATEST_POD=$(kubectl get pods -n studojo -l app=${{ env.SERVICE_NAME }} --sort-by=.metadata.creationTimestamp -o jsonpath='{{.items[-1].metadata.name}}' 2>/dev/null || echo "")
+            LATEST_POD=$(kubectl get pods -n staging -l app=${{ env.SERVICE_NAME }} --sort-by=.metadata.creationTimestamp -o jsonpath='{{.items[-1].metadata.name}}' 2>/dev/null || echo "")
             if [ -n "$LATEST_POD" ]; then
-              kubectl get events -n studojo --field-selector involvedObject.name=$LATEST_POD --sort-by='.lastTimestamp' | tail -20 || true
+              kubectl get events -n staging --field-selector involvedObject.name=$LATEST_POD --sort-by='.lastTimestamp' | tail -20 || true
               echo ""
               echo "Pod logs:"
-              kubectl logs -n studojo $LATEST_POD --tail=50 || true
+              kubectl logs -n staging $LATEST_POD --tail=50 || true
             fi
             exit 1
           }
