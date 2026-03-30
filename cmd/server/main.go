@@ -135,8 +135,19 @@ func main() {
 	store := store.NewPostgresStore(db)
 	tokenStore := auth.NewTokenStore(db)
 
-	// Ensure scheduled_emails table exists
+	// Ensure tables exist
 	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS email_preferences (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id TEXT NOT NULL UNIQUE,
+			product_emails BOOLEAN NOT NULL DEFAULT true,
+			resume_emails BOOLEAN NOT NULL DEFAULT true,
+			internship_emails BOOLEAN NOT NULL DEFAULT true,
+			security_emails BOOLEAN NOT NULL DEFAULT true,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_preferences_user_id ON email_preferences(user_id);
 		CREATE TABLE IF NOT EXISTS scheduled_emails (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id TEXT NOT NULL,
@@ -149,7 +160,7 @@ func main() {
 			ON scheduled_emails (scheduled_at) WHERE sent_at IS NULL;
 	`)
 	if err != nil {
-		slog.Error("failed to create scheduled_emails table", "error", err)
+		slog.Error("failed to create tables", "error", err)
 		os.Exit(1)
 	}
 
