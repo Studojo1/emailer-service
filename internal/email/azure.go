@@ -3,12 +3,16 @@ package email
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/smtp"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -96,7 +100,9 @@ func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+c.accessKey)
+	if err := c.signRequest(req, body); err != nil {
+		return fmt.Errorf("failed to sign request: %w", err)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -120,6 +126,43 @@ func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string)
 		}
 	}
 
+	return nil
+}
+
+// signRequest signs an ACS request using HMAC-SHA256 per Azure Communication Services auth spec.
+func (c *Client) signRequest(req *http.Request, body []byte) error {
+	keyBytes, err := base64.StdEncoding.DecodeString(c.accessKey)
+	if err != nil {
+		return fmt.Errorf("failed to decode access key: %w", err)
+	}
+
+	now := time.Now().UTC().Format(http.TimeFormat)
+	req.Header.Set("x-ms-date", now)
+
+	// Hash the body
+	hasher := sha256.New()
+	hasher.Write(body)
+	contentHash := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
+	req.Header.Set("x-ms-content-sha256", contentHash)
+
+	// Build string to sign: VERB\npath?query\ndate;host;contentHash
+	parsedURL, err := url.Parse(req.URL.String())
+	if err != nil {
+		return err
+	}
+	pathAndQuery := parsedURL.Path
+	if parsedURL.RawQuery != "" {
+		pathAndQuery += "?" + parsedURL.RawQuery
+	}
+	host := parsedURL.Host
+	stringToSign := fmt.Sprintf("%s\n%s\n%s;%s;%s",
+		req.Method, pathAndQuery, now, host, contentHash)
+
+	mac := hmac.New(sha256.New, keyBytes)
+	mac.Write([]byte(stringToSign))
+	signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	req.Header.Set("Authorization", fmt.Sprintf("HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=%s", signature))
 	return nil
 }
 
