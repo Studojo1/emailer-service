@@ -126,6 +126,52 @@ func (s *PostgresStore) GetUserByID(ctx context.Context, userID string) (*User, 
 	return &user, nil
 }
 
+// ListUsersBySignupDate returns users who signed up within the given number of days (0 = all users)
+func (s *PostgresStore) ListUsersBySignupDate(ctx context.Context, withinDays int) ([]User, error) {
+	var query string
+	var args []interface{}
+
+	if withinDays > 0 {
+		query = `SELECT id, email, COALESCE(name, '') FROM "user" WHERE created_at >= NOW() - INTERVAL '1 day' * $1 ORDER BY created_at DESC`
+		args = []interface{}{withinDays}
+	} else {
+		query = `SELECT id, email, COALESCE(name, '') FROM "user" ORDER BY created_at DESC`
+	}
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// CountUsersBySignupDate returns count of users who signed up within the given number of days (0 = all)
+func (s *PostgresStore) CountUsersBySignupDate(ctx context.Context, withinDays int) (int, error) {
+	var query string
+	var args []interface{}
+
+	if withinDays > 0 {
+		query = `SELECT COUNT(*) FROM "user" WHERE created_at >= NOW() - INTERVAL '1 day' * $1`
+		args = []interface{}{withinDays}
+	} else {
+		query = `SELECT COUNT(*) FROM "user"`
+	}
+
+	var count int
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&count)
+	return count, err
+}
+
 // HasPasswordAccount checks if user has a credential (password) account
 func (s *PostgresStore) HasPasswordAccount(ctx context.Context, userID string) (bool, error) {
 	var count int

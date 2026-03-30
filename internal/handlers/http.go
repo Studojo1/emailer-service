@@ -10,6 +10,7 @@ import (
 
 	"bytes"
 	"io"
+	"strconv"
 	"golang.org/x/crypto/bcrypt"
 	"github.com/studojo/emailer-service/internal/auth"
 	"github.com/studojo/emailer-service/internal/email"
@@ -458,6 +459,151 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeJSON(w, map[string]string{"message": "event received"}, http.StatusOK)
+}
+
+// BulkSendRequest represents a bulk email send request
+type BulkSendRequest struct {
+	EmailType    string `json:"email_type"`    // welcome, nurture_day3, nurture_day7, nurture_day14, nurture_day30
+	WithinDays   int    `json:"within_days"`   // 0 = all users
+}
+
+// HandleBulkSendPreview handles GET /v1/email/bulk-send/preview
+func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) {
+	withinDays := 0
+	if d := r.URL.Query().Get("within_days"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed >= 0 {
+			withinDays = parsed
+		}
+	}
+
+	count, err := h.Store.CountUsersBySignupDate(r.Context(), withinDays)
+	if err != nil {
+		slog.Error("failed to count users for bulk send preview", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]interface{}{
+		"count":       count,
+		"within_days": withinDays,
+	}, http.StatusOK)
+}
+
+// HandleBulkSend handles POST /v1/email/bulk-send
+func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
+	var req BulkSendRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.EmailType == "" {
+		writeError(w, "email_type is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate email type
+	validTypes := map[string]bool{
+		"welcome": true, "nurture_day3": true, "nurture_day7": true,
+		"nurture_day14": true, "nurture_day30": true,
+	}
+	if !validTypes[req.EmailType] {
+		writeError(w, "invalid email_type", http.StatusBadRequest)
+		return
+	}
+
+	// Get users matching the filter
+	users, err := h.Store.ListUsersBySignupDate(r.Context(), req.WithinDays)
+	if err != nil {
+		slog.Error("failed to list users for bulk send", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Return immediately with count, process in background
+	total := len(users)
+	writeJSON(w, map[string]interface{}{
+		"message": fmt.Sprintf("sending %s to %d users", req.EmailType, total),
+		"total":   total,
+	}, http.StatusOK)
+
+	// Send emails in background
+	go func() {
+		ctx := context.Background()
+		sent := 0
+		failed := 0
+
+		for _, user := range users {
+			// Check preferences
+			prefs, err := h.Store.GetEmailPreferences(ctx, user.ID)
+			if err != nil {
+				slog.Error("bulk send: failed to get preferences", "user_id", user.ID, "error", err)
+				failed++
+				continue
+			}
+			if !prefs.ProductEmails {
+				slog.Info("bulk send: skipping user, product emails disabled", "user_id", user.ID)
+				continue
+			}
+
+			// Build template data based on email type
+			templateName, templateData := h.buildTemplateData(req.EmailType, &user)
+
+			if err := h.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
+				slog.Error("bulk send: failed to send", "user_id", user.ID, "email_type", req.EmailType, "error", err)
+				failed++
+				continue
+			}
+
+			// Record sent email
+			if err := h.Store.RecordSentEmail(ctx, user.ID, req.EmailType); err != nil {
+				slog.Error("bulk send: failed to record", "user_id", user.ID, "error", err)
+			}
+
+			sent++
+			slog.Info("bulk send: email sent", "user_id", user.ID, "email_type", req.EmailType, "email", user.Email)
+
+			// Rate limit: small delay between sends
+			time.Sleep(200 * time.Millisecond)
+		}
+
+		slog.Info("bulk send complete", "email_type", req.EmailType, "total", total, "sent", sent, "failed", failed)
+	}()
+}
+
+// buildTemplateData returns the template name and data for a given email type
+func (h *Handler) buildTemplateData(emailType string, user *store.User) (string, map[string]interface{}) {
+	switch emailType {
+	case "welcome":
+		return "welcome", map[string]interface{}{
+			"UserName":     user.Name,
+			"DashboardURL": h.EmailFrontendURL + "/",
+		}
+	case "nurture_day3":
+		return "nurture-day3", map[string]interface{}{
+			"UserName":      user.Name,
+			"InternshipURL": h.EmailFrontendURL + "/outreach",
+		}
+	case "nurture_day7":
+		return "nurture-day7", map[string]interface{}{
+			"UserName":    user.Name,
+			"OutreachURL": h.EmailFrontendURL + "/outreach",
+		}
+	case "nurture_day14":
+		return "nurture-day14", map[string]interface{}{
+			"UserName":    user.Name,
+			"OutreachURL": h.EmailFrontendURL + "/outreach",
+		}
+	case "nurture_day30":
+		return "nurture-day30", map[string]interface{}{
+			"UserName":     user.Name,
+			"DashboardURL": h.EmailFrontendURL + "/",
+		}
+	default:
+		return emailType, map[string]interface{}{
+			"UserName": user.Name,
+		}
+	}
 }
 
 // hashPasswordWithBetterAuth hashes a password using Better Auth's API

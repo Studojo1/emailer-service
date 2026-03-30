@@ -189,6 +189,8 @@ func main() {
 	mux.HandleFunc("GET /v1/email/preferences/{user_id}", httpHandler.HandleGetEmailPreferences)
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
+	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
+	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
 
 	// Wrap mux with a handler that intercepts OPTIONS before routing
 	// This is needed because Go's ServeMux rejects OPTIONS if no route matches
