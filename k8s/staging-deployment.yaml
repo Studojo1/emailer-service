@@ -40,11 +40,11 @@ spec:
                 secretKeyRef:
                   name: app-secrets
                   key: rabbitmq-url
-            - name: AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING
+            - name: RESEND_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: app-secrets
-                  key: azure-communication-connection-string
+                  key: resend-api-key
             - name: AZURE_EMAIL_SENDER_ADDRESS
               valueFrom:
                 configMapKeyRef:

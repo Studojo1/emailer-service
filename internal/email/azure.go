@@ -3,185 +3,118 @@ package email
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/smtp"
-	"net/url"
 	"strings"
 	"time"
 )
 
-// Client wraps Azure Communication Services Email client using REST API
+// Client sends email via Resend (or MailHog in development)
 type Client struct {
-	endpoint    string
-	accessKey   string
-	senderEmail string
-	httpClient  *http.Client
+	resendAPIKey string
+	senderEmail  string
+	mailhogAddr  string // non-empty when in dev/mailhog mode
+	httpClient   *http.Client
 }
 
-// NewClient creates a new Azure Email client from connection string
-// Connection string format: endpoint=https://...;accesskey=...
-// For development: endpoint=http://mailhog:8025 (MailHog API) or endpoint=smtp://mailhog:1025 (MailHog SMTP)
+// NewClient creates a new email client.
+// If RESEND_API_KEY env var is set, use Resend.
+// Otherwise fall back to MailHog via connectionString (legacy dev path).
 func NewClient(connectionString, senderEmail string) (*Client, error) {
-	// Parse connection string
+	c := &Client{
+		senderEmail: senderEmail,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
+	}
+
+	// Check if this looks like a Resend API key
+	if strings.HasPrefix(connectionString, "re_") {
+		c.resendAPIKey = connectionString
+		return c, nil
+	}
+
+	// Legacy: parse as ACS connection string and check for MailHog
 	endpoint := ""
-	accessKey := ""
-	
-	parts := strings.Split(connectionString, ";")
-	for _, part := range parts {
+	for _, part := range strings.Split(connectionString, ";") {
 		part = strings.TrimSpace(part)
 		if strings.HasPrefix(part, "endpoint=") {
 			endpoint = strings.TrimPrefix(part, "endpoint=")
-		} else if strings.HasPrefix(part, "accesskey=") {
-			accessKey = strings.TrimPrefix(part, "accesskey=")
 		}
 	}
-	
-	// For MailHog (development), endpoint is the MailHog API URL and accesskey can be empty
-	// Check if this is MailHog by looking for mailhog in the endpoint
-	isMailHog := strings.Contains(endpoint, "mailhog") || strings.Contains(endpoint, "localhost:8025") || strings.Contains(endpoint, "127.0.0.1:8025")
-	
-	if !isMailHog && (endpoint == "" || accessKey == "") {
-		return nil, fmt.Errorf("invalid connection string: missing endpoint or accesskey")
+
+	isMailHog := strings.Contains(endpoint, "mailhog") ||
+		strings.Contains(endpoint, "localhost:8025") ||
+		strings.Contains(endpoint, "127.0.0.1:8025")
+
+	if isMailHog {
+		host := strings.TrimPrefix(endpoint, "http://")
+		host = strings.TrimPrefix(host, "https://")
+		host = strings.TrimSuffix(host, ":8025")
+		host = strings.TrimSuffix(host, "/")
+		if host == "" {
+			host = "mailhog"
+		}
+		c.mailhogAddr = host + ":1025"
+		return c, nil
 	}
 
-	return &Client{
-		endpoint:    endpoint,
-		accessKey:   accessKey,
-		senderEmail: senderEmail,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-	}, nil
+	return nil, fmt.Errorf("no valid email provider configured: set RESEND_API_KEY or use MailHog endpoint")
 }
 
-// SendEmail sends an email via Azure Communication Services REST API or MailHog (development)
+// SendEmail sends an email via Resend or MailHog.
 func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string) error {
-	// Check if this is MailHog (development mode)
-	isMailHog := strings.Contains(c.endpoint, "mailhog") || strings.Contains(c.endpoint, "localhost:8025") || strings.Contains(c.endpoint, "127.0.0.1:8025")
-	
-	if isMailHog {
-		return c.sendViaMailHog(ctx, to, subject, htmlContent)
+	if c.mailhogAddr != "" {
+		return c.sendViaMailHog(to, subject, htmlContent)
 	}
-	
-	// Azure Communication Services Email REST API endpoint
-	// Remove trailing slash from endpoint if present to avoid double slashes
-	endpoint := strings.TrimSuffix(c.endpoint, "/")
-	url := fmt.Sprintf("%s/emails:send?api-version=2023-03-31", endpoint)
-	
-	// Build request payload
+	return c.sendViaResend(ctx, to, subject, htmlContent)
+}
+
+// sendViaResend sends email using the Resend API.
+func (c *Client) sendViaResend(ctx context.Context, to, subject, htmlContent string) error {
 	payload := map[string]interface{}{
-		"senderAddress": c.senderEmail,
-		"content": map[string]interface{}{
-			"subject":     subject,
-			"html":        htmlContent,
-		},
-		"recipients": map[string]interface{}{
-			"to": []map[string]string{
-				{"address": to},
-			},
-		},
+		"from":    c.senderEmail,
+		"to":      []string{to},
+		"subject": subject,
+		"html":    htmlContent,
 	}
 
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("failed to marshal email payload: %w", err)
+		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.resend.com/emails", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
-
 	req.Header.Set("Content-Type", "application/json")
-	if err := c.signRequest(req, body); err != nil {
-		return fmt.Errorf("failed to sign request: %w", err)
-	}
+	req.Header.Set("Authorization", "Bearer "+c.resendAPIKey)
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to send email request: %w", err)
+		return fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response: %w", err)
-	}
-
+	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("email send failed with status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(respBody, &result); err == nil {
-		if messageID, ok := result["messageId"].(string); ok {
-			slog.Info("email sent successfully", "message_id", messageID, "to", to)
+		if id, ok := result["id"].(string); ok {
+			slog.Info("email sent via Resend", "id", id, "to", to)
 		}
 	}
-
 	return nil
 }
 
-// signRequest signs an ACS request using HMAC-SHA256 per Azure Communication Services auth spec.
-func (c *Client) signRequest(req *http.Request, body []byte) error {
-	keyBytes, err := base64.StdEncoding.DecodeString(c.accessKey)
-	if err != nil {
-		return fmt.Errorf("failed to decode access key: %w", err)
-	}
-
-	now := time.Now().UTC().Format(http.TimeFormat)
-	req.Header.Set("x-ms-date", now)
-
-	// Hash the body
-	hasher := sha256.New()
-	hasher.Write(body)
-	contentHash := base64.StdEncoding.EncodeToString(hasher.Sum(nil))
-	req.Header.Set("x-ms-content-sha256", contentHash)
-
-	// Build string to sign: VERB\npath?query\ndate;host;contentHash
-	parsedURL, err := url.Parse(req.URL.String())
-	if err != nil {
-		return err
-	}
-	pathAndQuery := parsedURL.Path
-	if parsedURL.RawQuery != "" {
-		pathAndQuery += "?" + parsedURL.RawQuery
-	}
-	host := parsedURL.Host
-	stringToSign := fmt.Sprintf("%s\n%s\n%s;%s;%s",
-		req.Method, pathAndQuery, now, host, contentHash)
-
-	mac := hmac.New(sha256.New, keyBytes)
-	mac.Write([]byte(stringToSign))
-	signature := base64.StdEncoding.EncodeToString(mac.Sum(nil))
-
-	req.Header.Set("Authorization", fmt.Sprintf("HMAC-SHA256 SignedHeaders=x-ms-date;host;x-ms-content-sha256&Signature=%s", signature))
-	return nil
-}
-
-// sendViaMailHog sends email via MailHog SMTP (development mode)
-// MailHog accepts SMTP connections on port 1025
-func (c *Client) sendViaMailHog(ctx context.Context, to, subject, htmlContent string) error {
-	// Extract host from endpoint (e.g., http://mailhog:8025 -> mailhog)
-	mailhogHost := strings.TrimPrefix(c.endpoint, "http://")
-	mailhogHost = strings.TrimPrefix(mailhogHost, "https://")
-	mailhogHost = strings.TrimSuffix(mailhogHost, ":8025")
-	mailhogHost = strings.TrimSuffix(mailhogHost, "/")
-	if mailhogHost == "" {
-		mailhogHost = "mailhog"
-	}
-	
-	// MailHog SMTP server address
-	addr := mailhogHost + ":1025"
-	
-	// Build email message
+// sendViaMailHog sends email via MailHog SMTP (development mode).
+func (c *Client) sendViaMailHog(to, subject, htmlContent string) error {
 	msg := []byte("From: " + c.senderEmail + "\r\n" +
 		"To: " + to + "\r\n" +
 		"Subject: " + subject + "\r\n" +
@@ -189,23 +122,18 @@ func (c *Client) sendViaMailHog(ctx context.Context, to, subject, htmlContent st
 		"Content-Type: text/html; charset=UTF-8\r\n" +
 		"\r\n" +
 		htmlContent + "\r\n")
-	
-	// Send email via SMTP (MailHog doesn't require authentication)
-	err := smtp.SendMail(addr, nil, c.senderEmail, []string{to}, msg)
-	if err != nil {
-		return fmt.Errorf("failed to send email via MailHog SMTP: %w", err)
+
+	if err := smtp.SendMail(c.mailhogAddr, nil, c.senderEmail, []string{to}, msg); err != nil {
+		return fmt.Errorf("failed to send via MailHog: %w", err)
 	}
-	
-	slog.Info("email sent via MailHog SMTP", "to", to, "subject", subject, "host", addr)
+	slog.Info("email sent via MailHog", "to", to, "addr", c.mailhogAddr)
 	return nil
 }
 
-// ValidateConnection checks if the Azure client is properly configured
+// ValidateConnection checks if the client is properly configured.
 func (c *Client) ValidateConnection(ctx context.Context) error {
-	// Simple validation - check if endpoint and key are set
-	if c.endpoint == "" || c.accessKey == "" {
-		return fmt.Errorf("invalid client configuration")
+	if c.resendAPIKey == "" && c.mailhogAddr == "" {
+		return fmt.Errorf("no email provider configured")
 	}
 	return nil
 }
-

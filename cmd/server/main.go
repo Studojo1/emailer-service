@@ -48,10 +48,14 @@ func main() {
 		rabbitURL = "amqp://guest:guest@localhost:5672/"
 	}
 
-	// Azure Email configuration (or MailHog for development)
-	azureConnStr := os.Getenv("AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING")
+	// Email provider: Resend takes priority, falls back to MailHog for development
+	azureConnStr := os.Getenv("RESEND_API_KEY")
+	if azureConnStr != "" {
+		slog.Info("using Resend for email")
+	} else {
+		azureConnStr = os.Getenv("AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING")
+	}
 	if azureConnStr == "" {
-		// Try MailHog for development
 		mailhogURL := os.Getenv("MAILHOG_URL")
 		if mailhogURL == "" {
 			mailhogURL = "http://mailhog:8025"
