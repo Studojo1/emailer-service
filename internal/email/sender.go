@@ -76,6 +76,13 @@ func (s *Sender) getSubject(templateName string, data interface{}) (string, erro
 		return "A student got 3 interview calls in one week", nil
 	case "nurture-day30":
 		return "One month in — wanted to ask you something", nil
+	case "contact-form":
+		if d, ok := data.(map[string]interface{}); ok {
+			if subj, ok := d["Subject"].(string); ok && subj != "" {
+				return fmt.Sprintf("Contact Form: %s", subj), nil
+			}
+		}
+		return "New Contact Form Submission", nil
 	default:
 		return "Message from Studojo", nil
 	}

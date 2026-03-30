@@ -41,6 +41,14 @@ type ResumeOptimizedEvent struct {
 	ImprovementsSummary string `json:"improvements_summary"`
 }
 
+// ContactFormEvent represents a contact form submission
+type ContactFormEvent struct {
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Subject string `json:"subject"`
+	Message string `json:"message"`
+}
+
 // InternshipAppliedEvent represents an internship application event
 type InternshipAppliedEvent struct {
 	UserID         string `json:"user_id"`
@@ -179,6 +187,25 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	return nil
 }
 
+// HandleContactForm handles contact form submission events
+func (h *EventHandler) HandleContactForm(ctx context.Context, event *ContactFormEvent) error {
+	adminEmail := "admin@studojo.com"
+
+	err := h.Sender.SendTemplateEmail(ctx, adminEmail, "contact-form", map[string]interface{}{
+		"Name":    event.Name,
+		"Email":   event.Email,
+		"Subject": event.Subject,
+		"Message": event.Message,
+	})
+	if err != nil {
+		slog.Error("failed to send contact form email", "error", err, "from", event.Email)
+		return err
+	}
+
+	slog.Info("contact form email sent", "from", event.Email, "subject", event.Subject)
+	return nil
+}
+
 // ProcessEvent processes an event based on routing key
 func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body []byte) error {
 	switch routingKey {
@@ -202,6 +229,13 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 			return err
 		}
 		return h.HandleInternshipApplied(ctx, &event)
+
+	case "event.contact.form-submitted":
+		var event ContactFormEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleContactForm(ctx, &event)
 
 	default:
 		slog.Warn("unknown event type", "routing_key", routingKey)

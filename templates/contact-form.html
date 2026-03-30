@@ -1,0 +1,23 @@
+{{define "content"}}
+<h2 class="greeting">New Contact Form Submission</h2>
+
+<div class="feature-card" style="border-left:4px solid #7c3aed;">
+    <p style="font-size:13px;color:#737373;margin:0 0 4px;">From</p>
+    <p style="font-weight:600;color:#171717;margin:0;">{{.Name}}</p>
+    <p style="color:#7c3aed;margin:4px 0 0;"><a href="mailto:{{.Email}}" style="color:#7c3aed;">{{.Email}}</a></p>
+</div>
+
+<div class="feature-card" style="border-left:4px solid #171717;">
+    <p style="font-size:13px;color:#737373;margin:0 0 4px;">Subject</p>
+    <p style="font-weight:600;color:#171717;margin:0;">{{.Subject}}</p>
+</div>
+
+<div class="feature-card">
+    <p style="font-size:13px;color:#737373;margin:0 0 8px;">Message</p>
+    <p style="color:#171717;margin:0;white-space:pre-wrap;">{{.Message}}</p>
+</div>
+
+<hr class="divider">
+
+<p style="font-size:13px;color:#737373;text-align:center;">Reply directly to <a href="mailto:{{.Email}}" style="color:#7c3aed;">{{.Email}}</a> to respond to this inquiry.</p>
+{{end}}
