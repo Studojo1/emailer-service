@@ -41,6 +41,87 @@ type ResumeOptimizedEvent struct {
 	ImprovementsSummary string `json:"improvements_summary"`
 }
 
+// FunnelEmailEvent represents a manually triggered funnel email
+type FunnelEmailEvent struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+}
+
+// funnelRoutingKeyToTemplate maps event.funnel.* routing keys to template names
+var funnelRoutingKeyToTemplate = map[string]string{
+	"event.funnel.welcome_new":          "funnel-welcome-new",
+	"event.funnel.welcome_existing":     "funnel-welcome-existing",
+	"event.funnel.followup_v1":          "funnel-followup-v1",
+	"event.funnel.followup_v2":          "funnel-followup-v2",
+	"event.funnel.followup_v3":          "funnel-followup-v3",
+	"event.funnel.segmentation_v1":      "funnel-segmentation-v1",
+	"event.funnel.segmentation_v2":      "funnel-segmentation-v2",
+	"event.funnel.exploration_v1":       "funnel-exploration-v1",
+	"event.funnel.exploration_v2":       "funnel-exploration-v2",
+	"event.funnel.congratulations":      "funnel-congratulations",
+	"event.funnel.comparison":           "funnel-comparison",
+	"event.funnel.pitching_v1":          "funnel-pitching-v1",
+	"event.funnel.pitching_v2":          "funnel-pitching-v2",
+	"event.funnel.pitching_v3":          "funnel-pitching-v3",
+	"event.funnel.honest_question_v1":   "funnel-honest-question-v1",
+	"event.funnel.honest_question_v2":   "funnel-honest-question-v2",
+	"event.funnel.honest_question_v3":   "funnel-honest-question-v3",
+	"event.funnel.onboarding":           "funnel-onboarding",
+	"event.funnel.recognition_v1":       "funnel-recognition-v1",
+	"event.funnel.recognition_v2":       "funnel-recognition-v2",
+	"event.funnel.recognition_v3":       "funnel-recognition-v3",
+	"event.funnel.recognition_v4":       "funnel-recognition-v4",
+	"event.funnel.testimonial":          "funnel-testimonial",
+	"event.funnel.pricing":              "funnel-pricing",
+	"event.funnel.case_study":           "funnel-case-study",
+	"event.funnel.walkthrough":          "funnel-walkthrough",
+	"event.funnel.educational":          "funnel-educational",
+	"event.funnel.winback":              "funnel-winback",
+}
+
+// HandleFunnelEmail handles all event.funnel.* events
+func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string, event *FunnelEmailEvent) error {
+	templateName, ok := funnelRoutingKeyToTemplate[routingKey]
+	if !ok {
+		slog.Warn("unknown funnel routing key", "routing_key", routingKey)
+		return nil
+	}
+
+	// Resolve email/name from user ID if not provided directly
+	recipientEmail := event.Email
+	recipientName := event.Name
+	if recipientEmail == "" && event.UserID != "" {
+		user, err := h.Store.GetUserByID(ctx, event.UserID)
+		if err != nil || user == nil {
+			slog.Error("funnel email: failed to get user", "user_id", event.UserID, "error", err)
+			return err
+		}
+		recipientEmail = user.Email
+		recipientName = user.Name
+	}
+	if recipientName == "" {
+		recipientName = "there"
+	}
+
+	if err := h.Sender.SendTemplateEmail(ctx, recipientEmail, templateName, map[string]interface{}{
+		"UserName": recipientName,
+	}); err != nil {
+		slog.Error("funnel email: failed to send", "routing_key", routingKey, "template", templateName, "error", err)
+		return err
+	}
+
+	slog.Info("funnel email sent", "routing_key", routingKey, "template", templateName, "email", recipientEmail)
+
+	if event.UserID != "" {
+		if err := h.Store.RecordSentEmail(ctx, event.UserID, routingKey); err != nil {
+			slog.Error("funnel email: failed to record", "routing_key", routingKey, "error", err)
+		}
+	}
+
+	return nil
+}
+
 // ContactFormEvent represents a contact form submission
 type ContactFormEvent struct {
 	Name    string `json:"name"`
@@ -238,6 +319,14 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		return h.HandleContactForm(ctx, &event)
 
 	default:
+		// Handle all event.funnel.* routing keys generically
+		if _, ok := funnelRoutingKeyToTemplate[routingKey]; ok {
+			var event FunnelEmailEvent
+			if err := json.Unmarshal(body, &event); err != nil {
+				return err
+			}
+			return h.HandleFunnelEmail(ctx, routingKey, &event)
+		}
 		slog.Warn("unknown event type", "routing_key", routingKey)
 		return nil
 	}
