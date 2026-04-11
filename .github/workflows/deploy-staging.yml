@@ -1,8 +1,8 @@
-name: Build and Deploy
+name: Build and Deploy (Staging)
 
 on:
   push:
-    branches: [main]
+    branches: [staging]
 
 permissions:
   id-token: write
@@ -12,7 +12,7 @@ env:
   REGISTRY: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io
   ACR_NAME: acrstudojo
   SERVICE_NAME: emailer-service
-  IMAGE_TAG: ${{ github.sha }}
+  IMAGE_TAG: staging-${{ github.sha }}
 
 jobs:
   build:
@@ -43,9 +43,9 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:latest
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:buildcache,mode=max
+            ${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:staging
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:buildcache-staging
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:buildcache-staging,mode=max
 
   deploy:
     needs: build
@@ -75,18 +75,18 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
-          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n studojo --timeout=10m || {
+          kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n staging
+          kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n staging --timeout=10m || {
             echo "Rollout failed or timed out. Checking pod status..."
-            kubectl get pods -n studojo -l app=${{ env.SERVICE_NAME }} -o wide
+            kubectl get pods -n staging -l app=${{ env.SERVICE_NAME }} -o wide
             echo ""
             echo "Recent pod events:"
-            LATEST_POD=$(kubectl get pods -n studojo -l app=${{ env.SERVICE_NAME }} --sort-by=.metadata.creationTimestamp -o jsonpath='{{.items[-1].metadata.name}}' 2>/dev/null || echo "")
+            LATEST_POD=$(kubectl get pods -n staging -l app=${{ env.SERVICE_NAME }} --sort-by=.metadata.creationTimestamp -o jsonpath='{{.items[-1].metadata.name}}' 2>/dev/null || echo "")
             if [ -n "$LATEST_POD" ]; then
-              kubectl get events -n studojo --field-selector involvedObject.name=$LATEST_POD --sort-by='.lastTimestamp' | tail -20 || true
+              kubectl get events -n staging --field-selector involvedObject.name=$LATEST_POD --sort-by='.lastTimestamp' | tail -20 || true
               echo ""
               echo "Pod logs:"
-              kubectl logs -n studojo $LATEST_POD --tail=50 || true
+              kubectl logs -n staging $LATEST_POD --tail=50 || true
             fi
             exit 1
           }
@@ -97,7 +97,7 @@ jobs:
             -H "Content-Type: application/json" \
             -H "X-Deployment-Secret: ${{ secrets.DEPLOYMENT_SECRET }}" \
             -d '{
-              "service": "${{ env.SERVICE_NAME }}",
+              "service": "${{ env.SERVICE_NAME }}-staging",
               "version": "${{ env.IMAGE_TAG }}",
               "deployed_at": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
               "deployed_by": "${{ github.actor }}",
