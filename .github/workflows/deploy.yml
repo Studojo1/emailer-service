@@ -77,6 +77,11 @@ jobs:
         run: |
           kubectl patch secret app-secrets -n studojo -p "{\"stringData\":{\"resend-api-key\":\"${{ secrets.RESEND_API_KEY }}\"}}"
 
+      - name: Ensure RESEND_API_KEY in deployment env
+        run: |
+          kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
+            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
