@@ -73,6 +73,10 @@ jobs:
             --name ${{ secrets.AKS_CLUSTER_NAME }} \
             --overwrite-existing
 
+      - name: Patch Kubernetes secrets
+        run: |
+          kubectl patch secret app-secrets -n studojo -p "{\"stringData\":{\"resend-api-key\":\"${{ secrets.RESEND_API_KEY }}\"}}"
+
       - name: Deploy to Kubernetes
         run: |
           kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
