@@ -1,0 +1,54 @@
+{{define "content"}}
+<span class="badge badge-green">Payment confirmed</span>
+<h2 class="greeting">You're all set, {{.UserName}}.</h2>
+
+<p>Your payment went through. Here's your receipt and what happens next.</p>
+
+<div class="highlight-box">
+  <p><strong>Order confirmed.</strong> Your account has been upgraded. Everything is ready to use right now.</p>
+</div>
+
+<div class="stat-row">
+  <div class="stat-cell">
+    <span class="stat-number">{{.PlanName}}</span>
+    <span class="stat-label">Your plan</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">{{.Amount}}</span>
+    <span class="stat-label">Amount paid</span>
+  </div>
+  <div class="stat-cell">
+    <span class="stat-number">{{.OrderID}}</span>
+    <span class="stat-label">Order ID</span>
+  </div>
+</div>
+
+<p>Here's what you now have full access to:</p>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-blue">✉️</div></div>
+  <div class="feature-text-cell">
+    <h3>Outreach Dojo</h3>
+    <p>Find hiring managers on LinkedIn and send personalised outreach messages. No limits on your plan.</p>
+    <a href="https://studojo.com/outreach" style="color:#8b5cf6;font-weight:600;font-size:13px;">Start your first outreach →</a>
+  </div>
+</div>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-purple">🎯</div></div>
+  <div class="feature-text-cell">
+    <h3>Internship Dojo</h3>
+    <p>Search, filter, and track internship applications in one place. Your resume builder is included.</p>
+    <a href="https://studojo.com/dojos/internships" style="color:#8b5cf6;font-weight:600;font-size:13px;">Explore internships →</a>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<p style="font-size:13px;color:#737373;">Need help? Reply to this email or visit <a href="https://studojo.com/support" style="color:#8b5cf6;">studojo.com/support</a>. We're available 24/7.</p>
+
+<div class="signature">
+  <p class="name">The Studojo Team</p>
+  <p class="tagline">Work on things that matter.</p>
+</div>
+{{end}}

@@ -48,6 +48,16 @@ type FunnelEmailEvent struct {
 	Name   string `json:"name"`
 }
 
+// PaymentEvent represents a successful payment
+type PaymentEvent struct {
+	UserID  string `json:"user_id"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
+	PlanName string `json:"plan_name"`
+	Amount  string `json:"amount"`
+	OrderID string `json:"order_id"`
+}
+
 // funnelRoutingKeyToTemplate maps event.funnel.* routing keys to template names
 var funnelRoutingKeyToTemplate = map[string]string{
 	"event.funnel.welcome_new":          "funnel-welcome-new",
@@ -78,6 +88,8 @@ var funnelRoutingKeyToTemplate = map[string]string{
 	"event.funnel.walkthrough":          "funnel-walkthrough",
 	"event.funnel.educational":          "funnel-educational",
 	"event.funnel.winback":              "funnel-winback",
+	"event.funnel.signup_thankyou":      "signup-thankyou",
+	"event.funnel.signup_followup":      "signup-followup",
 }
 
 // HandleFunnelEmail handles all event.funnel.* events
@@ -287,6 +299,37 @@ func (h *EventHandler) HandleContactForm(ctx context.Context, event *ContactForm
 	return nil
 }
 
+// HandlePayment handles payment confirmation events
+func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) error {
+	recipientEmail := event.Email
+	recipientName := event.Name
+	if recipientEmail == "" && event.UserID != "" {
+		user, err := h.Store.GetUserByID(ctx, event.UserID)
+		if err != nil || user == nil {
+			slog.Error("payment email: failed to get user", "user_id", event.UserID, "error", err)
+			return err
+		}
+		recipientEmail = user.Email
+		recipientName = user.Name
+	}
+	if recipientName == "" {
+		recipientName = "there"
+	}
+
+	err := h.Sender.SendTemplateEmail(ctx, recipientEmail, "payment-thankyou", map[string]interface{}{
+		"UserName": recipientName,
+		"PlanName": event.PlanName,
+		"Amount":   event.Amount,
+		"OrderID":  event.OrderID,
+	})
+	if err != nil {
+		slog.Error("payment email: failed to send", "error", err, "email", recipientEmail)
+		return err
+	}
+	slog.Info("payment confirmation email sent", "email", recipientEmail)
+	return nil
+}
+
 // ProcessEvent processes an event based on routing key
 func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body []byte) error {
 	switch routingKey {
@@ -317,6 +360,13 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 			return err
 		}
 		return h.HandleContactForm(ctx, &event)
+
+	case "event.payment.success":
+		var event PaymentEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandlePayment(ctx, &event)
 
 	default:
 		// Handle all event.funnel.* routing keys generically

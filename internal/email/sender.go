@@ -159,6 +159,12 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "The outreach playbook that actually gets replies", nil
 	case "funnel-winback":
 		return "Still here if you want it", nil
+	case "signup-thankyou":
+		return "Welcome to Studojo. Here's where to start.", nil
+	case "signup-followup":
+		return "Did you get a chance to try it?", nil
+	case "payment-thankyou":
+		return "Your payment is confirmed. You're all set.", nil
 	default:
 		return "From Studojo", nil
 	}
