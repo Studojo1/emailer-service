@@ -80,7 +80,8 @@ jobs:
       - name: Ensure RESEND_API_KEY in deployment env
         run: |
           kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
-            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+            RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}" \
+            AZURE_EMAIL_SENDER_ADDRESS="onboarding@resend.dev"
 
       - name: Deploy to Kubernetes
         run: |
