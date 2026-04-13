@@ -48,12 +48,22 @@ func main() {
 		rabbitURL = "amqp://guest:guest@localhost:5672/"
 	}
 
-	// Email provider: Resend takes priority, falls back to MailHog for development
+	// Email provider priority: Resend → ACS → MailHog (dev)
 	azureConnStr := os.Getenv("RESEND_API_KEY")
 	if azureConnStr != "" {
 		slog.Info("using Resend for email")
-	} else {
+	}
+	if azureConnStr == "" {
+		azureConnStr = os.Getenv("AZURE_EMAIL_CONNECTION_STRING")
+		if azureConnStr != "" {
+			slog.Info("using Azure Communication Services for email")
+		}
+	}
+	if azureConnStr == "" {
 		azureConnStr = os.Getenv("AZURE_COMMUNICATION_SERVICE_CONNECTION_STRING")
+		if azureConnStr != "" {
+			slog.Info("using Azure Communication Services for email (legacy env)")
+		}
 	}
 	if azureConnStr == "" {
 		mailhogURL := os.Getenv("MAILHOG_URL")
