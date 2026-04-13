@@ -41,12 +41,15 @@
         }
         .email-header-logo {
             font-family: 'Clash Display', 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
-            color: #ffffff;
+            color: #ffffff !important;
             font-size: 28px;
             font-weight: 900;
             letter-spacing: -0.5px;
-            text-decoration: none;
+            text-decoration: none !important;
             display: block;
+        }
+        .email-header-logo span {
+            color: #ffffff !important;
         }
         .email-header-tagline {
             color: rgba(255,255,255,0.75);
@@ -395,7 +398,10 @@
 <div class="email-container">
 
     <div class="email-header">
-        <a href="https://studojo.com" class="email-header-logo">Studojo</a>
+        <a href="https://studojo.com" class="email-header-logo" style="color:#ffffff !important;text-decoration:none !important;">
+            <img src="https://studojo.com/favicon.ico" width="28" height="28" alt="" style="display:inline-block;vertical-align:middle;margin-right:10px;border-radius:6px;border:0;" />
+            <span style="vertical-align:middle;color:#ffffff !important;">Studojo</span>
+        </a>
         <div class="email-header-tagline">Work on things that matter.</div>
     </div>
 
