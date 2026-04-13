@@ -80,6 +80,7 @@ jobs:
       - name: Ensure ACS email env in deployment
         run: |
           kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
+            RESEND_API_KEY- \
             AZURE_EMAIL_CONNECTION_STRING="${{ secrets.ACS_EMAIL_CONNECTION_STRING }}" \
             AZURE_EMAIL_SENDER_ADDRESS="DoNotReply@582be240-4483-480b-8a52-c37a91fed5a9.azurecomm.net"
 
