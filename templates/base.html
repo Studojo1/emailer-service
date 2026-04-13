@@ -5,19 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Studojo</title>
     <!--[if mso]>
-    <noscript>
-    <xml>
-    <o:OfficeDocumentSettings>
-    <o:PixelsPerInch>96</o:PixelsPerInch>
-    </o:OfficeDocumentSettings>
-    </xml>
-    </noscript>
+    <noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
     <![endif]-->
     <style>
+        @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,600,700&display=swap');
+
+        * { box-sizing: border-box; }
         body {
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            margin: 0; padding: 0;
+            font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: #f5f5f5;
             color: #171717;
             line-height: 1.6;
@@ -26,58 +22,83 @@
         .wrapper {
             width: 100%;
             background-color: #f5f5f5;
-            padding: 32px 0;
+            padding: 32px 16px;
         }
         .email-container {
-            max-width: 560px;
+            max-width: 580px;
             margin: 0 auto;
             background-color: #ffffff;
             border: 2px solid #171717;
-            border-radius: 16px;
+            border-radius: 24px;
             overflow: hidden;
-            box-shadow: 6px 6px 0px 0px rgba(25, 26, 35, 1);
+            box-shadow: 6px 6px 0px 0px #171717;
         }
+        /* Header */
         .email-header {
-            background-color: #7c3aed;
-            padding: 28px 32px;
-            text-align: left;
+            background-color: #8b5cf6;
+            padding: 28px 36px;
+            border-bottom: 2px solid #171717;
         }
         .email-header-logo {
+            font-family: 'Clash Display', sans-serif;
             color: #ffffff;
-            font-size: 26px;
-            font-weight: 800;
+            font-size: 28px;
+            font-weight: 700;
             letter-spacing: -0.5px;
             text-decoration: none;
+            display: block;
         }
         .email-header-tagline {
-            color: rgba(255,255,255,0.7);
+            color: rgba(255,255,255,0.75);
             font-size: 13px;
-            margin-top: 4px;
-            font-weight: 400;
+            margin-top: 3px;
+            font-weight: 500;
+            letter-spacing: 0.2px;
         }
+        /* Body */
         .email-body {
-            padding: 36px 32px;
-            text-align: left;
+            padding: 40px 36px;
         }
         .greeting {
-            font-size: 22px;
-            font-weight: 700;
+            font-family: 'Clash Display', sans-serif;
+            font-size: 24px;
+            font-weight: 600;
             color: #171717;
             margin: 0 0 20px 0;
-            letter-spacing: -0.3px;
+            letter-spacing: -0.4px;
+            line-height: 1.3;
         }
         .email-body p {
             margin: 0 0 16px 0;
-            color: #404040;
+            color: #525252;
             font-size: 15px;
-            line-height: 1.7;
+            line-height: 1.75;
+            font-weight: 400;
         }
+        /* Pill badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            border: 2px solid #171717;
+            box-shadow: 2px 2px 0 #171717;
+            margin-bottom: 16px;
+        }
+        .badge-purple { background-color: #ede9fe; color: #7c3aed; }
+        .badge-green  { background-color: #dcfce7; color: #16a34a; }
+        .badge-amber  { background-color: #fef3c7; color: #d97706; }
+        /* Highlight box */
         .highlight-box {
             background-color: #f5f3ff;
-            border: 2px solid #7c3aed;
-            border-radius: 12px;
+            border: 2px solid #8b5cf6;
+            border-radius: 16px;
             padding: 20px 24px;
             margin: 24px 0;
+            box-shadow: 3px 3px 0 #171717;
         }
         .highlight-box p {
             color: #4c1d95;
@@ -85,135 +106,222 @@
             font-weight: 500;
             font-size: 15px;
         }
+        /* Stat row */
         .stat-row {
-            display: flex;
-            margin: 24px 0;
+            display: table;
+            width: 100%;
+            margin: 28px 0;
+            border-collapse: separate;
+            border-spacing: 8px 0;
         }
-        .stat-box {
+        .stat-cell {
+            display: table-cell;
+            width: 33%;
             background-color: #fafafa;
             border: 2px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 16px 20px;
-            margin: 0 8px 0 0;
+            border-radius: 16px;
+            padding: 18px 12px;
             text-align: center;
-            flex: 1;
-        }
-        .stat-box:last-child {
-            margin-right: 0;
+            vertical-align: middle;
         }
         .stat-number {
-            font-size: 24px;
-            font-weight: 800;
-            color: #7c3aed;
+            font-family: 'Clash Display', sans-serif;
+            font-size: 28px;
+            font-weight: 700;
+            color: #8b5cf6;
             display: block;
+            letter-spacing: -0.5px;
         }
         .stat-label {
-            font-size: 12px;
+            font-size: 11px;
             color: #737373;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 600;
+            letter-spacing: 0.6px;
+            font-weight: 700;
             margin-top: 4px;
             display: block;
         }
+        /* Feature card */
         .feature-card {
             border: 2px solid #e5e5e5;
-            border-radius: 12px;
-            padding: 20px;
-            margin: 12px 0;
-            display: flex;
-            align-items: flex-start;
+            border-radius: 16px;
+            padding: 18px 20px;
+            margin: 10px 0;
+            display: table;
+            width: 100%;
+        }
+        .feature-icon-cell {
+            display: table-cell;
+            width: 48px;
+            vertical-align: top;
+            padding-right: 14px;
         }
         .feature-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            margin-right: 16px;
-            flex-shrink: 0;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 2px solid #171717;
+            display: block;
+            text-align: center;
+            line-height: 40px;
+            font-size: 20px;
         }
-        .feature-icon-purple { background-color: #f5f3ff; }
-        .feature-icon-green { background-color: #f0fdf4; }
-        .feature-icon-blue { background-color: #eff6ff; }
-        .feature-icon-amber { background-color: #fffbeb; }
-        .feature-text h3 {
+        .feature-icon-purple { background-color: #ede9fe; }
+        .feature-icon-green  { background-color: #dcfce7; }
+        .feature-icon-blue   { background-color: #dbeafe; }
+        .feature-icon-amber  { background-color: #fef3c7; }
+        .feature-text-cell { display: table-cell; vertical-align: top; }
+        .feature-text-cell h3 {
             margin: 0 0 4px 0;
             font-size: 15px;
             font-weight: 700;
             color: #171717;
+            font-family: 'Satoshi', sans-serif;
         }
-        .feature-text p {
+        .feature-text-cell p {
             margin: 0;
             font-size: 13px;
             color: #737373;
-            line-height: 1.5;
+            line-height: 1.55;
         }
+        /* Steps list */
         .steps-list {
-            counter-reset: step;
-            list-style: none;
-            padding: 0;
             margin: 24px 0;
+            padding: 0;
+            list-style: none;
         }
         .steps-list li {
-            counter-increment: step;
-            position: relative;
-            padding: 12px 0 12px 48px;
-            border-bottom: 1px solid #f5f5f5;
+            display: table;
+            width: 100%;
+            padding: 14px 0;
+            border-bottom: 1px solid #f0f0f0;
             font-size: 15px;
             color: #404040;
         }
         .steps-list li:last-child { border-bottom: none; }
-        .steps-list li::before {
-            content: counter(step);
-            position: absolute;
-            left: 0;
-            top: 10px;
+        .step-num-cell {
+            display: table-cell;
+            width: 40px;
+            vertical-align: top;
+            padding-right: 14px;
+        }
+        .step-num {
             width: 32px;
             height: 32px;
-            background-color: #7c3aed;
+            background-color: #8b5cf6;
             color: #fff;
             border-radius: 50%;
             text-align: center;
             line-height: 32px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 700;
+            display: block;
+            border: 2px solid #171717;
         }
+        .step-text-cell { display: table-cell; vertical-align: middle; }
+        /* Quote block */
         .quote-block {
-            border-left: 4px solid #7c3aed;
+            border-left: 4px solid #8b5cf6;
             padding: 16px 20px;
             margin: 24px 0;
             background-color: #fafafa;
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 16px 16px 0;
         }
         .quote-block p {
             margin: 0;
             font-style: italic;
             color: #404040;
             font-size: 15px;
+            line-height: 1.7;
         }
         .quote-block .attribution {
             font-style: normal;
-            font-size: 13px;
+            font-size: 12px;
             color: #737373;
-            margin-top: 8px;
-            font-weight: 600;
+            margin-top: 10px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
         }
+        /* Testimonial card */
+        .testimonial-card {
+            border: 2px solid #171717;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 16px 0;
+            background-color: #ffffff;
+            box-shadow: 3px 3px 0 #171717;
+        }
+        .testimonial-stars { color: #fbbf24; font-size: 14px; margin-bottom: 10px; }
+        .testimonial-quote {
+            font-size: 14px;
+            color: #404040;
+            line-height: 1.7;
+            font-style: italic;
+            margin: 0 0 14px 0;
+        }
+        .testimonial-author-row { display: table; width: 100%; }
+        .testimonial-avatar-cell { display: table-cell; width: 40px; vertical-align: middle; }
+        .testimonial-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: #8b5cf6;
+            border: 2px solid #171717;
+            display: block;
+            text-align: center;
+            line-height: 32px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        .testimonial-meta-cell { display: table-cell; vertical-align: middle; padding-left: 10px; }
+        .testimonial-name { font-size: 13px; font-weight: 700; color: #171717; margin: 0; }
+        .testimonial-role {
+            display: inline-block;
+            font-size: 11px;
+            background-color: #ede9fe;
+            color: #7c3aed;
+            border-radius: 999px;
+            padding: 2px 8px;
+            font-weight: 600;
+            margin-top: 3px;
+        }
+        /* Trust strip */
+        .trust-strip {
+            background-color: #f5f5f5;
+            border: 2px solid #e5e5e5;
+            border-radius: 12px;
+            padding: 14px 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .trust-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a3a3a3;
+            margin-bottom: 8px;
+        }
+        .trust-companies {
+            font-size: 12px;
+            font-weight: 600;
+            color: #525252;
+            line-height: 1.8;
+        }
+        /* CTA buttons */
         .btn-primary {
             display: inline-block;
             padding: 14px 32px;
-            background-color: #7c3aed;
+            background-color: #8b5cf6;
             color: #ffffff !important;
             text-decoration: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 700;
             font-size: 15px;
             text-align: center;
             border: 2px solid #171717;
-            box-shadow: 4px 4px 0px 0px rgba(25, 26, 35, 1);
-            margin: 24px 0;
+            box-shadow: 4px 4px 0px #171717;
             letter-spacing: 0.2px;
         }
         .btn-secondary {
@@ -222,91 +330,87 @@
             background-color: #ffffff;
             color: #171717 !important;
             text-decoration: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 600;
             font-size: 14px;
             text-align: center;
             border: 2px solid #171717;
-            box-shadow: 3px 3px 0px 0px rgba(25, 26, 35, 1);
-            margin: 8px 8px 8px 0;
+            box-shadow: 3px 3px 0px #171717;
         }
+        .cta-wrap { margin: 28px 0; text-align: center; }
+        /* Divider */
         .divider {
             height: 2px;
             background-color: #f5f5f5;
             border: none;
             margin: 28px 0;
         }
+        /* Big stat callout */
+        .big-stat {
+            font-family: 'Clash Display', sans-serif;
+            font-size: 48px;
+            font-weight: 700;
+            color: #8b5cf6;
+            letter-spacing: -2px;
+            margin: 0;
+            line-height: 1;
+        }
+        .big-stat-label {
+            font-size: 15px;
+            color: #525252;
+            margin: 6px 0 0 0;
+        }
+        /* Signature */
         .signature {
             margin-top: 28px;
             padding-top: 20px;
             border-top: 1px solid #f0f0f0;
         }
-        .signature p {
-            font-size: 14px;
-            color: #737373;
-            margin: 0;
-        }
-        .signature .name {
-            font-weight: 700;
-            color: #171717;
-            font-size: 15px;
-        }
+        .signature p { font-size: 14px; color: #737373; margin: 0; }
+        .signature .name { font-weight: 700; color: #171717; font-size: 15px; }
+        .signature .tagline { color: #8b5cf6; font-style: italic; margin-top: 2px; }
+        /* Footer */
         .email-footer {
-            padding: 24px 32px;
+            padding: 24px 36px;
             background-color: #fafafa;
             text-align: center;
-            border-top: 2px solid #f0f0f0;
+            border-top: 2px solid #e5e5e5;
         }
-        .email-footer p {
-            margin: 0 0 6px 0;
-            color: #a3a3a3;
-            font-size: 12px;
-        }
-        .email-footer a {
-            color: #7c3aed;
-            text-decoration: none;
-        }
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-        }
-        .badge-purple { background-color: #f5f3ff; color: #7c3aed; }
-        .badge-green { background-color: #f0fdf4; color: #16a34a; }
+        .email-footer p { margin: 0 0 6px 0; color: #a3a3a3; font-size: 12px; }
+        .email-footer a { color: #8b5cf6; text-decoration: none; }
         @media only screen and (max-width: 600px) {
             .wrapper { padding: 16px 12px; }
-            .email-container { border-radius: 12px; box-shadow: 4px 4px 0px 0px rgba(25,26,35,1); }
+            .email-container { border-radius: 16px; box-shadow: 4px 4px 0 #171717; }
             .email-body { padding: 28px 20px; }
-            .email-header { padding: 24px 20px; }
-            .greeting { font-size: 20px; }
-            .btn-primary { display: block; text-align: center; }
-            .stat-row { flex-direction: column; }
-            .stat-box { margin: 0 0 8px 0; }
-            .feature-card { flex-direction: column; }
-            .feature-icon { margin: 0 0 12px 0; }
+            .email-header { padding: 22px 20px; }
+            .greeting { font-size: 21px; }
+            .btn-primary { display: block; }
+            .stat-row { display: block; }
+            .stat-cell { display: block; width: 100%; margin-bottom: 8px; }
         }
     </style>
 </head>
 <body>
-    <div class="wrapper">
-    <div class="email-container">
-        <div class="email-header">
-            <a href="https://studojo.com" class="email-header-logo" style="color:#ffffff;text-decoration:none;">Studojo</a>
-            <div class="email-header-tagline">Work on things that matter.</div>
-        </div>
-        <div class="email-body">
-            {{block "content" .}}{{end}}
-        </div>
-        <div class="email-footer">
-            <p style="margin-bottom:12px;"><a href="https://studojo.com">studojo.com</a></p>
-            <p>&copy; 2026 Studojo &middot; Bangalore, India</p>
-            <p style="margin-top:8px;"><a href="https://studojo.com/support">Help</a> &middot; <a href="mailto:admin@studojo.com">Reply to us</a></p>
-        </div>
+<div class="wrapper">
+<div class="email-container">
+
+    <div class="email-header">
+        <a href="https://studojo.com" class="email-header-logo">Studojo</a>
+        <div class="email-header-tagline">Work on things that matter.</div>
     </div>
+
+    <div class="email-body">
+        {{block "content" .}}{{end}}
     </div>
+
+    <div class="email-footer">
+        <p style="margin-bottom:12px;"><a href="https://studojo.com">studojo.com</a></p>
+        <p>&copy; 2026 Studojo &middot; Bangalore, India</p>
+        <p style="margin-top:8px;"><a href="https://studojo.com/support">Help</a> &middot; <a href="mailto:admin@studojo.com">Reply to us</a></p>
+    </div>
+
+</div>
+</div>
+{{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

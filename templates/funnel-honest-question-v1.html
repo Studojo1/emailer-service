@@ -1,21 +1,22 @@
 {{define "content"}}
-<h2 class="greeting">Quick question.</h2>
-<p style="font-weight:600;color:#171717;">Honest question — is Studojo useful to you right now?</p>
-<div style="display:table;width:100%;margin:20px 0;">
-  <div style="display:table-cell;width:48%;vertical-align:top;background:#f5f3ff;border:2px solid #e5e5e5;border-radius:12px;padding:20px;">
-    <p style="font-weight:700;color:#16a34a;margin:0 0 8px 0;text-transform:uppercase;font-size:12px;letter-spacing:1px;">Yes</p>
-    <p style="font-size:13px;margin:0 0 12px 0;">The Outreach Tool is the thing you haven't tried yet. Worth 5 minutes.</p>
-    <a href="https://studojo.com/outreach" style="color:#7c3aed;font-weight:700;font-size:13px;">Give it 5 minutes →</a>
-  </div>
-  <div style="display:table-cell;width:4%;"></div>
-  <div style="display:table-cell;width:48%;vertical-align:top;background:#fafafa;border:2px solid #e5e5e5;border-radius:12px;padding:20px;">
-    <p style="font-weight:700;color:#737373;margin:0 0 8px 0;text-transform:uppercase;font-size:12px;letter-spacing:1px;">No</p>
-    <p style="font-size:13px;margin:0 0 12px 0;">That's fine. Tell me what's missing and I'll pass it on.</p>
-    <a href="mailto:admin@studojo.com" style="color:#737373;font-weight:700;font-size:13px;">Reply to this email →</a>
-  </div>
+<h2 class="greeting">Honest question, {{.UserName}}.</h2>
+
+<p>How many applications have you sent out in the last month?</p>
+
+<p>And how many replies did you get?</p>
+
+<p>If the gap between those two numbers is large, it's not because your resume is bad. It's because you're playing a numbers game that's rigged against you.</p>
+
+<p style="font-weight:700;color:#171717;">The fix isn't more applications. It's better targeting.</p>
+
+<p>Outreach Dojo helps you find 10 people who are actually relevant to your goals, then sends them a message that reads like it was written just for them. Because it was.</p>
+
+<div class="cta-wrap">
+  <a href="https://studojo.com/outreach" class="btn-primary">Try a targeted search, free →</a>
 </div>
-<p>Either way, I'd rather know than keep sending emails you're not reading.</p>
+
 <div class="signature">
   <p class="name">The Studojo Team</p>
+  <p class="tagline">Work on things that matter.</p>
 </div>
 {{end}}

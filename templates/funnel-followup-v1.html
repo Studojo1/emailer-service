@@ -1,15 +1,32 @@
 {{define "content"}}
-<h2 class="greeting">Still there?</h2>
-<p>Sent you a welcome email yesterday. Wasn't sure if it landed.</p>
-<p>Your Studojo account is live. Everything's set up.</p>
-<p>You can start with whichever feels more urgent right now:</p>
-<div style="text-align:center;">
-  <a href="https://studojo.com/dojos/internships" class="btn-primary">Find internships — InternshipDojo →</a>
-  <a href="https://studojo.com/outreach" class="btn-secondary">Find people to connect with — Outreach Tool →</a>
+<h2 class="greeting">Still there, {{.UserName}}?</h2>
+
+<p>Sent you a welcome email. Just checking it landed.</p>
+
+<p>Your account is live. Nothing to install. Pick whichever feels more useful right now:</p>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-purple">🎯</div></div>
+  <div class="feature-text-cell">
+    <h3>Find internships</h3>
+    <p>Build a resume that gets past ATS and track applications in one place.</p>
+    <a href="https://studojo.com/dojos/internships" style="color:#8b5cf6;font-weight:600;font-size:13px;">Internship Dojo →</a>
+  </div>
 </div>
-<p>Either way, you're 5 minutes from having something useful in your hands.</p>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-blue">✉️</div></div>
+  <div class="feature-text-cell">
+    <h3>Reach hiring managers directly</h3>
+    <p>We find the right people on LinkedIn and write personalised messages for you.</p>
+    <a href="https://studojo.com/outreach" style="color:#8b5cf6;font-weight:600;font-size:13px;">Outreach Dojo →</a>
+  </div>
+</div>
+
+<p>Either way, you're 5 minutes from having something useful done.</p>
+
 <div class="signature">
   <p class="name">The Studojo Team</p>
-  <p style="color:#7c3aed;font-style:italic;">Work on things that matter.</p>
+  <p class="tagline">Work on things that matter.</p>
 </div>
 {{end}}

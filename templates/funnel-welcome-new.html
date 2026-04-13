@@ -1,16 +1,38 @@
 {{define "content"}}
 <span class="badge badge-purple">Welcome</span>
-<h2 class="greeting" style="margin-top:16px;">You're in. Here's where to start.</h2>
-<p>We built this for students who are done wasting time on applications that go nowhere.</p>
-<div class="highlight-box">
-  <p><strong>InternshipDojo</strong><br>Find internships worth applying to. Build a resume that gets past ATS. Track everything in one place.<br><a href="https://studojo.com/dojos/internships" style="color:#7c3aed;font-weight:600;">Explore InternshipDojo →</a></p>
+<h2 class="greeting">You're in. Let's make it count.</h2>
+
+<p>Good to have you here, {{.UserName}}.</p>
+
+<p>Studojo has two tools that actually move the needle on your internship search. Here's what each one does:</p>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-purple">🎯</div></div>
+  <div class="feature-text-cell">
+    <h3>Internship Dojo</h3>
+    <p>Find internships worth applying to. Build a resume that gets past ATS. Track everything in one place.</p>
+    <a href="https://studojo.com/dojos/internships" style="color:#8b5cf6;font-weight:600;font-size:13px;">Explore it →</a>
+  </div>
 </div>
-<div class="highlight-box">
-  <p><strong>Outreach Tool</strong><br>Tell us the role you want. We find the right people on LinkedIn and write a personalised connection note for each one.<br><a href="https://studojo.com/outreach" style="color:#7c3aed;font-weight:600;">Try the Outreach Tool →</a></p>
+
+<div class="feature-card">
+  <div class="feature-icon-cell"><div class="feature-icon feature-icon-blue">✉️</div></div>
+  <div class="feature-text-cell">
+    <h3>Outreach Dojo</h3>
+    <p>Tell us the role you want. We find the right hiring managers on LinkedIn and write a personalised note for each one.</p>
+    <a href="https://studojo.com/outreach" style="color:#8b5cf6;font-weight:600;font-size:13px;">Try it free →</a>
+  </div>
 </div>
-<p>Both are free to start. No tutorials. No onboarding call. Just pick what you need and go.</p>
+
+<p>Both are free to start. No tutorials. No onboarding call. Pick what you need and go.</p>
+
+<div class="trust-strip">
+  <div class="trust-label">Students have gotten replies from</div>
+  <div class="trust-companies">Google &middot; Goldman Sachs &middot; McKinsey &middot; Stripe &middot; Figma &middot; BCG &middot; Amazon &middot; Monzo</div>
+</div>
+
 <div class="signature">
   <p class="name">The Studojo Team</p>
-  <p style="color:#7c3aed;font-style:italic;">Work on things that matter.</p>
+  <p class="tagline">Work on things that matter.</p>
 </div>
 {{end}}

@@ -135,6 +135,13 @@ func main() {
 	// Initialize email sender
 	sender := email.NewSender(emailClient, renderer)
 
+	// Set tracking URL for open rate pixels
+	trackingBaseURL := os.Getenv("TRACKING_BASE_URL")
+	if trackingBaseURL == "" {
+		trackingBaseURL = "https://api.studojo.com"
+	}
+	sender.SetTrackingURL(trackingBaseURL)
+
 	// Initialize stores
 	store := store.NewPostgresStore(db)
 	tokenStore := auth.NewTokenStore(db)
@@ -162,6 +169,16 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due
 			ON scheduled_emails (scheduled_at) WHERE sent_at IS NULL;
+		CREATE TABLE IF NOT EXISTS email_opens (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			track_id TEXT NOT NULL UNIQUE,
+			user_id TEXT NOT NULL DEFAULT '',
+			email_type TEXT NOT NULL DEFAULT '',
+			opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			user_agent TEXT NOT NULL DEFAULT ''
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_opens_email_type ON email_opens (email_type);
+		CREATE INDEX IF NOT EXISTS idx_email_opens_user_id ON email_opens (user_id);
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)
@@ -183,6 +200,7 @@ func main() {
 	// Setup HTTP routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", httpHandler.HandleHealth)
+	mux.HandleFunc("GET /v1/email/track/{track_id}", httpHandler.HandleTrackOpen)
 	mux.HandleFunc("POST /v1/email/forgot-password", httpHandler.HandleForgotPassword)
 	mux.HandleFunc("POST /v1/email/reset-password", httpHandler.HandleResetPassword)
 	mux.HandleFunc("POST /v1/email/change-password", httpHandler.HandleChangePassword)

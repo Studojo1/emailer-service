@@ -2,10 +2,12 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"bytes"
@@ -669,6 +671,36 @@ func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
 // HandleHealth handles GET /health
 func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"}, http.StatusOK)
+}
+
+// HandleTrackOpen handles GET /v1/email/track/{track_id}
+// Returns a 1x1 transparent pixel and records the open event.
+// track_id format: {emailType}__{userID}__{uuid}
+func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
+	trackID := r.PathValue("track_id")
+	if trackID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Parse emailType and userID from trackID (format: emailType__userID__uuid)
+	parts := strings.SplitN(trackID, "__", 3)
+	emailType, userID := "", ""
+	if len(parts) >= 2 {
+		emailType = parts[0]
+		userID = parts[1]
+	}
+
+	userAgent := r.Header.Get("User-Agent")
+	go h.Store.RecordEmailOpen(context.Background(), trackID, userID, emailType, userAgent)
+
+	// 1x1 transparent GIF
+	pixel, _ := base64.StdEncoding.DecodeString("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")
+	w.Header().Set("Content-Type", "image/gif")
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	w.Write(pixel)
 }
 
 // Helper functions
