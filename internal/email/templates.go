@@ -82,6 +82,9 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"funnel-walkthrough", "funnel-educational", "funnel-winback",
 		// Priority transactional
 		"signup-thankyou", "signup-followup", "payment-thankyou",
+		// Welcome variants (A/B testing)
+		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
+		"signup-welcome-v4", "signup-welcome-v5",
 	}
 	for _, name := range templates {
 		if err := tr.LoadTemplate(name); err != nil {

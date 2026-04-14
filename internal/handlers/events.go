@@ -90,6 +90,11 @@ var funnelRoutingKeyToTemplate = map[string]string{
 	"event.funnel.winback":              "funnel-winback",
 	"event.funnel.signup_thankyou":      "signup-thankyou",
 	"event.funnel.signup_followup":      "signup-followup",
+	"event.funnel.signup_welcome_v1":    "signup-welcome-v1",
+	"event.funnel.signup_welcome_v2":    "signup-welcome-v2",
+	"event.funnel.signup_welcome_v3":    "signup-welcome-v3",
+	"event.funnel.signup_welcome_v4":    "signup-welcome-v4",
+	"event.funnel.signup_welcome_v5":    "signup-welcome-v5",
 }
 
 // HandleFunnelEmail handles all event.funnel.* events
