@@ -84,27 +84,35 @@ func NewClient(connectionString, senderEmail string) (*Client, error) {
 	return nil, fmt.Errorf("no valid email provider configured: set RESEND_API_KEY or ACS connection string")
 }
 
-// SendEmail dispatches to the right provider.
+// SendEmail dispatches to the right provider using the default sender address.
 func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string) error {
+	return c.SendEmailFrom(ctx, "", to, subject, htmlContent)
+}
+
+// SendEmailFrom dispatches with an explicit from address (empty = use client default).
+func (c *Client) SendEmailFrom(ctx context.Context, from, to, subject, htmlContent string) error {
+	if from == "" {
+		from = c.senderEmail
+	}
 	switch {
 	case c.mailhogAddr != "":
-		return c.sendViaMailHog(to, subject, htmlContent)
+		return c.sendViaMailHogFrom(from, to, subject, htmlContent)
 	case c.resendAPIKey != "":
-		return c.sendViaResend(ctx, to, subject, htmlContent)
+		return c.sendViaResend(ctx, from, to, subject, htmlContent)
 	case c.acsEndpoint != "":
-		return c.sendViaACS(ctx, to, subject, htmlContent)
+		return c.sendViaACS(ctx, from, to, subject, htmlContent)
 	default:
 		return fmt.Errorf("no email provider configured")
 	}
 }
 
 // sendViaACS sends email using Azure Communication Services Email REST API.
-func (c *Client) sendViaACS(ctx context.Context, to, subject, htmlContent string) error {
+func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent string) error {
 	path := "/emails:send?api-version=2023-03-31"
 	fullURL := c.acsEndpoint + path
 
 	payload := map[string]interface{}{
-		"senderAddress": c.senderEmail,
+		"senderAddress": from,
 		"recipients": map[string]interface{}{
 			"to": []map[string]string{
 				{"address": to},
@@ -194,9 +202,9 @@ func (c *Client) signACSRequest(req *http.Request, body []byte) error {
 }
 
 // sendViaResend sends email using the Resend API.
-func (c *Client) sendViaResend(ctx context.Context, to, subject, htmlContent string) error {
+func (c *Client) sendViaResend(ctx context.Context, from, to, subject, htmlContent string) error {
 	payload := map[string]interface{}{
-		"from":    c.senderEmail,
+		"from":    from,
 		"to":      []string{to},
 		"subject": subject,
 		"html":    htmlContent,
@@ -234,9 +242,9 @@ func (c *Client) sendViaResend(ctx context.Context, to, subject, htmlContent str
 	return nil
 }
 
-// sendViaMailHog sends email via MailHog SMTP (development only).
-func (c *Client) sendViaMailHog(to, subject, htmlContent string) error {
-	msg := []byte("From: " + c.senderEmail + "\r\n" +
+// sendViaMailHogFrom sends email via MailHog SMTP (development only).
+func (c *Client) sendViaMailHogFrom(from, to, subject, htmlContent string) error {
+	msg := []byte("From: " + from + "\r\n" +
 		"To: " + to + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"MIME-Version: 1.0\r\n" +
@@ -244,7 +252,7 @@ func (c *Client) sendViaMailHog(to, subject, htmlContent string) error {
 		"\r\n" +
 		htmlContent + "\r\n")
 
-	if err := smtp.SendMail(c.mailhogAddr, nil, c.senderEmail, []string{to}, msg); err != nil {
+	if err := smtp.SendMail(c.mailhogAddr, nil, from, []string{to}, msg); err != nil {
 		return fmt.Errorf("mailhog: send failed: %w", err)
 	}
 	slog.Info("email sent via MailHog", "to", to, "addr", c.mailhogAddr)

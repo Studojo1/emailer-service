@@ -145,6 +145,26 @@ func main() {
 	// Initialize email sender
 	sender := email.NewSender(emailClient, renderer)
 
+	// Per-category sender addresses
+	supportSender := os.Getenv("EMAIL_SENDER_SUPPORT")
+	if supportSender == "" {
+		supportSender = senderEmail
+	}
+	welcomeSender := os.Getenv("EMAIL_SENDER_WELCOME")
+	if welcomeSender == "" {
+		welcomeSender = senderEmail
+	}
+	promotionsSender := os.Getenv("EMAIL_SENDER_PROMOTIONS")
+	if promotionsSender == "" {
+		promotionsSender = senderEmail
+	}
+	sender.SetSenderAddresses(supportSender, welcomeSender, promotionsSender)
+	slog.Info("email senders configured",
+		"support", supportSender,
+		"welcome", welcomeSender,
+		"promotions", promotionsSender,
+	)
+
 	// Set tracking URL for open rate pixels
 	trackingBaseURL := os.Getenv("TRACKING_BASE_URL")
 	if trackingBaseURL == "" {

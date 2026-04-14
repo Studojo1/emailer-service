@@ -15,6 +15,11 @@ type Sender struct {
 	client      *Client
 	renderer    *TemplateRenderer
 	trackingURL string // base URL for open tracking, e.g. https://api.studojo.com
+
+	// Per-category sender addresses (set via env vars)
+	supportSender    string // support.studojo.com — transactional, payment, product updates
+	welcomeSender    string // welcome.studojo.pro  — onboarding, signup
+	promotionsSender string // promotions.studojo.pro — funnel, marketing
 }
 
 // NewSender creates a new email sender
@@ -23,6 +28,36 @@ func NewSender(client *Client, renderer *TemplateRenderer) *Sender {
 		client:   client,
 		renderer: renderer,
 	}
+}
+
+// SetSenderAddresses configures per-category from addresses
+func (s *Sender) SetSenderAddresses(support, welcome, promotions string) {
+	s.supportSender = support
+	s.welcomeSender = welcome
+	s.promotionsSender = promotions
+}
+
+// getSenderForTemplate returns the right from address for a given template
+func (s *Sender) getSenderForTemplate(templateName string) string {
+	switch templateName {
+	// Support / transactional — payment confirmations, product updates
+	case "payment-thankyou", "welcome", "password-changed", "forgot-password",
+		"resume-optimized", "internship-applied", "contact-form":
+		if s.supportSender != "" {
+			return s.supportSender
+		}
+	// Welcome / onboarding
+	case "signup-thankyou", "signup-followup", "funnel-welcome-new", "funnel-welcome-existing",
+		"funnel-onboarding", "funnel-congratulations":
+		if s.welcomeSender != "" {
+			return s.welcomeSender
+		}
+	}
+	// Everything else (funnel, nurture, promo) → promotions
+	if s.promotionsSender != "" {
+		return s.promotionsSender
+	}
+	return "" // falls back to client default
 }
 
 // SetTrackingURL sets the base URL used to generate tracking pixel URLs
@@ -64,7 +99,8 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 			time.Sleep(backoff)
 		}
 
-		err := s.client.SendEmail(ctx, to, subject, htmlContent)
+		fromAddr := s.getSenderForTemplate(templateName)
+		err := s.client.SendEmailFrom(ctx, fromAddr, to, subject, htmlContent)
 		if err == nil {
 			return nil
 		}
