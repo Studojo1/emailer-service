@@ -82,10 +82,10 @@ jobs:
           kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
             RESEND_API_KEY- \
             AZURE_EMAIL_CONNECTION_STRING="${{ secrets.ACS_EMAIL_CONNECTION_STRING }}" \
-            AZURE_EMAIL_SENDER_ADDRESS="hello@support.studojo.com" \
-            EMAIL_SENDER_SUPPORT="hello@support.studojo.com" \
-            EMAIL_SENDER_WELCOME="hello@welcome.studojo.pro" \
-            EMAIL_SENDER_PROMOTIONS="hello@promotions.studojo.pro"
+            AZURE_EMAIL_SENDER_ADDRESS="Pranav from Studojo <pranav@support.studojo.com>" \
+            EMAIL_SENDER_SUPPORT="Pranav from Studojo <pranav@support.studojo.com>" \
+            EMAIL_SENDER_WELCOME="Jeremy from Studojo <jeremy@welcome.studojo.pro>" \
+            EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>"
 
       - name: Deploy to Kubernetes
         run: |

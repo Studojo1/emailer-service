@@ -106,21 +106,44 @@ func (c *Client) SendEmailFrom(ctx context.Context, from, to, subject, htmlConte
 	}
 }
 
+// parseSenderAddress splits "Display Name <email@domain.com>" into (name, email).
+// If no display name is present, returns ("", address).
+func parseSenderAddress(from string) (displayName, address string) {
+	from = strings.TrimSpace(from)
+	if lt := strings.Index(from, "<"); lt != -1 {
+		displayName = strings.TrimSpace(from[:lt])
+		address = strings.Trim(from[lt:], "<> ")
+		return
+	}
+	return "", from
+}
+
 // sendViaACS sends email using Azure Communication Services Email REST API.
 func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent string) error {
 	path := "/emails:send?api-version=2023-03-31"
 	fullURL := c.acsEndpoint + path
 
+	displayName, senderAddr := parseSenderAddress(from)
+
+	senderField := map[string]string{"address": senderAddr}
+	if displayName != "" {
+		senderField["displayName"] = displayName
+	}
+
 	payload := map[string]interface{}{
-		"senderAddress": from,
+		"senderAddress": senderAddr,
+		"from":          senderField,
 		"recipients": map[string]interface{}{
 			"to": []map[string]string{
 				{"address": to},
 			},
 		},
+		"replyTo": []map[string]string{
+			{"address": "studojo@gmail.com", "displayName": "Studojo Support"},
+		},
 		"content": map[string]string{
-			"subject":   subject,
-			"html":      htmlContent,
+			"subject": subject,
+			"html":    htmlContent,
 		},
 	}
 
