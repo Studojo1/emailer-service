@@ -80,6 +80,8 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// Funnel — 11–16
 		"funnel-testimonial", "funnel-pricing", "funnel-case-study",
 		"funnel-walkthrough", "funnel-educational", "funnel-winback",
+		// Priority transactional
+		"signup-thankyou", "signup-followup", "payment-thankyou",
 	}
 	for _, name := range templates {
 		if err := tr.LoadTemplate(name); err != nil {
