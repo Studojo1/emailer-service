@@ -538,10 +538,10 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		skipped := 0
 
 		for i, user := range users {
-			// Cooldown pause every 50 sends to avoid rate-limit triggers
-			if i > 0 && i%50 == 0 {
-				slog.Info("bulk send: batch cooldown", "sent_so_far", sent, "pausing_seconds", 30)
-				time.Sleep(30 * time.Second)
+			// Cooldown pause every 20 sends — 2-minute break between batches
+			if i > 0 && i%20 == 0 {
+				slog.Info("bulk send: batch cooldown", "sent_so_far", sent, "pausing_seconds", 120)
+				time.Sleep(120 * time.Second)
 			}
 
 			// Dedup: skip if user already received this email type
@@ -586,8 +586,8 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 			sent++
 			slog.Info("bulk send: email sent", "user_id", user.ID, "email_type", req.EmailType, "email", user.Email)
 
-			// 1 second between every send to keep well under provider limits
-			time.Sleep(1 * time.Second)
+			// 10 seconds between every send — conservative pacing for domain reputation
+			time.Sleep(10 * time.Second)
 		}
 
 		slog.Info("bulk send complete", "email_type", req.EmailType, "total", total, "sent", sent, "skipped", skipped, "failed", failed)
