@@ -1,31 +1,30 @@
 {{define "content"}}
-<h2 class="greeting">Hey {{.UserName}} 👋</h2>
+<span class="badge badge-green">Welcome aboard</span>
+<h2 class="greeting">{{.UserName}}, you just made a better decision than most students will this week.</h2>
 
-<p>I started Studojo because I watched too many smart students apply to 200 jobs and hear nothing back.</p>
+<p>Here's something we've noticed after helping 10,000+ students:</p>
 
-<p>Not because they weren't good enough. Because they were doing it the same way as everyone else.</p>
+<p>The ones who land roles aren't always the ones with the best grades. They're the ones who figured out how to get in front of the right people.</p>
+
+<p>That's exactly what Studojo is built for.</p>
 
 <div class="highlight-box">
-    <p>Studojo's outreach tool finds the right people at the right companies and writes personalised emails to each of them — sent from your Gmail. Students have gotten callbacks within 48 hours.</p>
+  <p>This week, 3 things are worth your time on Studojo:</p>
+  <p>1. <strong>Find 5 internships worth applying to.</strong> Not 50. Five good ones.</p>
+  <p>2. <strong>Update your resume.</strong> Takes 10 minutes. Makes a real difference.</p>
+  <p>3. <strong>Send 3 outreach messages.</strong> To real people at real companies. See what comes back.</p>
 </div>
 
-<p style="font-weight:600;color:#171717;margin-bottom:8px;">Here's what you can do right now:</p>
+<p>Start with any of them. The point is to start.</p>
 
-<ol class="steps-list">
-    <li><strong>Upload your resume</strong> — we'll extract your skills and experience automatically</li>
-    <li><strong>Answer 5 quick questions</strong> — so we know what kind of roles you're after</li>
-    <li><strong>We find the people + write the emails</strong> — personalised outreach, sent from your inbox</li>
-</ol>
-
-<div style="text-align:center;">
-    <a href="{{.DashboardURL}}" class="btn-primary">Go to your dashboard →</a>
+<div class="cta-wrap">
+  <a href="{{.DashboardURL}}" class="btn-primary">Let's go →</a>
 </div>
 
-<hr class="divider">
+<p style="font-size:13px;color:#737373;text-align:center;">Reply to this email if you want help figuring out where to start. I read every one.</p>
 
 <div class="signature">
-    <p class="name">Jeremy</p>
-    <p>Founder, Studojo</p>
-    <p style="margin-top:8px;font-size:13px;">Reply to this email anytime — I read them all.</p>
+  <p class="name">Jeremy</p>
+  <p class="tagline">Studojo — Work on things that matter.</p>
 </div>
 {{end}}

@@ -116,7 +116,7 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 func (s *Sender) getSubject(templateName string, data map[string]interface{}) (string, error) {
 	switch templateName {
 	case "welcome":
-		return "Welcome to Studojo", nil
+		return "You just made a better decision than most students will this week.", nil
 	case "forgot-password":
 		return "Reset your Studojo password", nil
 	case "resume-optimized":
