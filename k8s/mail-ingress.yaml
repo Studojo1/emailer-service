@@ -11,20 +11,9 @@ spec:
   tls:
     - hosts:
         - email.studojo.com
-        - mail.studojo.com
-      secretName: mail-studojo-tls
+      secretName: email-studojo-tls
   rules:
     - host: email.studojo.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: emailer-service
-                port:
-                  number: 8087
-    - host: mail.studojo.com
       http:
         paths:
           - path: /
