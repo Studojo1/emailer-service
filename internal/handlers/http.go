@@ -529,13 +529,31 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		"total":   total,
 	}, http.StatusOK)
 
-	// Send emails in background
+	// Send emails in background with safe pacing
+	// 1s between sends + 30s cooldown every 50 emails to protect domain reputation
 	go func() {
 		ctx := context.Background()
 		sent := 0
 		failed := 0
+		skipped := 0
 
-		for _, user := range users {
+		for i, user := range users {
+			// Cooldown pause every 50 sends to avoid rate-limit triggers
+			if i > 0 && i%50 == 0 {
+				slog.Info("bulk send: batch cooldown", "sent_so_far", sent, "pausing_seconds", 30)
+				time.Sleep(30 * time.Second)
+			}
+
+			// Dedup: skip if user already received this email type
+			already, err := h.Store.HasReceivedEmail(ctx, user.ID, req.EmailType)
+			if err != nil {
+				slog.Error("bulk send: failed to check dedup", "user_id", user.ID, "error", err)
+			} else if already {
+				slog.Info("bulk send: skipping, already received", "user_id", user.ID, "email_type", req.EmailType)
+				skipped++
+				continue
+			}
+
 			// Check preferences
 			prefs, err := h.Store.GetEmailPreferences(ctx, user.ID)
 			if err != nil {
@@ -544,7 +562,8 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if !prefs.ProductEmails {
-				slog.Info("bulk send: skipping user, product emails disabled", "user_id", user.ID)
+				slog.Info("bulk send: skipping, product emails disabled", "user_id", user.ID)
+				skipped++
 				continue
 			}
 
@@ -554,6 +573,8 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 			if err := h.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
 				slog.Error("bulk send: failed to send", "user_id", user.ID, "email_type", req.EmailType, "error", err)
 				failed++
+				// Back off on errors
+				time.Sleep(5 * time.Second)
 				continue
 			}
 
@@ -565,11 +586,11 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 			sent++
 			slog.Info("bulk send: email sent", "user_id", user.ID, "email_type", req.EmailType, "email", user.Email)
 
-			// Rate limit: small delay between sends
-			time.Sleep(200 * time.Millisecond)
+			// 1 second between every send to keep well under provider limits
+			time.Sleep(1 * time.Second)
 		}
 
-		slog.Info("bulk send complete", "email_type", req.EmailType, "total", total, "sent", sent, "failed", failed)
+		slog.Info("bulk send complete", "email_type", req.EmailType, "total", total, "sent", sent, "skipped", skipped, "failed", failed)
 	}()
 }
 

@@ -68,6 +68,17 @@ func (s *PostgresStore) RecordSentEmail(ctx context.Context, userID, emailType s
 	return err
 }
 
+// HasReceivedEmail returns true if the user already received this email type
+func (s *PostgresStore) HasReceivedEmail(ctx context.Context, userID, emailType string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM scheduled_emails
+		WHERE user_id = $1 AND email_type = $2 AND sent_at IS NOT NULL`,
+		userID, emailType,
+	).Scan(&count)
+	return count > 0, err
+}
+
 // MarkScheduledEmailSent marks a scheduled email as sent
 func (s *PostgresStore) MarkScheduledEmailSent(ctx context.Context, id uuid.UUID) error {
 	now := time.Now().UTC()
