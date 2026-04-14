@@ -85,7 +85,12 @@ jobs:
             AZURE_EMAIL_SENDER_ADDRESS="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_SUPPORT="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_WELCOME="Jeremy from Studojo <jeremy@welcome.studojo.pro>" \
-            EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>"
+            EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>" \
+            ADMIN_SECRET="${{ secrets.ADMIN_SECRET }}"
+
+      - name: Apply mail.studojo.com ingress
+        run: |
+          kubectl apply -f k8s/mail-ingress.yaml
 
       - name: Deploy to Kubernetes
         run: |

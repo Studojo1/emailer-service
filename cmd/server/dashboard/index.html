@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en" x-data="app()" x-init="init()">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Studojo Mail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer; }
+    .sidebar-link.active { @apply text-white bg-violet-600; }
+    .stat-card { @apply bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-1; }
+    .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium; }
+    .btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer; }
+    .btn-primary { @apply btn bg-violet-600 text-white hover:bg-violet-700; }
+    .btn-secondary { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
+    .input { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent; }
+    .select { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white; }
+    .table-row { @apply border-b border-slate-100 hover:bg-slate-50 transition-colors; }
+    .spinner { @apply animate-spin h-5 w-5 text-violet-600; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+
+<!-- Auth gate -->
+<div x-show="!authed" x-cloak class="min-h-screen flex items-center justify-center bg-slate-900">
+  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-900">Studojo Mail</div>
+        <div class="text-xs text-slate-500">Admin Dashboard</div>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Admin Token</label>
+      <input type="password" x-model="authToken" @keydown.enter="login()"
+        placeholder="Paste your Studojo JWT or admin key"
+        class="input" />
+    </div>
+    <div x-show="authError" class="text-red-600 text-sm mb-3" x-text="authError"></div>
+    <button @click="login()" class="btn-primary w-full justify-center">
+      <span x-show="!authLoading">Sign in</span>
+      <svg x-show="authLoading" class="spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+    </button>
+    <p class="text-xs text-slate-400 mt-3 text-center">Use your Studojo JWT from the network tab (get-session) or the ADMIN_SECRET env var</p>
+  </div>
+</div>
+
+<!-- Main dashboard -->
+<div x-show="authed" x-cloak class="flex min-h-screen">
+
+  <!-- Sidebar -->
+  <div class="w-56 bg-slate-900 flex flex-col fixed inset-y-0 left-0">
+    <div class="flex items-center gap-2.5 px-5 py-5 border-b border-slate-800">
+      <div class="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center flex-shrink-0">
+        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <span class="font-semibold text-white text-sm">Studojo Mail</span>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-0.5">
+      <div @click="nav('overview')" :class="page==='overview' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Overview
+      </div>
+      <div @click="nav('logs')" :class="page==='logs' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Email Logs
+      </div>
+      <div @click="nav('users')" :class="page==='users' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Users
+      </div>
+      <div @click="nav('campaigns')" :class="page==='campaigns' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
+        Campaigns
+      </div>
+      <div @click="nav('trigger')" :class="page==='trigger' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Fire Email
+      </div>
+      <div @click="nav('templates')" :class="page==='templates' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+        Templates
+      </div>
+    </nav>
+
+    <div class="px-4 py-4 border-t border-slate-800">
+      <button @click="logout()" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Sign out</button>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div class="ml-56 flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-semibold text-slate-900" x-text="pageTitle()"></h1>
+        <p class="text-xs text-slate-500" x-text="pageSubtitle()"></p>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+        <span class="text-xs text-slate-500">Live</span>
+      </div>
+    </div>
+
+    <!-- Page content -->
+    <div class="flex-1 p-8">
+
+      <!-- OVERVIEW -->
+      <div x-show="page==='overview'">
+        <div x-show="statsLoading" class="flex justify-center py-20">
+          <svg class="spinner w-8 h-8" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+        </div>
+        <div x-show="!statsLoading">
+          <!-- Stat cards -->
+          <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Sent</div>
+              <div class="text-3xl font-bold text-slate-900" x-text="(stats.total_sent||0).toLocaleString()"></div>
+              <div class="text-xs text-slate-400">all time</div>
+            </div>
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Open Rate</div>
+              <div class="text-3xl font-bold text-violet-600" x-text="(stats.open_rate||0).toFixed(1)+'%'"></div>
+              <div class="text-xs text-slate-400" x-text="(stats.total_opened||0).toLocaleString()+' opened'"></div>
+            </div>
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Sent Today</div>
+              <div class="text-3xl font-bold text-slate-900" x-text="(stats.sent_today||0).toLocaleString()"></div>
+              <div class="text-xs text-slate-400" x-text="(stats.sent_this_week||0).toLocaleString()+' this week'"></div>
+            </div>
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Users</div>
+              <div class="text-3xl font-bold text-slate-900" x-text="(stats.total_users||0).toLocaleString()"></div>
+              <div class="text-xs text-slate-400">registered</div>
+            </div>
+          </div>
+
+          <!-- Chart + Top Templates -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+              <div class="font-medium text-sm text-slate-700 mb-4">Email volume (last 14 days)</div>
+              <canvas id="volumeChart" height="120"></canvas>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="font-medium text-sm text-slate-700 mb-4">Top templates</div>
+              <div class="space-y-3">
+                <template x-for="t in (stats.top_templates||[])" :key="t.template_name">
+                  <div class="flex items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-slate-700 truncate" x-text="t.template_name"></div>
+                      <div class="h-1.5 bg-slate-100 rounded-full mt-1">
+                        <div class="h-1.5 bg-violet-400 rounded-full" :style="`width:${Math.min(t.open_rate,100)}%`"></div>
+                      </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                      <div class="text-xs font-semibold text-slate-900" x-text="t.send_count"></div>
+                      <div class="text-xs text-slate-400" x-text="t.open_rate.toFixed(0)+'%'"></div>
+                    </div>
+                  </div>
+                </template>
+                <div x-show="!(stats.top_templates||[]).length" class="text-xs text-slate-400 text-center py-4">No sends recorded yet</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent sends -->
+          <div class="bg-white rounded-xl border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-700">Recent sends</div>
+              <button @click="nav('logs')" class="text-xs text-violet-600 hover:text-violet-700">View all →</button>
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">To</th>
+                  <th class="px-5 py-3 font-medium">Template</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
+                  <th class="px-5 py-3 font-medium">Opened</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="log in recentLogs" :key="log.id">
+                  <tr class="table-row">
+                    <td class="px-5 py-3 text-slate-700" x-text="log.email_to"></td>
+                    <td class="px-5 py-3">
+                      <span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span>
+                    </td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                    <td class="px-5 py-3">
+                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">opened</span>
+                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-500">not opened</span>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!recentLogs.length">
+                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No emails logged yet. Sends will appear here automatically.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOGS -->
+      <div x-show="page==='logs'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="logsSearch" @input.debounce.400ms="loadLogs()" type="text" placeholder="Search by email, template…" class="input max-w-xs" />
+          <button @click="loadLogs()" class="btn-secondary">Refresh</button>
+          <span class="text-sm text-slate-500 ml-auto" x-text="logsTotal.toLocaleString()+' total'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">To</th>
+                <th class="px-5 py-3 font-medium">Template</th>
+                <th class="px-5 py-3 font-medium">From</th>
+                <th class="px-5 py-3 font-medium">Sent</th>
+                <th class="px-5 py-3 font-medium">Opened</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="log in logs" :key="log.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="text-slate-800 font-medium" x-text="log.email_to"></div>
+                    <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-500 text-xs truncate max-w-xs" x-text="log.from_address||'—'"></td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                  <td class="px-5 py-3">
+                    <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                    <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!logs.length && !logsLoading">
+                <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No logs yet.</td>
+              </tr>
+            </tbody>
+          </table>
+          <!-- Pagination -->
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="logsPage > 0 && (logsPage--, loadLogs())" :disabled="logsPage===0"
+              class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${logsPage+1} of ${Math.max(1,Math.ceil(logsTotal/logsLimit))}`"></span>
+            <button @click="(logsPage+1)*logsLimit < logsTotal && (logsPage++, loadLogs())"
+              :disabled="(logsPage+1)*logsLimit >= logsTotal"
+              class="btn-secondary text-xs disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- USERS -->
+      <div x-show="page==='users'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="usersSearch" @input.debounce.400ms="loadUsers()" type="text" placeholder="Search by name or email…" class="input max-w-xs" />
+          <span class="text-sm text-slate-500 ml-auto" x-text="usersTotal.toLocaleString()+' users'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">User</th>
+                <th class="px-5 py-3 font-medium">Joined</th>
+                <th class="px-5 py-3 font-medium">Sent</th>
+                <th class="px-5 py-3 font-medium">Opened</th>
+                <th class="px-5 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="user in users" :key="user.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-slate-800" x-text="user.name||'(no name)'"></div>
+                    <div class="text-xs text-slate-400" x-text="user.email"></div>
+                  </td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(user.created_at)"></td>
+                  <td class="px-5 py-3 text-slate-700 font-medium" x-text="user.emails_sent"></td>
+                  <td class="px-5 py-3">
+                    <span x-show="user.emails_opened > 0" class="badge bg-emerald-50 text-emerald-700" x-text="user.emails_opened+' opens'"></span>
+                    <span x-show="user.emails_opened === 0" class="text-slate-400 text-xs">—</span>
+                  </td>
+                  <td class="px-5 py-3">
+                    <button @click="openSendModal(user)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Send email</button>
+                    <button @click="openUserHistory(user)" class="text-xs text-slate-500 hover:text-slate-700 font-medium ml-3">History</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="usersPage > 0 && (usersPage--, loadUsers())" :disabled="usersPage===0"
+              class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${usersPage+1} of ${Math.max(1,Math.ceil(usersTotal/usersLimit))}`"></span>
+            <button @click="(usersPage+1)*usersLimit < usersTotal && (usersPage++, loadUsers())"
+              :disabled="(usersPage+1)*usersLimit >= usersTotal"
+              class="btn-secondary text-xs disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CAMPAIGNS -->
+      <div x-show="page==='campaigns'">
+        <div class="flex items-center justify-between mb-5">
+          <div></div>
+          <button @click="showNewCampaign=true" class="btn-primary">+ New Campaign</button>
+        </div>
+
+        <!-- New campaign form -->
+        <div x-show="showNewCampaign" class="bg-white rounded-xl border border-slate-200 p-6 mb-5">
+          <h3 class="font-semibold text-slate-800 mb-4">Create Campaign</h3>
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Campaign name</label>
+              <input x-model="newCampaign.name" class="input" placeholder="e.g. April nurture blast" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+              <select x-model="newCampaign.template_name" class="select">
+                <option value="">Select template…</option>
+                <template x-for="t in templates" :key="t">
+                  <option :value="t" x-text="t"></option>
+                </template>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-1">Audience</label>
+              <select x-model="newCampaign.filter_days" class="select">
+                <option value="0">All users</option>
+                <option value="7">Signed up in last 7 days</option>
+                <option value="14">Signed up in last 14 days</option>
+                <option value="30">Signed up in last 30 days</option>
+                <option value="90">Signed up in last 90 days</option>
+              </select>
+            </div>
+            <div class="flex items-end">
+              <button @click="previewCampaignCount()" class="btn-secondary">
+                Preview audience size
+              </button>
+            </div>
+          </div>
+          <div x-show="campaignPreviewCount !== null" class="bg-violet-50 text-violet-800 text-sm rounded-lg px-4 py-2.5 mb-4 font-medium">
+            This will send to <span class="font-bold" x-text="campaignPreviewCount"></span> users.
+          </div>
+          <div class="flex gap-2">
+            <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name"
+              class="btn-primary disabled:opacity-50">Send campaign</button>
+            <button @click="showNewCampaign=false; campaignPreviewCount=null" class="btn-secondary">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Campaign list -->
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">Name</th>
+                <th class="px-5 py-3 font-medium">Template</th>
+                <th class="px-5 py-3 font-medium">Status</th>
+                <th class="px-5 py-3 font-medium">Recipients</th>
+                <th class="px-5 py-3 font-medium">Sent</th>
+                <th class="px-5 py-3 font-medium">Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="c in campaigns" :key="c.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3 font-medium text-slate-800" x-text="c.name"></td>
+                  <td class="px-5 py-3">
+                    <span class="badge bg-violet-50 text-violet-700" x-text="c.template_name"></span>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span :class="statusBadge(c.status)" class="badge" x-text="c.status"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-600" x-text="c.total_recipients"></td>
+                  <td class="px-5 py-3 text-slate-600" x-text="c.sent_count"></td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(c.created_at)"></td>
+                </tr>
+              </template>
+              <tr x-show="!campaigns.length">
+                <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">No campaigns yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FIRE EMAIL (trigger) -->
+      <div x-show="page==='trigger'">
+        <div class="max-w-lg">
+          <div class="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 class="font-semibold text-slate-800 mb-1">Fire a single email</h3>
+            <p class="text-sm text-slate-500 mb-5">Send any template to any address for testing or one-off sends.</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Recipient email</label>
+                <input x-model="triggerEmail" class="input" placeholder="user@example.com" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+                <select x-model="triggerTemplate" class="select">
+                  <option value="">Select template…</option>
+                  <template x-for="t in templates" :key="t">
+                    <option :value="t" x-text="t"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Name (optional)</label>
+                <input x-model="triggerName" class="input" placeholder="Jeremy" />
+              </div>
+              <button @click="fireTrigger()" :disabled="!triggerEmail||!triggerTemplate"
+                class="btn-primary disabled:opacity-50 w-full justify-center">
+                Send now
+              </button>
+              <div x-show="triggerResult" :class="triggerOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
+                class="text-sm rounded-lg px-4 py-2.5" x-text="triggerResult"></div>
+            </div>
+          </div>
+
+          <!-- Routing key reference -->
+          <div class="bg-white rounded-xl border border-slate-200 p-6 mt-4">
+            <h3 class="font-semibold text-slate-800 mb-3">Common routing keys</h3>
+            <div class="space-y-1.5 text-xs font-mono">
+              <div class="flex gap-2"><span class="text-violet-600">event.user.signup</span><span class="text-slate-400">→ welcome email</span></div>
+              <div class="flex gap-2"><span class="text-violet-600">event.payment.success</span><span class="text-slate-400">→ payment confirmation</span></div>
+              <div class="flex gap-2"><span class="text-violet-600">event.funnel.welcome_new</span><span class="text-slate-400">→ funnel welcome</span></div>
+              <div class="flex gap-2"><span class="text-violet-600">event.funnel.followup_v1</span><span class="text-slate-400">→ funnel follow-up 1</span></div>
+              <div class="flex gap-2"><span class="text-violet-600">event.funnel.pricing</span><span class="text-slate-400">→ pricing email</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TEMPLATES -->
+      <div x-show="page==='templates'">
+        <div class="grid grid-cols-3 gap-3">
+          <template x-for="t in templates" :key="t">
+            <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-start justify-between hover:border-violet-300 transition-colors group">
+              <div>
+                <div class="font-medium text-sm text-slate-800" x-text="t"></div>
+                <div class="text-xs text-slate-400 mt-0.5" x-text="templateCategory(t)"></div>
+              </div>
+              <button @click="fireTriggerForTemplate(t)"
+                class="text-xs text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity hover:text-violet-800 font-medium whitespace-nowrap">
+                Test →
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Send to user modal -->
+<div x-show="sendModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md" @click.outside="sendModal=false">
+    <h3 class="font-semibold text-slate-800 mb-1">Send email to <span x-text="sendModalUser?.name||sendModalUser?.email"></span></h3>
+    <p class="text-sm text-slate-500 mb-4" x-text="sendModalUser?.email"></p>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+      <select x-model="sendModalTemplate" class="select">
+        <option value="">Select template…</option>
+        <template x-for="t in templates" :key="t">
+          <option :value="t" x-text="t"></option>
+        </template>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button @click="sendToUser()" :disabled="!sendModalTemplate" class="btn-primary disabled:opacity-50">Send</button>
+      <button @click="sendModal=false" class="btn-secondary">Cancel</button>
+    </div>
+    <div x-show="sendModalResult" class="text-sm text-emerald-700 bg-emerald-50 rounded-lg px-4 py-2.5 mt-3" x-text="sendModalResult"></div>
+  </div>
+</div>
+
+<!-- User history modal -->
+<div x-show="historyModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" @click.outside="historyModal=false">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="font-semibold text-slate-800" x-text="historyUser?.name||historyUser?.email"></h3>
+        <p class="text-xs text-slate-500" x-text="historyUser?.email"></p>
+      </div>
+      <button @click="historyModal=false" class="text-slate-400 hover:text-slate-600">✕</button>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr class="text-xs text-slate-500 text-left">
+          <th class="px-3 py-2 font-medium">Template</th>
+          <th class="px-3 py-2 font-medium">Sent</th>
+          <th class="px-3 py-2 font-medium">Opened</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="h in userHistory" :key="h.id">
+          <tr class="border-b border-slate-100">
+            <td class="px-3 py-2"><span class="badge bg-violet-50 text-violet-700" x-text="h.template_name"></span></td>
+            <td class="px-3 py-2 text-slate-500 text-xs" x-text="relTime(h.sent_at)"></td>
+            <td class="px-3 py-2">
+              <span x-show="h.opened_at" class="badge bg-emerald-50 text-emerald-700">✓</span>
+              <span x-show="!h.opened_at" class="text-slate-300">–</span>
+            </td>
+          </tr>
+        </template>
+        <tr x-show="!userHistory.length">
+          <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-400">No emails sent to this user yet.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function app() {
+  return {
+    // Auth
+    authed: false,
+    authToken: '',
+    authError: '',
+    authLoading: false,
+
+    // Navigation
+    page: 'overview',
+
+    // Overview
+    stats: {},
+    statsLoading: false,
+    recentLogs: [],
+
+    // Logs
+    logs: [],
+    logsTotal: 0,
+    logsLoading: false,
+    logsSearch: '',
+    logsPage: 0,
+    logsLimit: 50,
+
+    // Users
+    users: [],
+    usersTotal: 0,
+    usersSearch: '',
+    usersPage: 0,
+    usersLimit: 50,
+
+    // Campaigns
+    campaigns: [],
+    showNewCampaign: false,
+    newCampaign: { name: '', template_name: '', filter_days: 0 },
+    campaignPreviewCount: null,
+
+    // Trigger
+    triggerEmail: '',
+    triggerTemplate: '',
+    triggerName: 'Jeremy',
+    triggerResult: '',
+    triggerOk: false,
+
+    // Templates
+    templates: [],
+
+    // Modals
+    sendModal: false,
+    sendModalUser: null,
+    sendModalTemplate: '',
+    sendModalResult: '',
+    historyModal: false,
+    historyUser: null,
+    userHistory: [],
+
+    // Chart instance
+    _chart: null,
+
+    async init() {
+      const token = localStorage.getItem('adminToken')
+      if (token) {
+        this.authToken = token
+        await this.login(true)
+      }
+    },
+
+    async login(silent = false) {
+      if (!this.authToken) return
+      this.authLoading = true
+      this.authError = ''
+      try {
+        const r = await this.api('GET', '/v1/admin/stats')
+        if (r.ok) {
+          this.authed = true
+          localStorage.setItem('adminToken', this.authToken)
+          await this.loadAll()
+        } else {
+          if (!silent) this.authError = 'Invalid token or not admin.'
+          localStorage.removeItem('adminToken')
+        }
+      } catch {
+        if (!silent) this.authError = 'Could not connect.'
+      }
+      this.authLoading = false
+    },
+
+    logout() {
+      localStorage.removeItem('adminToken')
+      this.authed = false
+      this.authToken = ''
+    },
+
+    async loadAll() {
+      await this.loadStats()
+      await this.loadLogs()
+      await this.loadUsers()
+      await this.loadCampaigns()
+      await this.loadTemplates()
+    },
+
+    async nav(p) {
+      this.page = p
+      if (p === 'overview') { await this.loadStats(); this.$nextTick(() => this.drawChart()) }
+      if (p === 'logs') await this.loadLogs()
+      if (p === 'users') await this.loadUsers()
+      if (p === 'campaigns') await this.loadCampaigns()
+      if (p === 'templates') await this.loadTemplates()
+    },
+
+    async loadStats() {
+      this.statsLoading = true
+      const r = await this.api('GET', '/v1/admin/stats')
+      if (r.ok) {
+        this.stats = await r.json()
+        this.$nextTick(() => this.drawChart())
+      }
+      this.statsLoading = false
+      // Also load recent logs for overview
+      const r2 = await this.api('GET', '/v1/admin/logs?limit=10')
+      if (r2.ok) {
+        const d = await r2.json()
+        this.recentLogs = d.logs || []
+      }
+    },
+
+    async loadLogs() {
+      this.logsLoading = true
+      const r = await this.api('GET', `/v1/admin/logs?limit=${this.logsLimit}&offset=${this.logsPage*this.logsLimit}&q=${encodeURIComponent(this.logsSearch)}`)
+      if (r.ok) {
+        const d = await r.json()
+        this.logs = d.logs || []
+        this.logsTotal = d.total || 0
+      }
+      this.logsLoading = false
+    },
+
+    async loadUsers() {
+      const r = await this.api('GET', `/v1/admin/users?limit=${this.usersLimit}&offset=${this.usersPage*this.usersLimit}&q=${encodeURIComponent(this.usersSearch)}`)
+      if (r.ok) {
+        const d = await r.json()
+        this.users = d.users || []
+        this.usersTotal = d.total || 0
+      }
+    },
+
+    async loadCampaigns() {
+      const r = await this.api('GET', '/v1/admin/campaigns')
+      if (r.ok) {
+        const d = await r.json()
+        this.campaigns = d.campaigns || []
+      }
+    },
+
+    async loadTemplates() {
+      const r = await this.api('GET', '/v1/admin/templates')
+      if (r.ok) {
+        const d = await r.json()
+        this.templates = d.templates || []
+      }
+    },
+
+    async previewCampaignCount() {
+      const r = await this.api('GET', `/v1/admin/campaigns/preview?filter_days=${this.newCampaign.filter_days}`)
+      if (r.ok) {
+        const d = await r.json()
+        this.campaignPreviewCount = d.count
+      }
+    },
+
+    async createAndSendCampaign() {
+      const r = await this.api('POST', '/v1/admin/campaigns', {
+        name: this.newCampaign.name,
+        template_name: this.newCampaign.template_name,
+        filter_days: parseInt(this.newCampaign.filter_days),
+      })
+      if (!r.ok) return alert('Failed to create campaign')
+      const campaign = await r.json()
+      const r2 = await this.api('POST', `/v1/admin/campaigns/${campaign.id}/send`)
+      if (r2.ok) {
+        this.showNewCampaign = false
+        this.newCampaign = { name: '', template_name: '', filter_days: 0 }
+        this.campaignPreviewCount = null
+        await this.loadCampaigns()
+      }
+    },
+
+    async fireTrigger() {
+      this.triggerResult = ''
+      // Map template name to routing key or use generic event.funnel.*
+      const routingKey = this.templateToRoutingKey(this.triggerTemplate)
+      const event = { email: this.triggerEmail, name: this.triggerName || 'there', user_id: '' }
+      const r = await this.api('POST', '/v1/admin/trigger', { routing_key: routingKey, event })
+      if (r.ok) {
+        this.triggerOk = true
+        this.triggerResult = `Sent "${this.triggerTemplate}" to ${this.triggerEmail}`
+      } else {
+        this.triggerOk = false
+        this.triggerResult = 'Failed to send. Check logs.'
+      }
+    },
+
+    async fireTriggerForTemplate(template) {
+      const email = prompt('Send test to:', 'studojo@gmail.com')
+      if (!email) return
+      const routingKey = this.templateToRoutingKey(template)
+      await this.api('POST', '/v1/admin/trigger', {
+        routing_key: routingKey,
+        event: { email, name: 'Jeremy', user_id: '' }
+      })
+      alert(`Sent "${template}" to ${email}`)
+    },
+
+    openSendModal(user) {
+      this.sendModalUser = user
+      this.sendModalTemplate = ''
+      this.sendModalResult = ''
+      this.sendModal = true
+    },
+
+    async sendToUser() {
+      const r = await this.api('POST', `/v1/admin/users/${this.sendModalUser.id}/send`, {
+        template_name: this.sendModalTemplate,
+      })
+      if (r.ok) {
+        this.sendModalResult = `Sent "${this.sendModalTemplate}" to ${this.sendModalUser.email}`
+      }
+    },
+
+    async openUserHistory(user) {
+      this.historyUser = user
+      this.userHistory = []
+      this.historyModal = true
+      const r = await this.api('GET', `/v1/admin/users/${user.id}`)
+      if (r.ok) {
+        const d = await r.json()
+        this.userHistory = d.history || []
+      }
+    },
+
+    drawChart() {
+      const volume = this.stats.daily_volume || []
+      const ctx = document.getElementById('volumeChart')
+      if (!ctx || !volume.length) return
+      if (this._chart) this._chart.destroy()
+      this._chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: volume.map(v => v.date.slice(5)), // MM-DD
+          datasets: [{
+            data: volume.map(v => v.count),
+            backgroundColor: 'rgba(124, 58, 237, 0.15)',
+            borderColor: 'rgba(124, 58, 237, 0.8)',
+            borderWidth: 1.5,
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } }
+          }
+        }
+      })
+    },
+
+    templateToRoutingKey(t) {
+      const map = {
+        'welcome': 'event.user.signup',
+        'payment-thankyou': 'event.payment.success',
+        'forgot-password': 'event.user.signup',
+        'funnel-welcome-new': 'event.funnel.welcome_new',
+        'funnel-welcome-existing': 'event.funnel.welcome_existing',
+        'funnel-followup-v1': 'event.funnel.followup_v1',
+        'funnel-followup-v2': 'event.funnel.followup_v2',
+        'funnel-followup-v3': 'event.funnel.followup_v3',
+        'signup-thankyou': 'event.funnel.signup_thankyou',
+        'signup-followup': 'event.funnel.signup_followup',
+      }
+      if (map[t]) return map[t]
+      // Convert funnel-xxx-yyy → event.funnel.xxx_yyy
+      if (t.startsWith('funnel-')) return 'event.funnel.' + t.slice(7).replace(/-/g, '_')
+      if (t.startsWith('signup-')) return 'event.funnel.' + t.replace(/-/g, '_')
+      return 'event.user.signup'
+    },
+
+    templateCategory(t) {
+      if (t.startsWith('funnel-')) return 'Funnel'
+      if (t.startsWith('nurture-')) return 'Nurture'
+      if (t.startsWith('signup-')) return 'Signup'
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou'].includes(t)) return 'Transactional'
+      return 'Other'
+    },
+
+    statusBadge(s) {
+      return {
+        draft: 'bg-slate-100 text-slate-600',
+        running: 'bg-blue-50 text-blue-700',
+        completed: 'bg-emerald-50 text-emerald-700',
+        failed: 'bg-red-50 text-red-700',
+      }[s] || 'bg-slate-100 text-slate-600'
+    },
+
+    relTime(ts) {
+      if (!ts) return '—'
+      const d = new Date(ts)
+      const diff = (Date.now() - d) / 1000
+      if (diff < 60) return 'just now'
+      if (diff < 3600) return Math.floor(diff/60)+'m ago'
+      if (diff < 86400) return Math.floor(diff/3600)+'h ago'
+      if (diff < 604800) return Math.floor(diff/86400)+'d ago'
+      return d.toLocaleDateString()
+    },
+
+    pageTitle() {
+      return { overview: 'Overview', logs: 'Email Logs', users: 'Users', campaigns: 'Campaigns', trigger: 'Fire Email', templates: 'Templates' }[this.page] || ''
+    },
+    pageSubtitle() {
+      return { overview: 'Send activity and open rates', logs: 'Every email sent, searchable', users: 'All registered users and their email history', campaigns: 'Bulk sends to user segments', trigger: 'Send any template manually', templates: `${this.templates.length} templates available` }[this.page] || ''
+    },
+
+    api(method, path, body) {
+      const base = window.location.origin
+      return fetch(base + path, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this.authToken,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      })
+    },
+  }
+}
+</script>
+</body>
+</html>

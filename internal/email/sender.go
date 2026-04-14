@@ -10,11 +10,17 @@ import (
 	"github.com/google/uuid"
 )
 
+// SendLogger is implemented by the store to record email sends for the admin dashboard.
+type SendLogger interface {
+	LogEmailSent(ctx context.Context, userID, userName, emailTo, templateName, fromAddress string) error
+}
+
 // Sender handles email sending with retries
 type Sender struct {
 	client      *Client
 	renderer    *TemplateRenderer
 	trackingURL string // base URL for open tracking, e.g. https://api.studojo.com
+	logger      SendLogger
 
 	// Per-category sender addresses (set via env vars)
 	supportSender    string // support.studojo.com — transactional, payment, product updates
@@ -28,6 +34,11 @@ func NewSender(client *Client, renderer *TemplateRenderer) *Sender {
 		client:   client,
 		renderer: renderer,
 	}
+}
+
+// SetLogger attaches a send logger (the store) for admin dashboard logging
+func (s *Sender) SetLogger(l SendLogger) {
+	s.logger = l
 }
 
 // SetSenderAddresses configures per-category from addresses
@@ -102,6 +113,11 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		fromAddr := s.getSenderForTemplate(templateName)
 		err := s.client.SendEmailFrom(ctx, fromAddr, to, subject, htmlContent)
 		if err == nil {
+			if s.logger != nil {
+				go func(addr string) {
+					_ = s.logger.LogEmailSent(context.Background(), "", "", to, templateName, addr)
+				}(fromAddr)
+			}
 			return nil
 		}
 

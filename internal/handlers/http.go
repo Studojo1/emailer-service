@@ -692,7 +692,15 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userAgent := r.Header.Get("User-Agent")
-	go h.Store.RecordEmailOpen(context.Background(), trackID, userID, emailType, userAgent)
+	go func() {
+		ctx := context.Background()
+		h.Store.RecordEmailOpen(ctx, trackID, userID, emailType, userAgent)
+		// Also mark opened_at in email_send_log (best-effort, non-blocking)
+		if len(parts) >= 2 {
+			emailAddr := parts[1] // track_id format: template__email__uuid
+			h.Store.MarkEmailOpened(ctx, emailAddr, emailType)
+		}
+	}()
 
 	// 1x1 transparent GIF
 	pixel, _ := base64.StdEncoding.DecodeString("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7")

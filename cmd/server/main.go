@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -22,6 +24,9 @@ import (
 	"github.com/studojo/emailer-service/internal/scheduler"
 	"github.com/studojo/emailer-service/internal/store"
 )
+
+//go:embed dashboard
+var dashboardFS embed.FS
 
 // ensureSSLMode appends sslmode=disable to the DSN if no sslmode is set.
 func ensureSSLMode(dsn string) string {
@@ -103,11 +108,17 @@ func main() {
 		port = "8087"
 	}
 
+	// Admin secret for the mail dashboard
+	adminSecret := os.Getenv("ADMIN_SECRET")
+
 	// CORS configuration
 	corsOrigins := strings.Split(os.Getenv("CORS_ORIGINS"), ",")
 	if len(corsOrigins) == 0 || (len(corsOrigins) == 1 && corsOrigins[0] == "") {
 		// Default to allowing localhost for development
-		corsOrigins = []string{"http://localhost:3000", "http://127.0.0.1:3000"}
+		corsOrigins = []string{
+			"http://localhost:3000", "http://127.0.0.1:3000",
+			"https://mail.studojo.com", "https://admin.studojo.com",
+		}
 	}
 
 	// Connect to database
@@ -173,10 +184,48 @@ func main() {
 	sender.SetTrackingURL(trackingBaseURL)
 
 	// Initialize stores
-	store := store.NewPostgresStore(db)
+	pgStore := store.NewPostgresStore(db)
 	tokenStore := auth.NewTokenStore(db)
 
+	// Wire logger into sender so every send is recorded in email_send_log
+	sender.SetLogger(pgStore)
+
 	// Ensure tables exist
+	_, err = db.Exec(`
+		CREATE TABLE IF NOT EXISTS email_send_log (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id TEXT NOT NULL DEFAULT '',
+			user_name TEXT NOT NULL DEFAULT '',
+			email_to TEXT NOT NULL,
+			template_name TEXT NOT NULL,
+			from_address TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'sent',
+			sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			opened_at TIMESTAMPTZ
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_send_log_email_to ON email_send_log(email_to);
+		CREATE INDEX IF NOT EXISTS idx_email_send_log_template ON email_send_log(template_name);
+		CREATE INDEX IF NOT EXISTS idx_email_send_log_sent_at ON email_send_log(sent_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_email_send_log_user_id ON email_send_log(user_id);
+
+		CREATE TABLE IF NOT EXISTS email_campaigns (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			name TEXT NOT NULL,
+			template_name TEXT NOT NULL,
+			status TEXT NOT NULL DEFAULT 'draft',
+			filter_days INT NOT NULL DEFAULT 0,
+			total_recipients INT NOT NULL DEFAULT 0,
+			sent_count INT NOT NULL DEFAULT 0,
+			open_count INT NOT NULL DEFAULT 0,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			sent_at TIMESTAMPTZ
+		);
+	`)
+	if err != nil {
+		slog.Error("failed to create admin tables", "error", err)
+		os.Exit(1)
+	}
+
 	_, err = db.Exec(`
 		CREATE TABLE IF NOT EXISTS email_preferences (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -216,10 +265,10 @@ func main() {
 	}
 
 	// Initialize handlers
-	eventHandler := handlers.NewEventHandler(store, sender, emailFrontendURL)
+	eventHandler := handlers.NewEventHandler(pgStore, sender, emailFrontendURL)
 
 	httpHandler := &handlers.Handler{
-		Store:            store,
+		Store:            pgStore,
 		Sender:           sender,
 		TokenStore:       tokenStore,
 		EventHandler:     eventHandler,
@@ -227,8 +276,24 @@ func main() {
 		EmailFrontendURL: emailFrontendURL,
 	}
 
+	// Serve the embedded dashboard SPA
+	dashSub, _ := fs.Sub(dashboardFS, "dashboard")
+	dashFileServer := http.FileServer(http.FS(dashSub))
+
 	// Setup HTTP routes
 	mux := http.NewServeMux()
+
+	// Dashboard — serve at /mail/ and redirect / to /mail/
+	mux.Handle("/mail/", http.StripPrefix("/mail", dashFileServer))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/mail/", http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})
+
+	// Public email routes
 	mux.HandleFunc("GET /health", httpHandler.HandleHealth)
 	mux.HandleFunc("GET /v1/email/track/{track_id}", httpHandler.HandleTrackOpen)
 	mux.HandleFunc("POST /v1/email/forgot-password", httpHandler.HandleForgotPassword)
@@ -240,16 +305,28 @@ func main() {
 	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
 	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
 
+	// Admin API routes (JWT or ADMIN_SECRET protected)
+	adminMux := http.NewServeMux()
+	adminMux.HandleFunc("GET /v1/admin/stats", httpHandler.HandleAdminStats)
+	adminMux.HandleFunc("GET /v1/admin/logs", httpHandler.HandleAdminLogs)
+	adminMux.HandleFunc("GET /v1/admin/users", httpHandler.HandleAdminUsers)
+	adminMux.HandleFunc("GET /v1/admin/users/{id}", httpHandler.HandleAdminUserDetail)
+	adminMux.HandleFunc("POST /v1/admin/users/{id}/send", httpHandler.HandleAdminSendToUser)
+	adminMux.HandleFunc("GET /v1/admin/templates", httpHandler.HandleAdminTemplates)
+	adminMux.HandleFunc("GET /v1/admin/campaigns", httpHandler.HandleAdminCampaignList)
+	adminMux.HandleFunc("POST /v1/admin/campaigns", httpHandler.HandleAdminCampaignCreate)
+	adminMux.HandleFunc("GET /v1/admin/campaigns/preview", httpHandler.HandleAdminCampaignPreview)
+	adminMux.HandleFunc("POST /v1/admin/campaigns/{id}/send", httpHandler.HandleAdminCampaignSend)
+	adminMux.HandleFunc("POST /v1/admin/trigger", httpHandler.HandleAdminTrigger)
+
+	mux.Handle("/v1/admin/", handlers.AdminMiddleware(adminSecret, adminMux))
+
 	// Wrap mux with a handler that intercepts OPTIONS before routing
-	// This is needed because Go's ServeMux rejects OPTIONS if no route matches
 	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle OPTIONS requests before they reach the mux
 		if r.Method == http.MethodOptions {
-			// Apply CORS headers directly (middleware will also add them, but this ensures they're set)
 			middleware.CORS(corsOrigins)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(w, r)
 			return
 		}
-		// For all other requests, pass to mux
 		mux.ServeHTTP(w, r)
 	})
 
@@ -267,7 +344,7 @@ func main() {
 	}()
 
 	// Start nurture email scheduler
-	sched := scheduler.NewScheduler(store, sender, emailFrontendURL)
+	sched := scheduler.NewScheduler(pgStore, sender, emailFrontendURL)
 	go sched.Run(ctx)
 
 	// Start HTTP server
