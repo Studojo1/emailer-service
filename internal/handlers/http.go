@@ -582,6 +582,11 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 // buildTemplateData returns the template name and data for a given email type
 func (h *Handler) buildTemplateData(emailType string, user *store.User) (string, map[string]interface{}) {
 	switch emailType {
+	case "leads-ready", "leads_ready":
+		return "leads-ready", map[string]interface{}{
+			"UserName":    user.Name,
+			"OutreachURL": h.EmailFrontendURL + "/outreach",
+		}
 	case "welcome":
 		return "welcome", map[string]interface{}{
 			"UserName":     user.Name,

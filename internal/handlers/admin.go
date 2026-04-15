@@ -310,9 +310,8 @@ func (h *Handler) HandleAdminSendToUser(w http.ResponseWriter, r *http.Request) 
 
 	go func() {
 		ctx := context.Background()
-		if err := h.Sender.SendTemplateEmail(ctx, user.Email, req.TemplateName, map[string]interface{}{
-			"UserName": user.Name,
-		}); err != nil {
+		_, data := h.buildTemplateData(req.TemplateName, user)
+		if err := h.Sender.SendTemplateEmail(ctx, user.Email, req.TemplateName, data); err != nil {
 			slog.Error("admin send to user failed", "user_id", userID, "template", req.TemplateName, "error", err)
 		}
 	}()
