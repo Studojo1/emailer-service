@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -84,6 +85,27 @@ func NewClient(connectionString, senderEmail string) (*Client, error) {
 	return nil, fmt.Errorf("no valid email provider configured: set RESEND_API_KEY or ACS connection string")
 }
 
+// htmlToPlainText strips HTML tags to produce a plain-text fallback.
+// Including a plain-text part alongside HTML improves Gmail Primary placement.
+func htmlToPlainText(html string) string {
+	// Block elements → newlines
+	re := regexp.MustCompile(`(?i)<br\s*/?>|</p>|</div>|</tr>|</li>|</h[1-6]>`)
+	html = re.ReplaceAllString(html, "\n")
+	// Remove all remaining tags
+	html = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(html, "")
+	// Decode common entities
+	html = strings.NewReplacer(
+		"&amp;", "&", "&lt;", "<", "&gt;", ">",
+		"&nbsp;", " ", "&#39;", "'", "&quot;", `"`,
+		"&middot;", "·",
+	).Replace(html)
+	// Collapse whitespace / blank lines
+	html = regexp.MustCompile(`[ \t]+`).ReplaceAllString(html, " ")
+	html = regexp.MustCompile(`\n[ \t]+`).ReplaceAllString(html, "\n")
+	html = regexp.MustCompile(`\n{3,}`).ReplaceAllString(html, "\n\n")
+	return strings.TrimSpace(html)
+}
+
 // SendEmail dispatches to the right provider using the default sender address.
 func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string) error {
 	return c.SendEmailFrom(ctx, "", to, subject, htmlContent)
@@ -142,8 +164,9 @@ func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent 
 			{"address": "studojo@gmail.com", "displayName": "Studojo Support"},
 		},
 		"content": map[string]string{
-			"subject": subject,
-			"html":    htmlContent,
+			"subject":   subject,
+			"html":      htmlContent,
+			"plainText": htmlToPlainText(htmlContent),
 		},
 	}
 
@@ -231,6 +254,7 @@ func (c *Client) sendViaResend(ctx context.Context, from, to, subject, htmlConte
 		"to":      []string{to},
 		"subject": subject,
 		"html":    htmlContent,
+		"text":    htmlToPlainText(htmlContent),
 	}
 
 	body, err := json.Marshal(payload)

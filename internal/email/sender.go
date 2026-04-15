@@ -48,27 +48,32 @@ func (s *Sender) SetSenderAddresses(support, welcome, promotions string) {
 	s.promotionsSender = promotions
 }
 
-// getSenderForTemplate returns the right from address for a given template
+// getSenderForTemplate returns the right from address for a given template.
+// Personal/onboarding emails include a display name so they appear as
+// "Jeremy from Studojo" rather than a bare email address in Gmail.
 func (s *Sender) getSenderForTemplate(templateName string) string {
 	switch templateName {
-	// Support / transactional — payment confirmations, product updates
-	case "payment-thankyou", "welcome", "password-changed", "forgot-password",
+	// Support / transactional
+	case "payment-thankyou", "password-changed", "forgot-password",
 		"resume-optimized", "internship-applied", "contact-form":
 		if s.supportSender != "" {
 			return s.supportSender
 		}
-	// Welcome / onboarding
-	case "signup-thankyou", "signup-followup", "funnel-welcome-new", "funnel-welcome-existing",
+	// Welcome / onboarding — use display name to improve Primary placement
+	case "welcome", "signup-thankyou", "signup-followup",
+		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
+		"signup-welcome-v4", "signup-welcome-v5",
+		"funnel-welcome-new", "funnel-welcome-existing",
 		"funnel-onboarding", "funnel-congratulations":
 		if s.welcomeSender != "" {
-			return s.welcomeSender
+			return "Jeremy from Studojo <" + s.welcomeSender + ">"
 		}
 	}
-	// Everything else (funnel, nurture, promo) → promotions
+	// Everything else (funnel, nurture, promo) → promotions sender
 	if s.promotionsSender != "" {
 		return s.promotionsSender
 	}
-	return "" // falls back to client default
+	return ""
 }
 
 // SetTrackingURL sets the base URL used to generate tracking pixel URLs
