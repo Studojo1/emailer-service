@@ -37,18 +37,29 @@
         <div class="text-xs text-slate-500">Admin Dashboard</div>
       </div>
     </div>
+
+    <!-- Primary: SSO login -->
+    <a href="https://studojo.com/api/admin/email-dashboard-sso"
+       class="btn-primary w-full justify-center mb-4 no-underline text-center block">
+      <svg class="w-4 h-4 inline-block mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      Continue with Studojo
+    </a>
+
+    <div class="relative my-4">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+      <div class="relative flex justify-center text-xs text-slate-400 bg-white px-2">or use a token</div>
+    </div>
+
     <div class="mb-4">
-      <label class="block text-sm font-medium text-slate-700 mb-1">Admin Token</label>
       <input type="password" x-model="authToken" @keydown.enter="login()"
-        placeholder="Paste your Studojo JWT or admin key"
+        placeholder="Paste JWT or ADMIN_SECRET"
         class="input" />
     </div>
     <div x-show="authError" class="text-red-600 text-sm mb-3" x-text="authError"></div>
-    <button @click="login()" class="btn-primary w-full justify-center">
-      <span x-show="!authLoading">Sign in</span>
+    <button @click="login()" class="btn-secondary w-full justify-center">
+      <span x-show="!authLoading">Sign in with token</span>
       <svg x-show="authLoading" class="spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
     </button>
-    <p class="text-xs text-slate-400 mt-3 text-center">Use your Studojo JWT from the network tab (get-session) or the ADMIN_SECRET env var</p>
   </div>
 </div>
 
@@ -587,6 +598,20 @@ function app() {
     _chart: null,
 
     async init() {
+      // Auto-login from SSO redirect: studojo.com passes token in URL fragment
+      const hash = window.location.hash
+      if (hash.startsWith('#token=')) {
+        const ssoToken = hash.slice(7)
+        if (ssoToken) {
+          this.authToken = ssoToken
+          localStorage.setItem('adminToken', ssoToken)
+          // Clean the token from the URL so it doesn't linger in history
+          history.replaceState(null, '', window.location.pathname)
+          await this.login(true)
+          return
+        }
+      }
+      // Fall back to stored token
       const token = localStorage.getItem('adminToken')
       if (token) {
         this.authToken = token
