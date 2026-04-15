@@ -145,16 +145,12 @@ func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent 
 	path := "/emails:send?api-version=2023-03-31"
 	fullURL := c.acsEndpoint + path
 
-	displayName, senderAddr := parseSenderAddress(from)
-
-	senderField := map[string]string{"address": senderAddr}
-	if displayName != "" {
-		senderField["displayName"] = displayName
-	}
+	// ACS 2023-03-31 only accepts a plain email address in senderAddress.
+	// Strip any "Display Name <email>" wrapper before sending.
+	_, senderAddr := parseSenderAddress(from)
 
 	payload := map[string]interface{}{
 		"senderAddress": senderAddr,
-		"from":          senderField,
 		"recipients": map[string]interface{}{
 			"to": []map[string]string{
 				{"address": to},
