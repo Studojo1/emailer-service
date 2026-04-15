@@ -15,40 +15,33 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 )
+
+// acsConfig holds the endpoint + access key for one ACS resource.
+type acsConfig struct {
+	endpoint  string
+	accessKey string
+}
 
 // Client sends email via ACS Email, Resend, or MailHog (dev)
 type Client struct {
 	// Resend
 	resendAPIKey string
-	// ACS Email
-	acsEndpoint  string
-	acsAccessKey string
+	// ACS Email — pool of resources, round-robined for higher throughput
+	acsPool  []acsConfig
+	acsIndex uint64 // atomic counter for round-robin
 	// MailHog (dev)
 	mailhogAddr string
 	senderEmail string
 	httpClient  *http.Client
 }
 
-// NewClient creates a new email client.
-// Priority: RESEND_API_KEY → ACS connection string → MailHog
-func NewClient(connectionString, senderEmail string) (*Client, error) {
-	c := &Client{
-		senderEmail: senderEmail,
-		httpClient:  &http.Client{Timeout: 30 * time.Second},
-	}
-
-	// Resend API key
-	if strings.HasPrefix(connectionString, "re_") {
-		c.resendAPIKey = connectionString
-		return c, nil
-	}
-
-	// Parse key=value; pairs (ACS / MailHog connection string)
-	endpoint := ""
-	accessKey := ""
-	for _, part := range strings.Split(connectionString, ";") {
+// parseACSConnectionString extracts endpoint + accessKey from an ACS connection string.
+// Returns ("", "") if not a valid ACS string.
+func parseACSConnectionString(s string) (endpoint, accessKey string) {
+	for _, part := range strings.Split(s, ";") {
 		part = strings.TrimSpace(part)
 		kv := strings.SplitN(part, "=", 2)
 		if len(kv) != 2 {
@@ -61,6 +54,25 @@ func NewClient(connectionString, senderEmail string) (*Client, error) {
 			accessKey = kv[1]
 		}
 	}
+	return
+}
+
+// NewClient creates a new email client from one connection string.
+// Priority: RESEND_API_KEY → ACS connection string → MailHog
+// To use multiple ACS resources, call AddACSResource after construction.
+func NewClient(connectionString, senderEmail string) (*Client, error) {
+	c := &Client{
+		senderEmail: senderEmail,
+		httpClient:  &http.Client{Timeout: 30 * time.Second},
+	}
+
+	// Resend API key
+	if strings.HasPrefix(connectionString, "re_") {
+		c.resendAPIKey = connectionString
+		return c, nil
+	}
+
+	endpoint, accessKey := parseACSConnectionString(connectionString)
 
 	// MailHog (dev)
 	if strings.Contains(endpoint, "mailhog") || strings.Contains(endpoint, "localhost:8025") || strings.Contains(endpoint, "127.0.0.1:8025") {
@@ -77,12 +89,32 @@ func NewClient(connectionString, senderEmail string) (*Client, error) {
 
 	// ACS Email
 	if endpoint != "" && accessKey != "" {
-		c.acsEndpoint = strings.TrimSuffix(endpoint, "/")
-		c.acsAccessKey = accessKey
+		c.acsPool = append(c.acsPool, acsConfig{
+			endpoint:  strings.TrimSuffix(endpoint, "/"),
+			accessKey: accessKey,
+		})
 		return c, nil
 	}
 
 	return nil, fmt.Errorf("no valid email provider configured: set RESEND_API_KEY or ACS connection string")
+}
+
+// AddACSResource registers an additional ACS connection string for round-robin sending.
+// Call after NewClient to expand the ACS pool.
+func (c *Client) AddACSResource(connectionString string) error {
+	if connectionString == "" {
+		return nil
+	}
+	endpoint, accessKey := parseACSConnectionString(connectionString)
+	if endpoint == "" || accessKey == "" {
+		return fmt.Errorf("invalid ACS connection string")
+	}
+	c.acsPool = append(c.acsPool, acsConfig{
+		endpoint:  strings.TrimSuffix(endpoint, "/"),
+		accessKey: accessKey,
+	})
+	slog.Info("ACS resource added to pool", "endpoint", endpoint, "pool_size", len(c.acsPool))
+	return nil
 }
 
 // htmlToPlainText strips HTML tags to produce a plain-text fallback.
@@ -121,11 +153,34 @@ func (c *Client) SendEmailFrom(ctx context.Context, from, to, subject, htmlConte
 		return c.sendViaMailHogFrom(from, to, subject, htmlContent)
 	case c.resendAPIKey != "":
 		return c.sendViaResend(ctx, from, to, subject, htmlContent)
-	case c.acsEndpoint != "":
-		return c.sendViaACS(ctx, from, to, subject, htmlContent)
+	case len(c.acsPool) > 0:
+		return c.sendViaACSPool(ctx, from, to, subject, htmlContent)
 	default:
 		return fmt.Errorf("no email provider configured")
 	}
+}
+
+// sendViaACSPool sends via the ACS pool, round-robining across resources.
+// On 429 from one resource it immediately tries the next.
+func (c *Client) sendViaACSPool(ctx context.Context, from, to, subject, htmlContent string) error {
+	n := uint64(len(c.acsPool))
+	start := atomic.AddUint64(&c.acsIndex, 1) - 1
+	var lastErr error
+	for i := uint64(0); i < n; i++ {
+		cfg := c.acsPool[(start+i)%n]
+		err := c.sendViaACSConfig(ctx, cfg, from, to, subject, htmlContent)
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if strings.Contains(err.Error(), "429") {
+			slog.Warn("ACS resource rate-limited, trying next in pool",
+				"endpoint", cfg.endpoint, "pool_size", n)
+			continue
+		}
+		return err // non-429 error — don't bother trying other resources
+	}
+	return fmt.Errorf("all ACS resources exhausted: %w", lastErr)
 }
 
 // parseSenderAddress splits "Display Name <email@domain.com>" into (name, email).
@@ -140,10 +195,10 @@ func parseSenderAddress(from string) (displayName, address string) {
 	return "", from
 }
 
-// sendViaACS sends email using Azure Communication Services Email REST API.
-func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent string) error {
+// sendViaACSConfig sends email via a specific ACS resource config.
+func (c *Client) sendViaACSConfig(ctx context.Context, cfg acsConfig, from, to, subject, htmlContent string) error {
 	path := "/emails:send?api-version=2023-03-31"
-	fullURL := c.acsEndpoint + path
+	fullURL := cfg.endpoint + path
 
 	// ACS 2023-03-31 only accepts a plain email address in senderAddress.
 	// Strip any "Display Name <email>" wrapper before sending.
@@ -177,7 +232,7 @@ func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent 
 	}
 
 	// ACS uses HMAC-SHA256 signing
-	if err := c.signACSRequest(req, body); err != nil {
+	if err := c.signACSRequest(req, body, cfg.accessKey); err != nil {
 		return fmt.Errorf("acs: failed to sign request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
@@ -200,8 +255,8 @@ func (c *Client) sendViaACS(ctx context.Context, from, to, subject, htmlContent 
 }
 
 // signACSRequest adds HMAC-SHA256 auth headers required by ACS.
-func (c *Client) signACSRequest(req *http.Request, body []byte) error {
-	keyBytes, err := base64.StdEncoding.DecodeString(c.acsAccessKey)
+func (c *Client) signACSRequest(req *http.Request, body []byte, accessKey string) error {
+	keyBytes, err := base64.StdEncoding.DecodeString(accessKey)
 	if err != nil {
 		return fmt.Errorf("failed to decode access key: %w", err)
 	}
@@ -304,7 +359,7 @@ func (c *Client) sendViaMailHogFrom(from, to, subject, htmlContent string) error
 
 // ValidateConnection checks the client is configured.
 func (c *Client) ValidateConnection(ctx context.Context) error {
-	if c.resendAPIKey == "" && c.mailhogAddr == "" && c.acsEndpoint == "" {
+	if c.resendAPIKey == "" && c.mailhogAddr == "" && len(c.acsPool) == 0 {
 		return fmt.Errorf("no email provider configured")
 	}
 	return nil

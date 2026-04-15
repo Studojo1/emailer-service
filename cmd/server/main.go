@@ -140,6 +140,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Register additional ACS resources for round-robin (increases hourly quota).
+	// Set AZURE_EMAIL_CONNECTION_STRING_2, _3, etc. to add more resources.
+	for i := 2; ; i++ {
+		extra := os.Getenv(fmt.Sprintf("AZURE_EMAIL_CONNECTION_STRING_%d", i))
+		if extra == "" {
+			break
+		}
+		if err := emailClient.AddACSResource(extra); err != nil {
+			slog.Warn("failed to add extra ACS resource", "index", i, "error", err)
+		}
+	}
+
 	// Initialize template renderer
 	renderer, err := email.NewTemplateRenderer(templateDir)
 	if err != nil {
