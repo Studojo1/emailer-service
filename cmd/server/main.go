@@ -317,6 +317,8 @@ func main() {
 	adminMux.HandleFunc("POST /v1/admin/campaigns", httpHandler.HandleAdminCampaignCreate)
 	adminMux.HandleFunc("GET /v1/admin/campaigns/preview", httpHandler.HandleAdminCampaignPreview)
 	adminMux.HandleFunc("POST /v1/admin/campaigns/{id}/send", httpHandler.HandleAdminCampaignSend)
+	adminMux.HandleFunc("GET /v1/admin/campaign-groups", httpHandler.HandleAdminCampaignGroups)
+	adminMux.HandleFunc("GET /v1/admin/campaign-groups/{email_type}/logs", httpHandler.HandleAdminLogsByType)
 	adminMux.HandleFunc("POST /v1/admin/trigger", httpHandler.HandleAdminTrigger)
 
 	mux.Handle("/v1/admin/", handlers.AdminMiddleware(adminSecret, adminMux))

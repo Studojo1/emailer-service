@@ -325,87 +325,136 @@
 
       <!-- CAMPAIGNS -->
       <div x-show="page==='campaigns'">
-        <div class="flex items-center justify-between mb-5">
-          <div></div>
-          <button @click="showNewCampaign=true" class="btn-primary">+ New Campaign</button>
-        </div>
 
-        <!-- New campaign form -->
-        <div x-show="showNewCampaign" class="bg-white rounded-xl border border-slate-200 p-6 mb-5">
-          <h3 class="font-semibold text-slate-800 mb-4">Create Campaign</h3>
-          <div class="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Campaign name</label>
-              <input x-model="newCampaign.name" class="input" placeholder="e.g. April nurture blast" />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
-              <select x-model="newCampaign.template_name" class="select">
-                <option value="">Select template…</option>
-                <template x-for="t in templates" :key="t">
-                  <option :value="t" x-text="t"></option>
-                </template>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-slate-700 mb-1">Audience</label>
-              <select x-model="newCampaign.filter_days" class="select">
-                <option value="0">All users</option>
-                <option value="7">Signed up in last 7 days</option>
-                <option value="14">Signed up in last 14 days</option>
-                <option value="30">Signed up in last 30 days</option>
-                <option value="90">Signed up in last 90 days</option>
-              </select>
-            </div>
-            <div class="flex items-end">
-              <button @click="previewCampaignCount()" class="btn-secondary">
-                Preview audience size
-              </button>
-            </div>
+        <!-- Drill-down: logs for a specific email type -->
+        <div x-show="campaignDrillType">
+          <div class="flex items-center gap-3 mb-5">
+            <button @click="campaignDrillType=null; campaignDrillLogs=[]; campaignDrillTotal=0; campaignDrillPage=0" class="btn-secondary text-xs">← Back to campaigns</button>
+            <span class="font-semibold text-slate-800" x-text="campaignDrillType"></span>
+            <span class="text-sm text-slate-500 ml-auto" x-text="campaignDrillTotal.toLocaleString()+' sends'"></span>
           </div>
-          <div x-show="campaignPreviewCount !== null" class="bg-violet-50 text-violet-800 text-sm rounded-lg px-4 py-2.5 mb-4 font-medium">
-            This will send to <span class="font-bold" x-text="campaignPreviewCount"></span> users.
-          </div>
-          <div class="flex gap-2">
-            <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name"
-              class="btn-primary disabled:opacity-50">Send campaign</button>
-            <button @click="showNewCampaign=false; campaignPreviewCount=null" class="btn-secondary">Cancel</button>
-          </div>
-        </div>
-
-        <!-- Campaign list -->
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50">
-              <tr class="text-xs text-slate-500 text-left">
-                <th class="px-5 py-3 font-medium">Name</th>
-                <th class="px-5 py-3 font-medium">Template</th>
-                <th class="px-5 py-3 font-medium">Status</th>
-                <th class="px-5 py-3 font-medium">Recipients</th>
-                <th class="px-5 py-3 font-medium">Sent</th>
-                <th class="px-5 py-3 font-medium">Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="c in campaigns" :key="c.id">
-                <tr class="table-row">
-                  <td class="px-5 py-3 font-medium text-slate-800" x-text="c.name"></td>
-                  <td class="px-5 py-3">
-                    <span class="badge bg-violet-50 text-violet-700" x-text="c.template_name"></span>
-                  </td>
-                  <td class="px-5 py-3">
-                    <span :class="statusBadge(c.status)" class="badge" x-text="c.status"></span>
-                  </td>
-                  <td class="px-5 py-3 text-slate-600" x-text="c.total_recipients"></td>
-                  <td class="px-5 py-3 text-slate-600" x-text="c.sent_count"></td>
-                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(c.created_at)"></td>
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">To</th>
+                  <th class="px-5 py-3 font-medium">Name</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
+                  <th class="px-5 py-3 font-medium">Opened</th>
                 </tr>
-              </template>
-              <tr x-show="!campaigns.length">
-                <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">No campaigns yet.</td>
-              </tr>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <template x-for="log in campaignDrillLogs" :key="log.id">
+                  <tr class="table-row">
+                    <td class="px-5 py-3 text-slate-700" x-text="log.email_to||'—'"></td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="log.user_name||'—'"></td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                    <td class="px-5 py-3">
+                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!campaignDrillLogs.length">
+                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No sends found.</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+              <button @click="campaignDrillPage > 0 && (campaignDrillPage--, loadCampaignDrill())" :disabled="campaignDrillPage===0"
+                class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
+              <span class="text-xs text-slate-500" x-text="`Page ${campaignDrillPage+1} of ${Math.max(1,Math.ceil(campaignDrillTotal/50))}`"></span>
+              <button @click="(campaignDrillPage+1)*50 < campaignDrillTotal && (campaignDrillPage++, loadCampaignDrill())"
+                :disabled="(campaignDrillPage+1)*50 >= campaignDrillTotal"
+                class="btn-secondary text-xs disabled:opacity-40">Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Campaign groups list -->
+        <div x-show="!campaignDrillType">
+          <div class="flex items-center justify-between mb-5">
+            <p class="text-sm text-slate-500">Every email type ever sent — organised by campaign. Click a row to see individual sends.</p>
+            <button @click="showNewCampaign=!showNewCampaign" class="btn-primary">+ New Bulk Send</button>
+          </div>
+
+          <!-- New bulk send form -->
+          <div x-show="showNewCampaign" class="bg-white rounded-xl border border-slate-200 p-6 mb-5">
+            <h3 class="font-semibold text-slate-800 mb-4">New Bulk Send</h3>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Campaign name</label>
+                <input x-model="newCampaign.name" class="input" placeholder="e.g. April nurture blast" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+                <select x-model="newCampaign.template_name" class="select">
+                  <option value="">Select template…</option>
+                  <template x-for="t in templates" :key="t">
+                    <option :value="t" x-text="t"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Audience</label>
+                <select x-model="newCampaign.filter_days" class="select">
+                  <option value="0">All users</option>
+                  <option value="7">Signed up in last 7 days</option>
+                  <option value="14">Signed up in last 14 days</option>
+                  <option value="30">Signed up in last 30 days</option>
+                  <option value="90">Signed up in last 90 days</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button @click="previewCampaignCount()" class="btn-secondary">Preview audience size</button>
+              </div>
+            </div>
+            <div x-show="campaignPreviewCount !== null" class="bg-violet-50 text-violet-800 text-sm rounded-lg px-4 py-2.5 mb-4 font-medium">
+              This will send to <span class="font-bold" x-text="campaignPreviewCount"></span> users.
+            </div>
+            <div class="flex gap-2">
+              <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name"
+                class="btn-primary disabled:opacity-50">Send campaign</button>
+              <button @click="showNewCampaign=false; campaignPreviewCount=null" class="btn-secondary">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Campaign groups table -->
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">Email Type</th>
+                  <th class="px-5 py-3 font-medium">Total Sent</th>
+                  <th class="px-5 py-3 font-medium">Opens</th>
+                  <th class="px-5 py-3 font-medium">Open Rate</th>
+                  <th class="px-5 py-3 font-medium">First Sent</th>
+                  <th class="px-5 py-3 font-medium">Last Sent</th>
+                  <th class="px-5 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="g in campaignGroups" :key="g.email_type">
+                  <tr class="table-row cursor-pointer" @click="drillInto(g.email_type)">
+                    <td class="px-5 py-3">
+                      <span class="badge bg-violet-50 text-violet-700" x-text="g.email_type"></span>
+                    </td>
+                    <td class="px-5 py-3 font-semibold text-slate-800" x-text="g.total_sent.toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="g.total_opened.toLocaleString()"></td>
+                    <td class="px-5 py-3">
+                      <span :class="g.open_rate > 20 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'" class="badge" x-text="g.open_rate.toFixed(1)+'%'"></span>
+                    </td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="g.first_sent ? relTime(g.first_sent) : '—'"></td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="g.last_sent ? relTime(g.last_sent) : '—'"></td>
+                    <td class="px-5 py-3 text-violet-600 text-xs font-medium">View →</td>
+                  </tr>
+                </template>
+                <tr x-show="!campaignGroups.length">
+                  <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">No sends recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -569,11 +618,18 @@ function app() {
     usersPage: 0,
     usersLimit: 50,
 
-    // Campaigns
+    // Campaigns (bulk send records)
     campaigns: [],
     showNewCampaign: false,
     newCampaign: { name: '', template_name: '', filter_days: 0 },
     campaignPreviewCount: null,
+
+    // Campaign groups (by email_type from scheduled_emails)
+    campaignGroups: [],
+    campaignDrillType: null,
+    campaignDrillLogs: [],
+    campaignDrillTotal: 0,
+    campaignDrillPage: 0,
 
     // Trigger
     triggerEmail: '',
@@ -699,10 +755,27 @@ function app() {
     },
 
     async loadCampaigns() {
-      const r = await this.api('GET', '/v1/admin/campaigns')
+      const r = await this.api('GET', '/v1/admin/campaign-groups')
       if (r.ok) {
         const d = await r.json()
-        this.campaigns = d.campaigns || []
+        this.campaignGroups = d.groups || []
+      }
+    },
+
+    async drillInto(emailType) {
+      this.campaignDrillType = emailType
+      this.campaignDrillPage = 0
+      this.campaignDrillLogs = []
+      this.campaignDrillTotal = 0
+      await this.loadCampaignDrill()
+    },
+
+    async loadCampaignDrill() {
+      const r = await this.api('GET', `/v1/admin/campaign-groups/${encodeURIComponent(this.campaignDrillType)}/logs?limit=50&offset=${this.campaignDrillPage*50}`)
+      if (r.ok) {
+        const d = await r.json()
+        this.campaignDrillLogs = d.logs || []
+        this.campaignDrillTotal = d.total || 0
       }
     },
 
@@ -872,7 +945,7 @@ function app() {
       return { overview: 'Overview', logs: 'Email Logs', users: 'Users', campaigns: 'Campaigns', trigger: 'Fire Email', templates: 'Templates' }[this.page] || ''
     },
     pageSubtitle() {
-      return { overview: 'Send activity and open rates', logs: 'Every email sent, searchable', users: 'All registered users and their email history', campaigns: 'Bulk sends to user segments', trigger: 'Send any template manually', templates: `${this.templates.length} templates available` }[this.page] || ''
+      return { overview: 'Send activity and open rates', logs: 'Every email sent, searchable', users: 'All registered users and their email history', campaigns: 'All sends organised by email type — signup triggers, bulk sends, everything', trigger: 'Send any template manually', templates: `${this.templates.length} templates available` }[this.page] || ''
     },
 
     api(method, path, body) {

@@ -320,6 +320,53 @@ func (h *Handler) HandleAdminSendToUser(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]string{"message": "sending"}, http.StatusOK)
 }
 
+// HandleAdminCampaignGroups handles GET /v1/admin/campaign-groups
+// Returns all email_types ever sent, grouped with send/open aggregate stats.
+func (h *Handler) HandleAdminCampaignGroups(w http.ResponseWriter, r *http.Request) {
+	groups, err := h.Store.GetCampaignGroups(r.Context())
+	if err != nil {
+		slog.Error("campaign groups", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"groups": groups}, http.StatusOK)
+}
+
+// HandleAdminLogsByType handles GET /v1/admin/campaign-groups/{email_type}/logs?limit=50&offset=0
+// Returns paginated individual sends for a specific email_type.
+func (h *Handler) HandleAdminLogsByType(w http.ResponseWriter, r *http.Request) {
+	emailType := r.PathValue("email_type")
+	if emailType == "" {
+		writeError(w, "email_type required", http.StatusBadRequest)
+		return
+	}
+	limit := 50
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 200 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+	logs, total, err := h.Store.ListLogsByEmailType(r.Context(), emailType, limit, offset)
+	if err != nil {
+		slog.Error("logs by type", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"logs":       logs,
+		"total":      total,
+		"limit":      limit,
+		"offset":     offset,
+		"email_type": emailType,
+	}, http.StatusOK)
+}
+
 // HandleAdminCampaignPreview handles GET /v1/admin/campaigns/preview?filter_days=0
 func (h *Handler) HandleAdminCampaignPreview(w http.ResponseWriter, r *http.Request) {
 	filterDays := 0
