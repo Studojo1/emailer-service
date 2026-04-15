@@ -1,0 +1,28 @@
+{{define "content"}}
+<span class="badge badge-green">Your leads are ready</span>
+<h2 class="greeting">{{.UserName}}, the hard part is done.</h2>
+
+<p>You told us what you're looking for. We found the companies.</p>
+
+<p>Your leads are sitting there right now — matched to your profile, ready to reach out to.</p>
+
+<div class="highlight-box">
+  <p>The only thing left:</p>
+  <p>1. <strong>Connect your Gmail.</strong> Takes about 30 seconds. We never store your credentials.</p>
+  <p>2. <strong>Review the messages we've drafted.</strong> Personalised for each company. Edit anything you want.</p>
+  <p>3. <strong>Send.</strong> We track replies directly in your inbox.</p>
+</div>
+
+<p>Most students spend less than 3 minutes on this step. Then the outreach runs.</p>
+
+<div class="cta-wrap">
+  <a href="{{.OutreachURL}}" class="btn-primary">Finish setup →</a>
+</div>
+
+<p style="font-size:13px;color:#737373;text-align:center;">If you hit any issues, just reply to this email. We read every one.</p>
+
+<div class="signature">
+  <p class="name">Jeremy</p>
+  <p class="title">Studojo</p>
+</div>
+{{end}}

@@ -155,6 +155,42 @@ func (s *PostgresStore) ListUsersBySignupDate(ctx context.Context, withinDays in
 	return users, rows.Err()
 }
 
+// ListUsersAtOrderStage returns distinct users who have at least one outreach_order
+// at the given status (e.g. "leads_ready").
+func (s *PostgresStore) ListUsersAtOrderStage(ctx context.Context, stage string) ([]User, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT DISTINCT u.id, u.email, COALESCE(u.name, '')
+		FROM "user" u
+		INNER JOIN outreach_orders oo ON oo.user_id = u.id
+		WHERE oo.status = $1
+		ORDER BY u.id
+	`, stage)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// CountUsersAtOrderStage returns the number of distinct users with an outreach_order
+// at the given status.
+func (s *PostgresStore) CountUsersAtOrderStage(ctx context.Context, stage string) (int, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT user_id) FROM outreach_orders WHERE status = $1
+	`, stage).Scan(&count)
+	return count, err
+}
+
 // CountUsersBySignupDate returns count of users who signed up within the given number of days (0 = all)
 func (s *PostgresStore) CountUsersBySignupDate(ctx context.Context, withinDays int) (int, error) {
 	var query string

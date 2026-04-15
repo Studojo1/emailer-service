@@ -465,12 +465,13 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 
 // BulkSendRequest represents a bulk email send request
 type BulkSendRequest struct {
-	EmailType    string `json:"email_type"`    // welcome, nurture_day3, nurture_day7, nurture_day14, nurture_day30
-	WithinDays   int    `json:"within_days"`   // 0 = all users
+	EmailType  string `json:"email_type"`  // welcome, nurture_day3, nurture_day7, nurture_day14, nurture_day30, leads_ready
+	WithinDays int    `json:"within_days"` // 0 = all users (ignored for order-stage types)
 }
 
 // HandleBulkSendPreview handles GET /v1/email/bulk-send/preview
 func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) {
+	emailType := r.URL.Query().Get("email_type")
 	withinDays := 0
 	if d := r.URL.Query().Get("within_days"); d != "" {
 		if parsed, err := strconv.Atoi(d); err == nil && parsed >= 0 {
@@ -478,7 +479,13 @@ func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	count, err := h.Store.CountUsersBySignupDate(r.Context(), withinDays)
+	var count int
+	var err error
+	if emailType == "leads_ready" {
+		count, err = h.Store.CountUsersAtOrderStage(r.Context(), "leads_ready")
+	} else {
+		count, err = h.Store.CountUsersBySignupDate(r.Context(), withinDays)
+	}
 	if err != nil {
 		slog.Error("failed to count users for bulk send preview", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
@@ -488,6 +495,7 @@ func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]interface{}{
 		"count":       count,
 		"within_days": withinDays,
+		"email_type":  emailType,
 	}, http.StatusOK)
 }
 
@@ -508,14 +516,21 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 
 	validTypes := map[string]bool{
 		"welcome": true, "nurture_day3": true, "nurture_day7": true,
-		"nurture_day14": true, "nurture_day30": true,
+		"nurture_day14": true, "nurture_day30": true, "leads_ready": true,
 	}
 	if !validTypes[req.EmailType] {
 		writeError(w, "invalid email_type", http.StatusBadRequest)
 		return
 	}
 
-	users, err := h.Store.ListUsersBySignupDate(r.Context(), req.WithinDays)
+	var users []store.User
+	var err error
+	// leads_ready targets users at that outreach order stage, not by signup date
+	if req.EmailType == "leads_ready" {
+		users, err = h.Store.ListUsersAtOrderStage(r.Context(), "leads_ready")
+	} else {
+		users, err = h.Store.ListUsersBySignupDate(r.Context(), req.WithinDays)
+	}
 	if err != nil {
 		slog.Error("bulk send: list users", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)

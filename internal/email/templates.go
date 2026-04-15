@@ -80,6 +80,8 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// Funnel — 11–16
 		"funnel-testimonial", "funnel-pricing", "funnel-case-study",
 		"funnel-walkthrough", "funnel-educational", "funnel-winback",
+		// Outreach funnel — order stage triggers
+		"leads-ready",
 		// Priority transactional
 		"signup-thankyou", "signup-followup", "payment-thankyou",
 		// Welcome variants (A/B testing)

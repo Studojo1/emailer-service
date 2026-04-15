@@ -73,6 +73,11 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 	// Build template data
 	var templateData map[string]interface{}
 	switch e.EmailType {
+	case "leads_ready":
+		templateData = map[string]interface{}{
+			"UserName":     user.Name,
+			"OutreachURL":  sc.FrontendURL + "/outreach",
+		}
 	case "welcome":
 		templateData = map[string]interface{}{
 			"UserName":     user.Name,
@@ -129,6 +134,8 @@ func emailTypeToTemplate(emailType string) string {
 		return "nurture-day14"
 	case "nurture_day30":
 		return "nurture-day30"
+	case "leads_ready":
+		return "leads-ready"
 	default:
 		return emailType
 	}

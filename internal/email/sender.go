@@ -60,7 +60,7 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 			return s.supportSender
 		}
 	// Welcome / onboarding — use display name to improve Primary placement
-	case "welcome", "signup-thankyou", "signup-followup",
+	case "welcome", "leads-ready", "signup-thankyou", "signup-followup",
 		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
 		"signup-welcome-v4", "signup-welcome-v5",
 		"funnel-welcome-new", "funnel-welcome-existing",
@@ -136,6 +136,8 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 // getSubject returns the email subject based on template name
 func (s *Sender) getSubject(templateName string, data map[string]interface{}) (string, error) {
 	switch templateName {
+	case "leads-ready":
+		return "Your leads are ready.", nil
 	case "welcome":
 		return "You just made a better decision than most students will this week.", nil
 	case "forgot-password":
