@@ -105,12 +105,16 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		return fmt.Errorf("failed to get subject: %w", err)
 	}
 
-	// Retry logic: 3 attempts with exponential backoff
+	// Retry logic: 3 attempts with backoff.
+	// 429 rate-limit responses wait 60s before retrying; other errors use 1s/2s.
 	maxRetries := 3
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
 		if i > 0 {
 			backoff := time.Duration(i) * time.Second
+			if lastErr != nil && strings.Contains(lastErr.Error(), "429") {
+				backoff = 62 * time.Second
+			}
 			slog.Warn("retrying email send", "attempt", i+1, "backoff", backoff)
 			time.Sleep(backoff)
 		}

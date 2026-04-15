@@ -44,7 +44,10 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 		slog.Error("scheduler: failed to fetch due emails", "error", err)
 		return
 	}
-	for _, e := range emails {
+	for i, e := range emails {
+		if i > 0 {
+			time.Sleep(3 * time.Second) // ~20 emails/min, well under ACS rate limit
+		}
 		sc.send(ctx, e)
 	}
 }

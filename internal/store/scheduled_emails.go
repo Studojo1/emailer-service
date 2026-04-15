@@ -36,7 +36,7 @@ func (s *PostgresStore) GetDueScheduledEmails(ctx context.Context) ([]ScheduledE
 		FROM scheduled_emails
 		WHERE scheduled_at <= NOW() AND sent_at IS NULL
 		ORDER BY scheduled_at ASC
-		LIMIT 100`,
+		LIMIT 20`,
 	)
 	if err != nil {
 		return nil, err
