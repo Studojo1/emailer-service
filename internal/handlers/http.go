@@ -492,6 +492,8 @@ func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) 
 }
 
 // HandleBulkSend handles POST /v1/email/bulk-send
+// Writes rows into scheduled_emails with staggered scheduled_at times so the
+// scheduler drains them. Restart-safe: rows survive pod restarts.
 func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 	var req BulkSendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -504,7 +506,6 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate email type
 	validTypes := map[string]bool{
 		"welcome": true, "nurture_day3": true, "nurture_day7": true,
 		"nurture_day14": true, "nurture_day30": true,
@@ -514,84 +515,53 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get users matching the filter
 	users, err := h.Store.ListUsersBySignupDate(r.Context(), req.WithinDays)
 	if err != nil {
-		slog.Error("failed to list users for bulk send", "error", err)
+		slog.Error("bulk send: list users", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Return immediately with count, process in background
-	total := len(users)
-	writeJSON(w, map[string]interface{}{
-		"message": fmt.Sprintf("sending %s to %d users", req.EmailType, total),
-		"total":   total,
-	}, http.StatusOK)
+	// Write rows into scheduled_emails with staggered scheduled_at.
+	// 10s between each send, +2min cooldown every 20 — all encoded as future timestamps.
+	// The scheduler drains these; pod restarts just pick up where the scheduler left off.
+	ctx := r.Context()
+	queued := 0
+	skipped := 0
+	now := time.Now().UTC()
+	delay := time.Duration(0)
+	batchPos := 0 // position within current batch of 20
 
-	// Send emails in background with safe pacing
-	// 1s between sends + 30s cooldown every 50 emails to protect domain reputation
-	go func() {
-		ctx := context.Background()
-		sent := 0
-		failed := 0
-		skipped := 0
-
-		for i, user := range users {
-			// Cooldown pause every 20 sends — 2-minute break between batches
-			if i > 0 && i%20 == 0 {
-				slog.Info("bulk send: batch cooldown", "sent_so_far", sent, "pausing_seconds", 120)
-				time.Sleep(120 * time.Second)
-			}
-
-			// Dedup: skip if user already received this email type
-			already, err := h.Store.HasReceivedEmail(ctx, user.ID, req.EmailType)
-			if err != nil {
-				slog.Error("bulk send: failed to check dedup", "user_id", user.ID, "error", err)
-			} else if already {
-				slog.Info("bulk send: skipping, already received", "user_id", user.ID, "email_type", req.EmailType)
-				skipped++
-				continue
-			}
-
-			// Check preferences
-			prefs, err := h.Store.GetEmailPreferences(ctx, user.ID)
-			if err != nil {
-				slog.Error("bulk send: failed to get preferences", "user_id", user.ID, "error", err)
-				failed++
-				continue
-			}
-			if !prefs.ProductEmails {
-				slog.Info("bulk send: skipping, product emails disabled", "user_id", user.ID)
-				skipped++
-				continue
-			}
-
-			// Build template data based on email type
-			templateName, templateData := h.buildTemplateData(req.EmailType, &user)
-
-			if err := h.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
-				slog.Error("bulk send: failed to send", "user_id", user.ID, "email_type", req.EmailType, "error", err)
-				failed++
-				// Back off on errors
-				time.Sleep(5 * time.Second)
-				continue
-			}
-
-			// Record sent email
-			if err := h.Store.RecordSentEmail(ctx, user.ID, req.EmailType); err != nil {
-				slog.Error("bulk send: failed to record", "user_id", user.ID, "error", err)
-			}
-
-			sent++
-			slog.Info("bulk send: email sent", "user_id", user.ID, "email_type", req.EmailType, "email", user.Email)
-
-			// 10 seconds between every send — conservative pacing for domain reputation
-			time.Sleep(10 * time.Second)
+	for _, user := range users {
+		already, err := h.Store.HasReceivedEmail(ctx, user.ID, req.EmailType)
+		if err != nil {
+			slog.Error("bulk send: dedup check", "user_id", user.ID, "error", err)
+		} else if already {
+			skipped++
+			continue
 		}
 
-		slog.Info("bulk send complete", "email_type", req.EmailType, "total", total, "sent", sent, "skipped", skipped, "failed", failed)
-	}()
+		// Stagger: 10s per email, 2-min cooldown after every 20
+		if batchPos > 0 && batchPos%20 == 0 {
+			delay += 120 * time.Second // cooldown between batches
+		}
+		scheduledAt := now.Add(delay)
+		delay += 10 * time.Second
+		batchPos++
+
+		if err := h.Store.CreateScheduledEmail(ctx, user.ID, req.EmailType, scheduledAt); err != nil {
+			slog.Error("bulk send: create scheduled email", "user_id", user.ID, "error", err)
+			continue
+		}
+		queued++
+	}
+
+	slog.Info("bulk send queued", "email_type", req.EmailType, "queued", queued, "skipped", skipped)
+	writeJSON(w, map[string]interface{}{
+		"message": fmt.Sprintf("queued %s for %d users (skipped %d already sent)", req.EmailType, queued, skipped),
+		"queued":  queued,
+		"skipped": skipped,
+	}, http.StatusOK)
 }
 
 // buildTemplateData returns the template name and data for a given email type

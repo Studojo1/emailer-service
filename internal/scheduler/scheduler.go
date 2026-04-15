@@ -73,10 +73,15 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 	// Build template data
 	var templateData map[string]interface{}
 	switch e.EmailType {
+	case "welcome":
+		templateData = map[string]interface{}{
+			"UserName":     user.Name,
+			"DashboardURL": sc.FrontendURL + "/",
+		}
 	case "nurture_day3":
 		templateData = map[string]interface{}{
-			"UserName":       user.Name,
-			"InternshipURL":  sc.FrontendURL + "/outreach",
+			"UserName":      user.Name,
+			"InternshipURL": sc.FrontendURL + "/outreach",
 		}
 	case "nurture_day7":
 		templateData = map[string]interface{}{
@@ -94,7 +99,8 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 			"DashboardURL": sc.FrontendURL + "/",
 		}
 	default:
-		slog.Warn("scheduler: unknown email type", "type", e.EmailType)
+		slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
+		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID) // don't retry unknowns
 		return
 	}
 
