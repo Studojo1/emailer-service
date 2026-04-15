@@ -66,7 +66,7 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 		"funnel-welcome-new", "funnel-welcome-existing",
 		"funnel-onboarding", "funnel-congratulations":
 		if s.welcomeSender != "" {
-			return "Jeremy from Studojo <" + s.welcomeSender + ">"
+			return s.welcomeSender
 		}
 	}
 	// Everything else (funnel, nurture, promo) → promotions sender
