@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"os"
 	"path/filepath"
 )
 
@@ -22,15 +23,31 @@ func NewTemplateRenderer(templateDir string) (*TemplateRenderer, error) {
 	return tr, nil
 }
 
-// LoadTemplate loads a template by name
+// LoadTemplate loads a template by name.
+// If the template file contains "<!DOCTYPE html>" it is loaded standalone
+// (no base.html wrapper), allowing plain personal-style emails.
 func (tr *TemplateRenderer) LoadTemplate(name string) error {
-	basePath := filepath.Join(tr.basePath, "base.html")
 	templatePath := filepath.Join(tr.basePath, name+".html")
 
-	// Parse both base and specific template together
-	tmpl, err := template.ParseFiles(basePath, templatePath)
+	raw, err := os.ReadFile(templatePath)
 	if err != nil {
-		return fmt.Errorf("failed to parse template %s: %w", name, err)
+		return fmt.Errorf("failed to read template %s: %w", name, err)
+	}
+
+	var tmpl *template.Template
+	if bytes.Contains(raw, []byte("<!DOCTYPE html>")) || bytes.Contains(raw, []byte("<!doctype html>")) {
+		// Standalone template — no base wrapper
+		tmpl, err = template.ParseFiles(templatePath)
+		if err != nil {
+			return fmt.Errorf("failed to parse standalone template %s: %w", name, err)
+		}
+	} else {
+		// Wrapped template — combine with base
+		basePath := filepath.Join(tr.basePath, "base.html")
+		tmpl, err = template.ParseFiles(basePath, templatePath)
+		if err != nil {
+			return fmt.Errorf("failed to parse template %s: %w", name, err)
+		}
 	}
 
 	tr.templates[name] = tmpl
