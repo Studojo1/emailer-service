@@ -82,6 +82,7 @@ jobs:
           kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
             RESEND_API_KEY- \
             AZURE_EMAIL_CONNECTION_STRING="${{ secrets.ACS_EMAIL_CONNECTION_STRING }}" \
+            AZURE_EMAIL_CONNECTION_STRING_2="${{ secrets.ACS_EMAIL_CONNECTION_STRING_2 }}" \
             AZURE_EMAIL_SENDER_ADDRESS="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_SUPPORT="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_WELCOME="Jeremy from Studojo <jeremy@welcome.studojo.pro>" \
