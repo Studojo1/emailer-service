@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
@@ -24,14 +25,20 @@ func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL stri
 // Run starts the scheduler loop. Call in a goroutine.
 func (sc *Scheduler) Run(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
+	catchupTicker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
+	defer catchupTicker.Stop()
 
-	// Process immediately on start, then on each tick
+	// Process immediately on start
 	sc.processDue(ctx)
+	sc.runCatchup(ctx)
+
 	for {
 		select {
 		case <-ticker.C:
 			sc.processDue(ctx)
+		case <-catchupTicker.C:
+			sc.runCatchup(ctx)
 		case <-ctx.Done():
 			return
 		}
@@ -52,6 +59,66 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 }
 
+// runCatchup finds users who should have gotten welcome or segmentation emails
+// but didn't (e.g. RabbitMQ event dropped, pod restart during signup, etc.)
+// and queues them for sending. Safe to run repeatedly — dedup is built in.
+func (sc *Scheduler) runCatchup(ctx context.Context) {
+	sc.catchupWelcome(ctx)
+	sc.catchupSegmentation(ctx)
+}
+
+// catchupWelcome queues a welcome email for any user who signed up more than
+// 5 minutes ago but has never received one and isn't already queued.
+func (sc *Scheduler) catchupWelcome(ctx context.Context) {
+	users, err := sc.Store.ListUsersWithoutEmail(ctx, "welcome", 5)
+	if err != nil {
+		slog.Error("catchup: failed to list users without welcome email", "error", err)
+		return
+	}
+	queued := 0
+	now := time.Now().UTC()
+	for i, u := range users {
+		delay := time.Duration(i) * 10 * time.Second
+		if i > 0 && i%20 == 0 {
+			delay += time.Duration(i/20) * 120 * time.Second
+		}
+		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "welcome", now.Add(delay)); err != nil {
+			slog.Error("catchup: failed to queue welcome", "user_id", u.ID, "error", err)
+			continue
+		}
+		queued++
+	}
+	if queued > 0 {
+		slog.Info("catchup: queued missed welcome emails", "count", queued)
+	}
+}
+
+// catchupSegmentation queues a segmentation email for any user who completed
+// the quiz (has target_roles set) but never received a segmentation email.
+func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
+	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel-segmentation-v1")
+	if err != nil {
+		slog.Error("catchup: failed to list quiz-completed users without segmentation email", "error", err)
+		return
+	}
+	queued := 0
+	now := time.Now().UTC()
+	for i, u := range users {
+		delay := time.Duration(i) * 10 * time.Second
+		if i > 0 && i%20 == 0 {
+			delay += time.Duration(i/20) * 120 * time.Second
+		}
+		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel-segmentation-v1", now.Add(delay)); err != nil {
+			slog.Error("catchup: failed to queue segmentation", "user_id", u.ID, "error", err)
+			continue
+		}
+		queued++
+	}
+	if queued > 0 {
+		slog.Info("catchup: queued missed segmentation emails", "count", queued)
+	}
+}
+
 func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 	// Get user
 	user, err := sc.Store.GetUserByID(ctx, e.UserID)
@@ -68,7 +135,6 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 	}
 	if !prefs.ProductEmails {
 		slog.Info("scheduler: skipping email, product emails disabled", "user_id", e.UserID, "type", e.EmailType)
-		// Mark sent so we don't retry
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return
 	}
@@ -78,8 +144,8 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 	switch e.EmailType {
 	case "leads_ready":
 		templateData = map[string]interface{}{
-			"UserName":     user.Name,
-			"OutreachURL":  sc.FrontendURL + "/outreach",
+			"UserName":    user.Name,
+			"OutreachURL": sc.FrontendURL + "/outreach",
 		}
 	case "welcome":
 		templateData = map[string]interface{}{
@@ -107,12 +173,18 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 			"DashboardURL": sc.FrontendURL + "/",
 		}
 	default:
-		slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
-		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID) // don't retry unknowns
-		return
+		// Handle all funnel-* types generically
+		if strings.HasPrefix(e.EmailType, "funnel-") {
+			templateData = map[string]interface{}{
+				"UserName": user.Name,
+			}
+		} else {
+			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return
+		}
 	}
 
-	// Map email_type to template name (underscore → hyphen)
 	templateName := emailTypeToTemplate(e.EmailType)
 
 	if err := sc.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
@@ -124,7 +196,7 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 		slog.Error("scheduler: failed to mark sent", "error", err, "id", e.ID)
 	}
 
-	slog.Info("scheduler: nurture email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
+	slog.Info("scheduler: email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
 }
 
 func emailTypeToTemplate(emailType string) string {
@@ -140,6 +212,7 @@ func emailTypeToTemplate(emailType string) string {
 	case "leads_ready":
 		return "leads-ready"
 	default:
+		// funnel-* types already have the right hyphenated name
 		return emailType
 	}
 }
