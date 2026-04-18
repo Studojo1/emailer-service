@@ -602,7 +602,7 @@
 </div>
 
 <!-- ═══════════════════════════ TEMPLATE PREVIEW MODAL ═══════════════════════════ -->
-<div x-show="previewModal" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+<div x-show="previewModal" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center p-6" style="z-index:400">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style="height:85vh">
     <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
       <div>
@@ -622,7 +622,7 @@
 </div>
 
 <!-- ═══════════════════════════ SEND TO USER MODAL ═══════════════════════════ -->
-<div x-show="sendModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+<div x-show="sendModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center" style="z-index:400">
   <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md" @click.outside="sendModal=false">
     <h3 class="font-semibold text-slate-800 mb-1">Send to <span x-text="sendModalUser?.name||sendModalUser?.email"></span></h3>
     <p class="text-sm text-slate-500 mb-4" x-text="sendModalUser?.email"></p>
@@ -663,9 +663,12 @@
     <div class="flex flex-1 min-h-0">
       <!-- Email preview -->
       <div class="flex-1 flex flex-col min-w-0 border-r border-slate-200">
-        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-shrink-0" style="z-index:5;position:relative">
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
           <span class="text-xs font-medium text-slate-600" x-text="'Previewing: '+(recipientLog?.template_name||'')"></span>
-          <button @click="openPreview(recipientLog?.template_name)" class="btn-secondary btn-sm">Open full ↗</button>
+          <div class="flex items-center gap-2">
+            <button @click="openSendModal({id: recipientLog.user_id, name: recipientLog.user_name, email: recipientLog.email_to})" class="btn-primary btn-sm">Send email</button>
+            <button @click="openPreview(recipientLog?.template_name)" class="btn-secondary btn-sm">Open full ↗</button>
+          </div>
         </div>
         <div class="flex-1 min-h-0 overflow-hidden">
           <iframe
