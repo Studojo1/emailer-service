@@ -261,11 +261,22 @@ func (h *Handler) HandleAdminCampaignSend(w http.ResponseWriter, r *http.Request
 				continue
 			}
 
+			already, err := h.Store.HasReceivedEmail(ctx, user.ID, campaign.TemplateName)
+			if err != nil {
+				slog.Error("campaign send: dedup check failed", "user_id", user.ID, "error", err)
+			} else if already {
+				slog.Info("campaign send: already sent, skipping", "user_id", user.ID, "template", campaign.TemplateName)
+				continue
+			}
+
 			if err := h.Sender.SendTemplateEmail(ctx, user.Email, campaign.TemplateName, map[string]interface{}{
 				"UserName": user.Name,
 			}); err != nil {
 				slog.Error("campaign send: failed", "user_id", user.ID, "error", err)
 				continue
+			}
+			if err := h.Store.RecordSentEmail(ctx, user.ID, campaign.TemplateName); err != nil {
+				slog.Error("campaign send: failed to record", "user_id", user.ID, "error", err)
 			}
 			sent++
 			time.Sleep(200 * time.Millisecond)

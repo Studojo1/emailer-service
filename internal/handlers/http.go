@@ -548,7 +548,7 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 	batchPos := 0 // position within current batch of 20
 
 	for _, user := range users {
-		already, err := h.Store.HasReceivedEmail(ctx, user.ID, req.EmailType)
+		already, err := h.Store.HasScheduledOrReceivedEmail(ctx, user.ID, req.EmailType)
 		if err != nil {
 			slog.Error("bulk send: dedup check", "user_id", user.ID, "error", err)
 		} else if already {
