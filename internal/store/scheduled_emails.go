@@ -60,15 +60,16 @@ func (s *PostgresStore) GetDueScheduledEmails(ctx context.Context) ([]ScheduledE
 }
 
 // RecordSentEmail inserts an already-sent email into scheduled_emails for tracking.
-// ON CONFLICT DO NOTHING: if a row already exists for this user+type (sent or pending),
-// the insert is skipped — the existing row already provides dedup coverage.
+// ON CONFLICT DO UPDATE: if a pending row exists for this user+type (e.g. from the
+// catchup scheduler), update sent_at so HasReceivedEmail correctly returns true and
+// the scheduler does not re-send it.
 func (s *PostgresStore) RecordSentEmail(ctx context.Context, userID, emailType string) error {
 	id := uuid.New()
 	now := time.Now().UTC()
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO scheduled_emails (id, user_id, email_type, scheduled_at, sent_at, created_at)
 		VALUES ($1, $2, $3, $4, $4, $5)
-		ON CONFLICT (user_id, email_type) DO NOTHING`,
+		ON CONFLICT (user_id, email_type) DO UPDATE SET sent_at = EXCLUDED.sent_at`,
 		id.String(), userID, emailType, now, now,
 	)
 	return err

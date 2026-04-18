@@ -59,38 +59,13 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 }
 
-// runCatchup finds users who should have gotten welcome or segmentation emails
-// but didn't (e.g. RabbitMQ event dropped, pod restart during signup, etc.)
-// and queues them for sending. Safe to run repeatedly — dedup is built in.
+// runCatchup finds users who should have gotten segmentation emails but didn't
+// (e.g. quiz completed before the service was running) and queues them.
+// Welcome emails are NOT caught up here — they are sent exclusively via the
+// event.user.signup handler to avoid mass-sending to historical users on
+// pod restarts or redeployments.
 func (sc *Scheduler) runCatchup(ctx context.Context) {
-	sc.catchupWelcome(ctx)
 	sc.catchupSegmentation(ctx)
-}
-
-// catchupWelcome queues a welcome email for any user who signed up more than
-// 5 minutes ago but has never received one and isn't already queued.
-func (sc *Scheduler) catchupWelcome(ctx context.Context) {
-	users, err := sc.Store.ListUsersWithoutEmail(ctx, "welcome", 5)
-	if err != nil {
-		slog.Error("catchup: failed to list users without welcome email", "error", err)
-		return
-	}
-	queued := 0
-	now := time.Now().UTC()
-	for i, u := range users {
-		delay := time.Duration(i) * 10 * time.Second
-		if i > 0 && i%20 == 0 {
-			delay += time.Duration(i/20) * 120 * time.Second
-		}
-		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "welcome", now.Add(delay)); err != nil {
-			slog.Error("catchup: failed to queue welcome", "user_id", u.ID, "error", err)
-			continue
-		}
-		queued++
-	}
-	if queued > 0 {
-		slog.Info("catchup: queued missed welcome emails", "count", queued)
-	}
 }
 
 // catchupSegmentation queues a segmentation email for any user who completed
