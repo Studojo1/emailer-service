@@ -18,12 +18,15 @@ type ScheduledEmail struct {
 	CreatedAt   time.Time
 }
 
-// CreateScheduledEmail inserts a new scheduled email row
+// CreateScheduledEmail inserts a new scheduled email row.
+// ON CONFLICT DO NOTHING means a duplicate (user_id, email_type) is silently ignored
+// once the unique index is in place — safe to call multiple times.
 func (s *PostgresStore) CreateScheduledEmail(ctx context.Context, userID, emailType string, scheduledAt time.Time) error {
 	id := uuid.New()
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO scheduled_emails (id, user_id, email_type, scheduled_at, created_at)
-		VALUES ($1, $2, $3, $4, $5)`,
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (user_id, email_type) DO NOTHING`,
 		id.String(), userID, emailType, scheduledAt, time.Now().UTC(),
 	)
 	return err
@@ -56,13 +59,16 @@ func (s *PostgresStore) GetDueScheduledEmails(ctx context.Context) ([]ScheduledE
 	return emails, rows.Err()
 }
 
-// RecordSentEmail inserts an already-sent email into scheduled_emails for tracking
+// RecordSentEmail inserts an already-sent email into scheduled_emails for tracking.
+// ON CONFLICT DO NOTHING: if a row already exists for this user+type (sent or pending),
+// the insert is skipped — the existing row already provides dedup coverage.
 func (s *PostgresStore) RecordSentEmail(ctx context.Context, userID, emailType string) error {
 	id := uuid.New()
 	now := time.Now().UTC()
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO scheduled_emails (id, user_id, email_type, scheduled_at, sent_at, created_at)
-		VALUES ($1, $2, $3, $4, $4, $5)`,
+		VALUES ($1, $2, $3, $4, $4, $5)
+		ON CONFLICT (user_id, email_type) DO NOTHING`,
 		id.String(), userID, emailType, now, now,
 	)
 	return err

@@ -278,31 +278,57 @@ func main() {
 		os.Exit(1)
 	}
 
-	// One-time data fixes: rename routing-key records to template-name records so
-	// dedup checks work correctly, then purge any duplicate pending rows per user+type.
-	_, err = db.Exec(`
-		UPDATE scheduled_emails
-		SET email_type = 'funnel-segmentation-v1'
-		WHERE email_type = 'event.funnel.segmentation_v1';
+	// Data integrity migration — idempotent, safe to run on every startup.
+	//
+	// 1. Rename legacy routing-key records to template names so dedup checks match.
+	// 2. Remove any pending rows where a sent row already exists for the same user+type
+	//    (email already delivered; the pending row would cause a duplicate send).
+	// 3. Deduplicate remaining sent rows, keeping the oldest per user+type.
+	// 4. Deduplicate remaining pending rows, keeping the earliest scheduled per user+type.
+	// 5. Add a UNIQUE constraint so future duplicates are physically impossible.
+	//    CreateScheduledEmail and RecordSentEmail both use ON CONFLICT DO NOTHING,
+	//    so callers never see an error from a harmless duplicate attempt.
+	for _, stmt := range []string{
+		`UPDATE scheduled_emails SET email_type = 'funnel-segmentation-v1'
+		 WHERE email_type = 'event.funnel.segmentation_v1'`,
 
-		UPDATE scheduled_emails
-		SET email_type = 'funnel-segmentation-v2'
-		WHERE email_type = 'event.funnel.segmentation_v2';
+		`UPDATE scheduled_emails SET email_type = 'funnel-segmentation-v2'
+		 WHERE email_type = 'event.funnel.segmentation_v2'`,
 
-		DELETE FROM scheduled_emails
-		WHERE sent_at IS NULL
-		  AND id NOT IN (
-		    SELECT DISTINCT ON (user_id, email_type) id
-		    FROM scheduled_emails
-		    WHERE sent_at IS NULL
-		    ORDER BY user_id, email_type, scheduled_at ASC
-		  );
-	`)
-	if err != nil {
-		slog.Warn("data migration: cleanup step failed (non-fatal)", "error", err)
-	} else {
-		slog.Info("data migration: routing-key rename and pending dedup complete")
+		// Remove pending rows superseded by a sent row
+		`DELETE FROM scheduled_emails
+		 WHERE sent_at IS NULL
+		   AND (user_id, email_type) IN (
+		     SELECT user_id, email_type FROM scheduled_emails WHERE sent_at IS NOT NULL
+		   )`,
+
+		// Deduplicate sent rows — keep oldest sent_at per user+type
+		`DELETE FROM scheduled_emails
+		 WHERE sent_at IS NOT NULL
+		   AND id NOT IN (
+		     SELECT DISTINCT ON (user_id, email_type) id
+		     FROM scheduled_emails WHERE sent_at IS NOT NULL
+		     ORDER BY user_id, email_type, sent_at ASC
+		   )`,
+
+		// Deduplicate pending rows — keep earliest scheduled_at per user+type
+		`DELETE FROM scheduled_emails
+		 WHERE sent_at IS NULL
+		   AND id NOT IN (
+		     SELECT DISTINCT ON (user_id, email_type) id
+		     FROM scheduled_emails WHERE sent_at IS NULL
+		     ORDER BY user_id, email_type, scheduled_at ASC
+		   )`,
+
+		// Unique constraint — makes all future duplicate inserts safe no-ops
+		`CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduled_emails_unique_user_type
+		 ON scheduled_emails (user_id, email_type)`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			slog.Warn("data migration step failed (non-fatal)", "error", err, "stmt", stmt[:60])
+		}
 	}
+	slog.Info("data migration: scheduled_emails dedup and unique index complete")
 
 	// Initialize handlers
 	eventHandler := handlers.NewEventHandler(pgStore, sender, emailFrontendURL)
