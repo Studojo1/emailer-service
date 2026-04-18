@@ -324,13 +324,18 @@ func main() {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduled_emails_unique_user_type
 		 ON scheduled_emails (user_id, email_type)`,
 
-		// Bulk-clear stale nurture emails that are more than 48h past due.
-		// These are old rows from before the service was running — sending them
-		// now would be confusing spam. Mark as sent without actually sending.
-		`UPDATE scheduled_emails SET sent_at = NOW()
-		 WHERE sent_at IS NULL
-		   AND scheduled_at < NOW() - INTERVAL '48 hours'
-		   AND email_type LIKE 'nurture%'`,
+		// Restore nurture emails that were incorrectly marked as sent by a prior
+		// migration (bulk-mark-done) but were never actually delivered — i.e. no
+		// corresponding row exists in email_send_log. Reset sent_at to NULL so
+		// the scheduler picks them up and sends them.
+		`UPDATE scheduled_emails se SET sent_at = NULL
+		 WHERE se.email_type LIKE 'nurture%'
+		   AND se.sent_at IS NOT NULL
+		   AND NOT EXISTS (
+		     SELECT 1 FROM email_send_log esl
+		     WHERE esl.user_id = se.user_id
+		       AND esl.template_name = REPLACE(se.email_type, '_', '-')
+		   )`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			slog.Warn("data migration step failed (non-fatal)", "error", err, "stmt", stmt[:60])
