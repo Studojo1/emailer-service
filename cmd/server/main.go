@@ -323,6 +323,14 @@ func main() {
 		// Unique constraint — makes all future duplicate inserts safe no-ops
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduled_emails_unique_user_type
 		 ON scheduled_emails (user_id, email_type)`,
+
+		// Bulk-clear stale nurture emails that are more than 48h past due.
+		// These are old rows from before the service was running — sending them
+		// now would be confusing spam. Mark as sent without actually sending.
+		`UPDATE scheduled_emails SET sent_at = NOW()
+		 WHERE sent_at IS NULL
+		   AND scheduled_at < NOW() - INTERVAL '48 hours'
+		   AND email_type LIKE 'nurture%'`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			slog.Warn("data migration step failed (non-fatal)", "error", err, "stmt", stmt[:60])

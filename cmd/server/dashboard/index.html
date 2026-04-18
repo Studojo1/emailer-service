@@ -551,14 +551,15 @@
               <template x-for="t in filteredTemplates.filter(t => templateCategory(t) === cat)" :key="t">
                 <div class="bg-white rounded-xl border border-slate-200 hover:border-violet-300 transition-colors group overflow-hidden cursor-pointer"
                      @click="openPreview(t)">
-                  <!-- Mini preview thumbnail -->
-                  <div class="h-28 bg-slate-50 overflow-hidden relative border-b border-slate-100">
-                    <iframe :id="'thumb-'+t" class="absolute inset-0 w-full border-none pointer-events-none origin-top-left"
-                      style="transform:scale(0.28); width:357%; height:357%;"
-                      :src="'/v1/admin/templates/'+encodeURIComponent(t)+'/preview?token='+encodeURIComponent(authToken)"
-                      loading="lazy" referrerpolicy="no-referrer"></iframe>
-                    <div class="absolute inset-0 flex items-end justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/30 to-transparent">
-                      <span class="text-white text-xs font-medium">Preview →</span>
+                  <!-- Static thumbnail — no iframe load on page render -->
+                  <div class="h-28 overflow-hidden relative border-b border-slate-100 flex items-center justify-center"
+                       :class="templateCategoryBg(t)">
+                    <div class="text-center px-4">
+                      <div class="text-2xl mb-1" x-text="templateIcon(t)"></div>
+                      <div class="text-xs font-medium text-slate-600 truncate max-w-[140px]" x-text="t"></div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80">
+                      <span class="text-violet-700 text-xs font-semibold">Click to preview →</span>
                     </div>
                   </div>
                   <div class="p-3 flex items-start justify-between">
@@ -1043,6 +1044,25 @@ function app() {
     segmentCategoryBadge(t) {
       const m = { 'Funnel':'bg-violet-50 text-violet-700', 'Nurture':'bg-blue-50 text-blue-700', 'Signup':'bg-emerald-50 text-emerald-700', 'Transact.':'bg-amber-50 text-amber-700', 'Other':'bg-slate-100 text-slate-500' }
       return m[this.segmentCategory(t)] || 'bg-slate-100 text-slate-500'
+    },
+
+    templateCategoryBg(t) {
+      const c = this.templateCategory(t)
+      return { 'Funnel':'bg-violet-50', 'Nurture':'bg-blue-50', 'Signup':'bg-emerald-50', 'Transactional':'bg-amber-50', 'Other':'bg-slate-50' }[c] || 'bg-slate-50'
+    },
+
+    templateIcon(t) {
+      if (t.startsWith('funnel-')) return '📊'
+      if (t.startsWith('nurture')) return '🌱'
+      if (t.startsWith('signup-')) return '✅'
+      if (t === 'welcome') return '👋'
+      if (t === 'payment-thankyou') return '💳'
+      if (t === 'forgot-password' || t === 'password-changed') return '🔑'
+      if (t === 'resume-optimized') return '📄'
+      if (t === 'internship-applied') return '🎯'
+      if (t === 'leads-ready') return '🚀'
+      if (t === 'contact-form') return '✉️'
+      return '📧'
     },
 
     templateCategory(t) {
