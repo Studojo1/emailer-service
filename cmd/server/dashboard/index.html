@@ -74,34 +74,48 @@
     </div>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5">
-      <div @click="nav('overview')" :class="page==='overview' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <div @click="nav('overview')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='overview' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Overview
       </div>
-      <div @click="nav('segments')" :class="page==='segments' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+      <div @click="nav('segments')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='segments' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
         Segments
       </div>
-      <div @click="nav('scheduled')" :class="page==='scheduled' ? 'active' : ''" class="sidebar-link">
+      <div @click="nav('scheduled')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='scheduled' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
         <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span class="flex-1">Scheduled</span>
         <span x-show="scheduledTotal > 0" class="flex-shrink-0 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
       </div>
-      <div @click="nav('users')" :class="page==='users' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+      <div @click="nav('users')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='users' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Users
       </div>
-      <div @click="nav('logs')" :class="page==='logs' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      <div @click="nav('logs')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='logs' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Email Logs
       </div>
-      <div @click="nav('templates')" :class="page==='templates' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+      <div @click="nav('templates')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='templates' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
         Templates
       </div>
-      <div class="border-t border-slate-800 my-1"></div>
-      <div @click="nav('trigger')" :class="page==='trigger' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      <div class="border-t border-slate-800 my-2"></div>
+      <div @click="nav('trigger')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='trigger' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         Fire Email
       </div>
     </nav>
