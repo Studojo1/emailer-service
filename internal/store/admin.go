@@ -88,26 +88,25 @@ func (s *PostgresStore) MarkEmailOpened(ctx context.Context, emailTo, templateNa
 	`, emailTo, templateName)
 }
 
-// GetEmailStats returns aggregate stats using scheduled_emails as the source of truth
-// (it captures every send including signup auto-triggers and bulk sends)
+// GetEmailStats returns aggregate stats. email_send_log is the source of truth
+// for counts and daily volume — every send goes through SendTemplateEmail which
+// always calls LogEmailSent. scheduled_emails is used only for scheduled counts.
 func (s *PostgresStore) GetEmailStats(ctx context.Context) (*EmailStats, error) {
 	stats := &EmailStats{}
 
-	// Primary counts from scheduled_emails (all sends ever recorded)
+	// Primary counts from email_send_log (captures every send, including
+	// transactional emails that never touch scheduled_emails)
 	row := s.db.QueryRowContext(ctx, `
 		SELECT
-			COUNT(*)                                                    AS total_sent,
-			COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '24 hours') AS sent_today,
-			COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days')   AS sent_this_week
-		FROM scheduled_emails
-		WHERE sent_at IS NOT NULL
+			COUNT(*)                                                         AS total_sent,
+			COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '24 hours')  AS sent_today,
+			COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days')    AS sent_this_week,
+			COUNT(*) FILTER (WHERE opened_at IS NOT NULL)                   AS total_opened
+		FROM email_send_log
 	`)
-	if err := row.Scan(&stats.TotalSent, &stats.SentToday, &stats.SentThisWeek); err != nil {
+	if err := row.Scan(&stats.TotalSent, &stats.SentToday, &stats.SentThisWeek, &stats.TotalOpened); err != nil {
 		return nil, fmt.Errorf("aggregate stats: %w", err)
 	}
-
-	// Open count from email_send_log (has opened_at tracking)
-	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM email_send_log WHERE opened_at IS NOT NULL`).Scan(&stats.TotalOpened)
 	if stats.TotalSent > 0 {
 		stats.OpenRate = float64(stats.TotalOpened) / float64(stats.TotalSent) * 100
 	}
@@ -115,12 +114,14 @@ func (s *PostgresStore) GetEmailStats(ctx context.Context) (*EmailStats, error) 
 	// Total registered users
 	_ = s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM "user"`).Scan(&stats.TotalUsers)
 
-	// Top templates by send count (from scheduled_emails)
+	// Top templates by send count (from email_send_log)
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT email_type, COUNT(*) AS send_count
-		FROM scheduled_emails
-		WHERE sent_at IS NOT NULL
-		GROUP BY email_type
+		SELECT
+			template_name,
+			COUNT(*)                                          AS send_count,
+			COUNT(*) FILTER (WHERE opened_at IS NOT NULL)    AS open_count
+		FROM email_send_log
+		GROUP BY template_name
 		ORDER BY send_count DESC
 		LIMIT 8
 	`)
@@ -128,11 +129,7 @@ func (s *PostgresStore) GetEmailStats(ctx context.Context) (*EmailStats, error) 
 		defer rows.Close()
 		for rows.Next() {
 			var ts TemplateStats
-			if err := rows.Scan(&ts.TemplateName, &ts.SendCount); err == nil {
-				// Enrich with open count from email_send_log
-				_ = s.db.QueryRowContext(ctx,
-					`SELECT COUNT(*) FROM email_send_log WHERE template_name = $1 AND opened_at IS NOT NULL`,
-					ts.TemplateName).Scan(&ts.OpenCount)
+			if err := rows.Scan(&ts.TemplateName, &ts.SendCount, &ts.OpenCount); err == nil {
 				if ts.SendCount > 0 {
 					ts.OpenRate = float64(ts.OpenCount) / float64(ts.SendCount) * 100
 				}
@@ -141,13 +138,27 @@ func (s *PostgresStore) GetEmailStats(ctx context.Context) (*EmailStats, error) 
 		}
 	}
 
-	// Daily volume — last 14 days (from scheduled_emails)
+	// Daily volume — last 14 days, one row per day, from email_send_log.
+	// Always returns exactly 14 rows (missing days filled with 0 in the query).
 	drows, err := s.db.QueryContext(ctx, `
-		SELECT TO_CHAR(sent_at::date, 'YYYY-MM-DD'), COUNT(*)
-		FROM scheduled_emails
-		WHERE sent_at IS NOT NULL AND sent_at >= NOW() - INTERVAL '14 days'
-		GROUP BY sent_at::date
-		ORDER BY sent_at::date
+		WITH days AS (
+			SELECT generate_series(
+				(NOW() - INTERVAL '13 days')::date,
+				NOW()::date,
+				INTERVAL '1 day'
+			)::date AS day
+		)
+		SELECT
+			TO_CHAR(d.day, 'YYYY-MM-DD'),
+			COALESCE(c.cnt, 0)
+		FROM days d
+		LEFT JOIN (
+			SELECT sent_at::date AS day, COUNT(*) AS cnt
+			FROM email_send_log
+			WHERE sent_at >= NOW() - INTERVAL '14 days'
+			GROUP BY sent_at::date
+		) c ON c.day = d.day
+		ORDER BY d.day
 	`)
 	if err == nil {
 		defer drows.Close()

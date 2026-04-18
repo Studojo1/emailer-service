@@ -10,7 +10,7 @@
   <style>
     [x-cloak] { display: none !important; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-    .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer; }
+    .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer w-full; }
     .sidebar-link.active { @apply text-white bg-violet-600; }
     .stat-card { @apply bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-1; }
     .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium; }
@@ -83,9 +83,9 @@
         Segments
       </div>
       <div @click="nav('scheduled')" :class="page==='scheduled' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Scheduled
-        <span x-show="scheduledTotal > 0" class="ml-auto bg-violet-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="flex-1">Scheduled</span>
+        <span x-show="scheduledTotal > 0" class="flex-shrink-0 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
       </div>
       <div @click="nav('users')" :class="page==='users' ? 'active' : ''" class="sidebar-link">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
@@ -823,7 +823,7 @@ function app() {
 
     async nav(p) {
       this.page = p
-      if (p === 'overview') { await this.loadStats(); this.$nextTick(() => this.drawChart()) }
+      if (p === 'overview') { await this.loadStats() }
       if (p === 'segments') await this.loadCampaignGroups()
       if (p === 'scheduled') await this.loadScheduled()
       if (p === 'users') await this.loadUsers()
@@ -833,11 +833,15 @@ function app() {
 
     async loadStats() {
       this.statsLoading = true
-      const r = await this.api('GET', '/v1/admin/stats')
-      if (r.ok) { this.stats = await r.json(); this.$nextTick(() => this.drawChart()) }
-      this.statsLoading = false
-      const r2 = await this.api('GET', '/v1/admin/logs?limit=10')
+      const [r, r2] = await Promise.all([
+        this.api('GET', '/v1/admin/stats'),
+        this.api('GET', '/v1/admin/logs?limit=10'),
+      ])
+      if (r.ok) this.stats = await r.json()
       if (r2.ok) { const d = await r2.json(); this.recentLogs = d.logs || [] }
+      this.statsLoading = false
+      // Wait two frames: one for x-show to remove display:none, one for layout
+      requestAnimationFrame(() => requestAnimationFrame(() => this.drawChart()))
     },
 
     async loadLogs() {
@@ -943,16 +947,44 @@ function app() {
 
     drawChart() {
       const volume = this.stats.daily_volume || []
-      const ctx = document.getElementById('volumeChart')
-      if (!ctx || !volume.length) return
-      if (this._chart) this._chart.destroy()
-      this._chart = new Chart(ctx, {
+      const canvas = document.getElementById('volumeChart')
+      if (!canvas) return
+      if (this._chart) { this._chart.destroy(); this._chart = null }
+
+      // Build a full 14-day series with zeros for any missing days
+      const today = new Date(); today.setHours(0,0,0,0)
+      const byDate = {}
+      volume.forEach(v => { byDate[v.date] = v.count })
+      const labels = [], data = []
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i)
+        const key = d.toISOString().slice(0,10)
+        labels.push(d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }))
+        data.push(byDate[key] || 0)
+      }
+
+      this._chart = new Chart(canvas, {
         type: 'bar',
         data: {
-          labels: volume.map(v => v.date.slice(5)),
-          datasets: [{ data: volume.map(v => v.count), backgroundColor: 'rgba(124,58,237,0.12)', borderColor: 'rgba(124,58,237,0.7)', borderWidth: 1.5, borderRadius: 4 }]
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: 'rgba(124,58,237,0.15)',
+            borderColor: 'rgba(124,58,237,0.8)',
+            borderWidth: 1.5,
+            borderRadius: 4,
+            borderSkipped: false,
+          }]
         },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } } } }
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} emails` } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#94a3b8', precision: 0 } }
+          }
+        }
       })
     },
 
