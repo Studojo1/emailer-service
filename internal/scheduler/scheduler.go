@@ -53,7 +53,9 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 	for i, e := range emails {
 		if i > 0 {
-			time.Sleep(3 * time.Second) // ~20 emails/min, well under ACS rate limit
+			// 20s between sends = 3 emails/min = 180/hr across both ACS resources.
+			// Staying under the 200/hr free-tier cap prevents the 3703s penalty cooldown.
+			time.Sleep(20 * time.Second)
 		}
 		sc.send(ctx, e)
 	}
