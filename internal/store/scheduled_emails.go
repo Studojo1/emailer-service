@@ -79,6 +79,18 @@ func (s *PostgresStore) HasReceivedEmail(ctx context.Context, userID, emailType 
 	return count > 0, err
 }
 
+// HasScheduledOrReceivedEmail returns true if ANY row exists for this user+type
+// (sent or still pending). Used to prevent duplicate scheduling on event replays.
+func (s *PostgresStore) HasScheduledOrReceivedEmail(ctx context.Context, userID, emailType string) (bool, error) {
+	var count int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM scheduled_emails
+		WHERE user_id = $1 AND email_type = $2`,
+		userID, emailType,
+	).Scan(&count)
+	return count > 0, err
+}
+
 // ListUsersWithoutEmail returns users who signed up more than minAgeMinutes ago
 // but have never received the given email type and don't have it pending.
 func (s *PostgresStore) ListUsersWithoutEmail(ctx context.Context, emailType string, minAgeMinutes int) ([]User, error) {

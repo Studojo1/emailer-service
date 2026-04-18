@@ -211,7 +211,7 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 		slog.Error("failed to record welcome email", "error", err)
 	}
 
-	// Schedule nurture sequence
+	// Schedule nurture sequence — guard against duplicate scheduling on event replays
 	now := time.Now().UTC()
 	nurture := []struct {
 		emailType string
@@ -223,6 +223,14 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 		{"nurture_day30", 30 * 24 * time.Hour},
 	}
 	for _, n := range nurture {
+		exists, err := h.Store.HasScheduledOrReceivedEmail(ctx, event.UserID, n.emailType)
+		if err != nil {
+			slog.Error("nurture dedup check failed", "type", n.emailType, "user_id", event.UserID, "error", err)
+			continue
+		}
+		if exists {
+			continue
+		}
 		if err := h.Store.CreateScheduledEmail(ctx, event.UserID, n.emailType, now.Add(n.delay)); err != nil {
 			slog.Error("failed to schedule nurture email", "type", n.emailType, "user_id", event.UserID, "error", err)
 		}
