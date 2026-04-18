@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" x-data="app()" x-init="init()">
+<html lang="en" x-data="app()">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -840,8 +840,7 @@ function app() {
       if (r.ok) this.stats = await r.json()
       if (r2.ok) { const d = await r2.json(); this.recentLogs = d.logs || [] }
       this.statsLoading = false
-      // Wait two frames: one for x-show to remove display:none, one for layout
-      requestAnimationFrame(() => requestAnimationFrame(() => this.drawChart()))
+      setTimeout(() => this.drawChart(), 150)
     },
 
     async loadLogs() {
