@@ -481,6 +481,7 @@
                   <td class="px-5 py-3 flex gap-3">
                     <button @click="openUserHistory(user)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">History</button>
                     <button @click="openSendModal(user)" class="text-xs text-slate-500 hover:text-slate-700 font-medium">Send</button>
+                    <button @click="cancelPending(user)" class="text-xs text-red-500 hover:text-red-700 font-medium">Stop</button>
                   </td>
                 </tr>
               </template>
@@ -879,6 +880,18 @@ function app() {
     async loadUsers() {
       const r = await this.api('GET', `/v1/admin/users?limit=${this.usersLimit}&offset=${this.usersPage*this.usersLimit}&q=${encodeURIComponent(this.usersSearch)}`)
       if (r.ok) { const d = await r.json(); this.users = d.users || []; this.usersTotal = d.total || 0 }
+    },
+
+    async cancelPending(user) {
+      if (!confirm(`Cancel all pending scheduled emails for ${user.name || user.email}?`)) return
+      const r = await this.api('POST', `/v1/admin/users/${user.id}/cancel-scheduled`)
+      if (r.ok) {
+        const d = await r.json()
+        alert(`Cancelled ${d.cancelled} pending email(s) for ${user.name || user.email}.`)
+        this.loadScheduledCount()
+      } else {
+        alert('Failed to cancel pending emails.')
+      }
     },
 
     async loadCampaignGroups() {

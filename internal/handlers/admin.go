@@ -293,6 +293,24 @@ func (h *Handler) HandleAdminCampaignSend(w http.ResponseWriter, r *http.Request
 	}()
 }
 
+// HandleAdminCancelUserScheduled handles POST /v1/admin/users/{id}/cancel-scheduled
+// Marks all pending scheduled emails for a user as sent (cancels them).
+func (h *Handler) HandleAdminCancelUserScheduled(w http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	if userID == "" {
+		writeError(w, "id required", http.StatusBadRequest)
+		return
+	}
+	n, err := h.Store.CancelPendingEmails(r.Context(), userID)
+	if err != nil {
+		slog.Error("cancel scheduled emails", "user_id", userID, "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	slog.Info("admin: cancelled pending emails", "user_id", userID, "count", n)
+	writeJSON(w, map[string]interface{}{"cancelled": n}, http.StatusOK)
+}
+
 // HandleAdminTrigger handles POST /v1/admin/trigger — same as the main trigger but admin-only
 func (h *Handler) HandleAdminTrigger(w http.ResponseWriter, r *http.Request) {
 	h.HandlePublishEvent(w, r)

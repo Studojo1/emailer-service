@@ -336,6 +336,15 @@ func main() {
 		     WHERE esl.user_id = se.user_id
 		       AND esl.template_name = REPLACE(se.email_type, '_', '-')
 		   )`,
+
+		// Cancel all pending emails for admin accounts so they don't get
+		// spammed during backlog drain.
+		`UPDATE scheduled_emails SET sent_at = NOW()
+		 WHERE sent_at IS NULL
+		   AND user_id IN (
+		     SELECT id FROM "user"
+		     WHERE email IN ('jeremy.zac@gmail.com', 'studojo@gmail.com')
+		   )`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
 			slog.Warn("data migration step failed (non-fatal)", "error", err, "stmt", stmt[:60])
@@ -391,6 +400,7 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/users", httpHandler.HandleAdminUsers)
 	adminMux.HandleFunc("GET /v1/admin/users/{id}", httpHandler.HandleAdminUserDetail)
 	adminMux.HandleFunc("POST /v1/admin/users/{id}/send", httpHandler.HandleAdminSendToUser)
+	adminMux.HandleFunc("POST /v1/admin/users/{id}/cancel-scheduled", httpHandler.HandleAdminCancelUserScheduled)
 	adminMux.HandleFunc("GET /v1/admin/templates", httpHandler.HandleAdminTemplates)
 	adminMux.HandleFunc("GET /v1/admin/campaigns", httpHandler.HandleAdminCampaignList)
 	adminMux.HandleFunc("POST /v1/admin/campaigns", httpHandler.HandleAdminCampaignCreate)
