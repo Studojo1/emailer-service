@@ -105,6 +105,19 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 		return nil
 	}
 
+	// Dedup: skip if this user has already received this template.
+	// Record uses templateName (not routingKey) so the scheduler catchup
+	// dedup query also finds it correctly.
+	if event.UserID != "" {
+		already, err := h.Store.HasReceivedEmail(ctx, event.UserID, templateName)
+		if err != nil {
+			slog.Error("funnel email: dedup check failed", "user_id", event.UserID, "template", templateName, "error", err)
+		} else if already {
+			slog.Info("funnel email: already sent, skipping", "user_id", event.UserID, "template", templateName)
+			return nil
+		}
+	}
+
 	// Resolve email/name from user ID if not provided directly
 	recipientEmail := event.Email
 	recipientName := event.Name
@@ -131,8 +144,10 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 	slog.Info("funnel email sent", "routing_key", routingKey, "template", templateName, "email", recipientEmail)
 
 	if event.UserID != "" {
-		if err := h.Store.RecordSentEmail(ctx, event.UserID, routingKey); err != nil {
-			slog.Error("funnel email: failed to record", "routing_key", routingKey, "error", err)
+		// Record with templateName so HasReceivedEmail and the catchup scheduler
+		// both find it with the same key they query.
+		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
+			slog.Error("funnel email: failed to record", "template", templateName, "error", err)
 		}
 	}
 
