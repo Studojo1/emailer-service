@@ -114,6 +114,15 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 		return
 	}
 
+	// Staleness check: nurture emails that are more than 48h overdue are stale
+	// (e.g. user signed up 30 days ago and day-3 email was never sent — sending
+	// it now would be confusing spam). Mark done and skip.
+	if strings.HasPrefix(e.EmailType, "nurture") && time.Since(e.ScheduledAt) > 48*time.Hour {
+		slog.Info("scheduler: nurture email stale, marking done", "user_id", e.UserID, "type", e.EmailType, "overdue_hours", int(time.Since(e.ScheduledAt).Hours()))
+		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+		return
+	}
+
 	// Dedup: if this email type was already sent (e.g. event handler sent it,
 	// or a previous scheduler run sent it but MarkScheduledEmailSent failed),
 	// mark the row done and skip to avoid a duplicate send.

@@ -555,7 +555,7 @@
                   <div class="h-28 bg-slate-50 overflow-hidden relative border-b border-slate-100">
                     <iframe :id="'thumb-'+t" class="absolute inset-0 w-full border-none pointer-events-none origin-top-left"
                       style="transform:scale(0.28); width:357%; height:357%;"
-                      :src="'/v1/admin/templates/'+encodeURIComponent(t)+'/preview'"
+                      :src="'/v1/admin/templates/'+encodeURIComponent(t)+'/preview?token='+encodeURIComponent(authToken)"
                       loading="lazy" referrerpolicy="no-referrer"></iframe>
                     <div class="absolute inset-0 flex items-end justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/30 to-transparent">
                       <span class="text-white text-xs font-medium">Preview →</span>
@@ -629,7 +629,7 @@
       </div>
     </div>
     <div class="flex-1 overflow-hidden rounded-b-2xl">
-      <iframe x-show="previewModal" :src="previewTemplate ? '/v1/admin/templates/'+encodeURIComponent(previewTemplate)+'/preview' : ''"
+      <iframe x-show="previewModal" :src="previewTemplate ? '/v1/admin/templates/'+encodeURIComponent(previewTemplate)+'/preview?token='+encodeURIComponent(authToken) : ''"
         class="w-full h-full border-none" referrerpolicy="no-referrer"></iframe>
     </div>
   </div>
@@ -687,7 +687,7 @@
         <div class="flex-1 min-h-0 overflow-hidden">
           <iframe
             :key="recipientLog?.template_name"
-            :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview' : 'about:blank'"
+            :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview?token='+encodeURIComponent(authToken) : 'about:blank'"
             class="w-full border-none" style="height:100%" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>

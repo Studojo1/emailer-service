@@ -11,10 +11,15 @@ import (
 	"time"
 )
 
-// AdminMiddleware checks for a valid admin JWT or ADMIN_SECRET
+// AdminMiddleware checks for a valid admin JWT or ADMIN_SECRET.
+// Accepts the token via Authorization header OR ?token= query param so that
+// browser-native requests (iframes, img tags) can authenticate without JS.
 func AdminMiddleware(adminSecret string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		if token == "" {
+			token = r.URL.Query().Get("token")
+		}
 		if token == "" {
 			writeError(w, "unauthorized", http.StatusUnauthorized)
 			return
