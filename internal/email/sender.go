@@ -15,6 +15,16 @@ type SendLogger interface {
 	LogEmailSent(ctx context.Context, userID, userName, emailTo, templateName, fromAddress string) error
 }
 
+// ContextKey is a typed key for values stored in a send context.
+type ContextKey string
+
+const (
+	// UserIDKey carries the user's ID so LogEmailSent records it correctly.
+	UserIDKey ContextKey = "emailUserID"
+	// UserNameKey carries the user's display name for the same reason.
+	UserNameKey ContextKey = "emailUserName"
+)
+
 // Sender handles email sending with retries
 type Sender struct {
 	client      *Client
@@ -151,9 +161,11 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		err := s.client.SendEmailFrom(ctx, fromAddr, to, subject, htmlContent)
 		if err == nil {
 			if s.logger != nil {
-				go func(addr string) {
-					_ = s.logger.LogEmailSent(context.Background(), "", "", to, templateName, addr)
-				}(fromAddr)
+				uid, _ := ctx.Value(UserIDKey).(string)
+				uname, _ := ctx.Value(UserNameKey).(string)
+				go func(addr, uid, uname string) {
+					_ = s.logger.LogEmailSent(context.Background(), uid, uname, to, templateName, addr)
+				}(fromAddr, uid, uname)
 			}
 			return nil
 		}

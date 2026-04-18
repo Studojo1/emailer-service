@@ -59,13 +59,54 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 }
 
-// runCatchup finds users who should have gotten segmentation emails but didn't
-// (e.g. quiz completed before the service was running) and queues them.
-// Welcome emails are NOT caught up here — they are sent exclusively via the
-// event.user.signup handler to avoid mass-sending to historical users on
-// pod restarts or redeployments.
+// runCatchup finds users who missed emails because the service wasn't running
+// when they signed up or completed the quiz, and queues them now.
+// Welcome emails are NOT caught up here — they are already scheduled for all
+// users via the initial backfill and sent exclusively via the signup handler
+// going forward.
 func (sc *Scheduler) runCatchup(ctx context.Context) {
 	sc.catchupSegmentation(ctx)
+	sc.catchupNurture(ctx)
+}
+
+// catchupNurture queues missing nurture emails for users who signed up before
+// the emailer service was running and never had their sequence scheduled.
+// Each nurture type is offset by one day so a user who missed all four never
+// receives more than one nurture email per day.
+func (sc *Scheduler) catchupNurture(ctx context.Context) {
+	type nurtureSpec struct {
+		emailType  string
+		minDays    int
+		baseOffset time.Duration // delay from now before the first send of this type
+	}
+	specs := []nurtureSpec{
+		{"nurture_day3", 3, 0},
+		{"nurture_day7", 7, 24 * time.Hour},
+		{"nurture_day14", 14, 48 * time.Hour},
+		{"nurture_day30", 30, 72 * time.Hour},
+	}
+
+	now := time.Now().UTC()
+	for _, spec := range specs {
+		users, err := sc.Store.ListUsersWithoutEmail(ctx, spec.emailType, spec.minDays*24*60)
+		if err != nil {
+			slog.Error("catchup nurture: list failed", "type", spec.emailType, "error", err)
+			continue
+		}
+		queued := 0
+		for i, u := range users {
+			// 1s apart so scheduled_at is unique per user; baseOffset separates types by a day
+			sendAt := now.Add(spec.baseOffset + time.Duration(i)*time.Second)
+			if err := sc.Store.CreateScheduledEmail(ctx, u.ID, spec.emailType, sendAt); err != nil {
+				slog.Error("catchup nurture: schedule failed", "type", spec.emailType, "user_id", u.ID, "error", err)
+				continue
+			}
+			queued++
+		}
+		if queued > 0 {
+			slog.Info("catchup nurture: queued missed emails", "type", spec.emailType, "count", queued)
+		}
+	}
 }
 
 // catchupSegmentation queues a segmentation email for any user who completed
@@ -174,6 +215,8 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 
 	templateName := emailTypeToTemplate(e.EmailType)
 
+	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
+	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 	if err := sc.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
 		slog.Error("scheduler: failed to send email", "error", err, "user_id", e.UserID, "type", e.EmailType)
 		return

@@ -134,6 +134,8 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 		recipientName = "there"
 	}
 
+	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
+	ctx = context.WithValue(ctx, email.UserNameKey, recipientName)
 	if err := h.Sender.SendTemplateEmail(ctx, recipientEmail, templateName, map[string]interface{}{
 		"UserName": recipientName,
 	}); err != nil {
@@ -195,6 +197,8 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 	}
 
 	// Send welcome email
+	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
+	ctx = context.WithValue(ctx, email.UserNameKey, event.Name)
 	err = h.Sender.SendTemplateEmail(ctx, event.Email, "welcome", map[string]interface{}{
 		"UserName":     event.Name,
 		"DashboardURL": h.FrontendURL + "/",
@@ -269,6 +273,8 @@ func (h *EventHandler) HandleResumeOptimized(ctx context.Context, event *ResumeO
 	}
 
 	// Send resume optimized email
+	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
+	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "resume-optimized", map[string]interface{}{
 		"UserName":            user.Name,
 		"ResumeName":          event.ResumeName,
@@ -317,6 +323,8 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	}
 
 	// Send internship application confirmation email
+	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
+	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "internship-applied", map[string]interface{}{
 		"UserName":           user.Name,
 		"InternshipTitle":     event.InternshipTitle,
@@ -385,6 +393,8 @@ func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) e
 		recipientName = "there"
 	}
 
+	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
+	ctx = context.WithValue(ctx, email.UserNameKey, recipientName)
 	err := h.Sender.SendTemplateEmail(ctx, recipientEmail, "payment-thankyou", map[string]interface{}{
 		"UserName": recipientName,
 		"PlanName": event.PlanName,
