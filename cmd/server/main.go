@@ -278,6 +278,32 @@ func main() {
 		os.Exit(1)
 	}
 
+	// One-time data fixes: rename routing-key records to template-name records so
+	// dedup checks work correctly, then purge any duplicate pending rows per user+type.
+	_, err = db.Exec(`
+		UPDATE scheduled_emails
+		SET email_type = 'funnel-segmentation-v1'
+		WHERE email_type = 'event.funnel.segmentation_v1';
+
+		UPDATE scheduled_emails
+		SET email_type = 'funnel-segmentation-v2'
+		WHERE email_type = 'event.funnel.segmentation_v2';
+
+		DELETE FROM scheduled_emails
+		WHERE sent_at IS NULL
+		  AND id NOT IN (
+		    SELECT DISTINCT ON (user_id, email_type) id
+		    FROM scheduled_emails
+		    WHERE sent_at IS NULL
+		    ORDER BY user_id, email_type, scheduled_at ASC
+		  );
+	`)
+	if err != nil {
+		slog.Warn("data migration: cleanup step failed (non-fatal)", "error", err)
+	} else {
+		slog.Info("data migration: routing-key rename and pending dedup complete")
+	}
+
 	// Initialize handlers
 	eventHandler := handlers.NewEventHandler(pgStore, sender, emailFrontendURL)
 
