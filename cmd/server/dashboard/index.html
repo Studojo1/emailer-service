@@ -134,7 +134,10 @@
         <h1 class="text-lg font-semibold text-slate-900" x-text="pageTitle()"></h1>
         <p class="text-xs text-slate-500" x-text="pageSubtitle()"></p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-3">
+        <span x-show="lastUpdated" class="text-xs text-slate-400" x-text="'Updated '+relTime(lastUpdated)"></span>
+        <button @click="page==='overview' ? loadStats() : (page==='scheduled' ? loadScheduled() : (page==='logs' ? loadLogs() : (page==='users' ? loadUsers() : null)))"
+          class="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-2 py-1 transition-colors">↻ Refresh</button>
         <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
         <span class="text-xs text-slate-500">Live</span>
       </div>
@@ -804,7 +807,7 @@ function app() {
     previewModal: false, previewTemplate: '',
     recipientModal: false, recipientLog: null, recipientHistory: [], recipientHistoryLoading: false,
 
-    _chart: null,
+    _chart: null, lastUpdated: null,
 
     async init() {
       const hash = window.location.hash
@@ -814,6 +817,10 @@ function app() {
       }
       const token = localStorage.getItem('adminToken')
       if (token) { this.authToken = token; await this.login(true) }
+
+      // Auto-refresh: stats + chart every 30s, scheduled count every 15s
+      setInterval(() => { if (this.authed && this.page === 'overview') this.loadStats() }, 30000)
+      setInterval(() => { if (this.authed) this.loadScheduledCount() }, 15000)
     },
 
     async login(silent = false) {
@@ -858,6 +865,7 @@ function app() {
       if (r.ok) this.stats = await r.json()
       if (r2.ok) { const d = await r2.json(); this.recentLogs = d.logs || [] }
       this.statsLoading = false
+      this.lastUpdated = new Date().toISOString()
       setTimeout(() => this.drawChart(), 150)
     },
 
