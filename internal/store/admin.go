@@ -280,8 +280,8 @@ func (s *PostgresStore) ListLogsByEmailType(ctx context.Context, emailType strin
 		SELECT
 			se.id,
 			se.user_id,
-			COALESCE(u.name, '')  AS user_name,
-			COALESCE(u.email, '') AS email_to,
+			COALESCE(NULLIF(u.name,''), log_info.user_name, '')    AS user_name,
+			COALESCE(NULLIF(u.email,''), log_info.email_to, '')    AS email_to,
 			se.email_type         AS template_name,
 			''                    AS from_address,
 			'sent'                AS status,
@@ -290,11 +290,16 @@ func (s *PostgresStore) ListLogsByEmailType(ctx context.Context, emailType strin
 		FROM scheduled_emails se
 		LEFT JOIN "user" u ON u.id = se.user_id
 		LEFT JOIN LATERAL (
+			SELECT email_to, user_name FROM email_send_log
+			WHERE user_id = se.user_id AND template_name = se.email_type
+			ORDER BY sent_at DESC LIMIT 1
+		) log_info ON true
+		LEFT JOIN LATERAL (
 			SELECT opened_at FROM email_send_log
-			WHERE email_to = u.email AND template_name = se.email_type
+			WHERE (email_to = u.email OR email_to = log_info.email_to)
+			  AND template_name = se.email_type
 			  AND opened_at IS NOT NULL
-			ORDER BY sent_at DESC
-			LIMIT 1
+			ORDER BY sent_at DESC LIMIT 1
 		) esl ON true
 		WHERE se.sent_at IS NOT NULL AND se.email_type = $1
 		ORDER BY se.sent_at DESC

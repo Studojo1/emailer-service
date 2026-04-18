@@ -644,56 +644,58 @@
 </div>
 
 <!-- ═══════════════════════════ RECIPIENT DETAIL MODAL ═══════════════════════════ -->
-<div x-show="recipientModal" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl w-full flex flex-col" style="max-width:1100px;height:88vh">
+<div x-show="recipientModal" x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" style="z-index:200">
+  <div class="bg-white rounded-2xl shadow-2xl flex flex-col" style="width:min(1120px,95vw);height:88vh">
     <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
-      <div>
-        <div class="font-semibold text-slate-900" x-text="recipientLog?.user_name || recipientLog?.email_to"></div>
-        <div class="text-xs text-slate-500 flex items-center gap-3 mt-0.5">
-          <span x-text="recipientLog?.email_to"></span>
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0 rounded-t-2xl bg-white" style="z-index:10;position:relative">
+      <div class="min-w-0 flex-1 pr-4">
+        <div class="font-semibold text-slate-900 truncate" x-text="recipientLog?.user_name || recipientLog?.email_to || '(unknown)'"></div>
+        <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
+          <span class="truncate" x-text="recipientLog?.email_to"></span>
           <span class="badge" :class="segmentCategoryBadge(recipientLog?.template_name||'')" x-text="recipientLog?.template_name"></span>
           <span class="text-slate-400" x-text="'sent '+relTime(recipientLog?.sent_at)"></span>
           <span x-show="recipientLog?.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
         </div>
       </div>
-      <button @click="recipientModal=false" class="btn-secondary btn-sm">✕ Close</button>
+      <button @click="recipientModal=false" class="btn-secondary btn-sm flex-shrink-0">✕ Close</button>
     </div>
     <!-- Body: preview left, history right -->
-    <div class="flex flex-1 overflow-hidden">
+    <div class="flex flex-1 min-h-0">
       <!-- Email preview -->
-      <div class="flex-1 border-r border-slate-200 flex flex-col overflow-hidden">
-        <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between flex-shrink-0">
-          <span class="text-xs font-medium text-slate-600">Email preview</span>
-          <button @click="openPreview(recipientLog?.template_name)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Open full →</button>
+      <div class="flex-1 flex flex-col min-w-0 border-r border-slate-200">
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-shrink-0" style="z-index:5;position:relative">
+          <span class="text-xs font-medium text-slate-600" x-text="'Previewing: '+(recipientLog?.template_name||'')"></span>
+          <button @click="openPreview(recipientLog?.template_name)" class="btn-secondary btn-sm">Open full ↗</button>
         </div>
-        <div class="flex-1 overflow-hidden">
-          <iframe x-show="recipientModal" :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview' : ''"
-            class="w-full h-full border-none" referrerpolicy="no-referrer"></iframe>
+        <div class="flex-1 min-h-0 overflow-hidden">
+          <iframe
+            :key="recipientLog?.template_name"
+            :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview' : 'about:blank'"
+            class="w-full border-none" style="height:100%" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>
-      <!-- User history panel -->
-      <div class="w-72 flex flex-col overflow-hidden flex-shrink-0">
-        <div class="px-4 py-2.5 border-b border-slate-100 bg-slate-50 flex-shrink-0">
-          <span class="text-xs font-medium text-slate-600">All emails sent to this user</span>
+      <!-- History sidebar -->
+      <div class="flex flex-col flex-shrink-0" style="width:280px">
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex-shrink-0">
+          <span class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Send history</span>
         </div>
         <div class="flex-1 overflow-y-auto">
-          <div x-show="recipientHistoryLoading" class="flex justify-center py-8">
+          <div x-show="recipientHistoryLoading" class="flex justify-center py-10">
             <svg class="spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
           </div>
           <div x-show="!recipientHistoryLoading">
             <template x-for="h in recipientHistory" :key="h.id">
-              <div class="px-4 py-3 border-b border-slate-100 hover:bg-slate-50 cursor-pointer"
-                   :class="h.template_name === recipientLog?.template_name ? 'bg-violet-50' : ''"
+              <div class="px-4 py-3 border-b border-slate-100 cursor-pointer transition-colors"
+                   :class="h.template_name === recipientLog?.template_name ? 'bg-violet-50 border-l-2 border-l-violet-500' : 'hover:bg-slate-50'"
                    @click="recipientLog = {...recipientLog, template_name: h.template_name, sent_at: h.sent_at, opened_at: h.opened_at}">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="badge text-xs" :class="segmentCategoryBadge(h.template_name)" x-text="h.template_name"></span>
-                  <span x-show="h.opened_at" class="text-emerald-600 text-xs">✓</span>
+                <div class="flex items-start justify-between gap-1">
+                  <span class="text-xs font-medium text-slate-700 leading-tight" x-text="h.template_name"></span>
+                  <span x-show="h.opened_at" class="badge bg-emerald-50 text-emerald-700 flex-shrink-0">✓</span>
                 </div>
                 <div class="text-xs text-slate-400 mt-1" x-text="relTime(h.sent_at)"></div>
               </div>
             </template>
-            <div x-show="!recipientHistory.length" class="px-4 py-8 text-center text-xs text-slate-400">No history found.</div>
+            <div x-show="!recipientHistoryLoading && !recipientHistory.length" class="px-4 py-10 text-center text-xs text-slate-400">No history found.</div>
           </div>
         </div>
       </div>
