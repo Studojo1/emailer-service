@@ -139,6 +139,18 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
 		return
 	}
 
+	// Dedup: if this email type was already sent (e.g. event handler sent it,
+	// or a previous scheduler run sent it but MarkScheduledEmailSent failed),
+	// mark the row done and skip to avoid a duplicate send.
+	already, err := sc.Store.HasReceivedEmail(ctx, e.UserID, e.EmailType)
+	if err != nil {
+		slog.Error("scheduler: dedup check failed", "user_id", e.UserID, "type", e.EmailType, "error", err)
+	} else if already {
+		slog.Info("scheduler: already sent, marking done", "user_id", e.UserID, "type", e.EmailType)
+		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+		return
+	}
+
 	// Build template data
 	var templateData map[string]interface{}
 	switch e.EmailType {

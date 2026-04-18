@@ -260,6 +260,8 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_scheduled_emails_due
 			ON scheduled_emails (scheduled_at) WHERE sent_at IS NULL;
+		CREATE INDEX IF NOT EXISTS idx_scheduled_emails_user_type
+			ON scheduled_emails (user_id, email_type);
 		CREATE TABLE IF NOT EXISTS email_opens (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			track_id TEXT NOT NULL UNIQUE,

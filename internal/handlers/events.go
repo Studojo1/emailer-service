@@ -185,6 +185,15 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 		return nil
 	}
 
+	// Dedup: skip if already sent
+	already, err := h.Store.HasReceivedEmail(ctx, event.UserID, "welcome")
+	if err != nil {
+		slog.Error("welcome email: dedup check failed", "user_id", event.UserID, "error", err)
+	} else if already {
+		slog.Info("welcome email: already sent, skipping", "user_id", event.UserID)
+		return nil
+	}
+
 	// Send welcome email
 	err = h.Sender.SendTemplateEmail(ctx, event.Email, "welcome", map[string]interface{}{
 		"UserName":     event.Name,
@@ -235,6 +244,16 @@ func (h *EventHandler) HandleResumeOptimized(ctx context.Context, event *ResumeO
 		return nil
 	}
 
+	// Dedup: skip if already sent for this job
+	emailKey := "resume-optimized-" + event.JobID
+	already, err := h.Store.HasReceivedEmail(ctx, event.UserID, emailKey)
+	if err != nil {
+		slog.Error("resume optimized email: dedup check failed", "user_id", event.UserID, "job_id", event.JobID, "error", err)
+	} else if already {
+		slog.Info("resume optimized email: already sent, skipping", "user_id", event.UserID, "job_id", event.JobID)
+		return nil
+	}
+
 	// Get user email
 	user, err := h.Store.GetUserByID(ctx, event.UserID)
 	if err != nil || user == nil {
@@ -254,7 +273,7 @@ func (h *EventHandler) HandleResumeOptimized(ctx context.Context, event *ResumeO
 	}
 
 	slog.Info("resume optimized email sent", "user_id", event.UserID, "job_id", event.JobID)
-	if err := h.Store.RecordSentEmail(ctx, event.UserID, "resume-optimized"); err != nil {
+	if err := h.Store.RecordSentEmail(ctx, event.UserID, emailKey); err != nil {
 		slog.Error("failed to record resume optimized email", "error", err)
 	}
 	return nil
@@ -270,6 +289,16 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 
 	if !prefs.InternshipEmails {
 		slog.Info("skipping internship applied email - internship emails disabled", "user_id", event.UserID)
+		return nil
+	}
+
+	// Dedup: one confirmation email per internship application
+	emailKey := "internship-applied-" + event.InternshipID
+	already, err := h.Store.HasReceivedEmail(ctx, event.UserID, emailKey)
+	if err != nil {
+		slog.Error("internship applied email: dedup check failed", "user_id", event.UserID, "internship_id", event.InternshipID, "error", err)
+	} else if already {
+		slog.Info("internship applied email: already sent, skipping", "user_id", event.UserID, "internship_id", event.InternshipID)
 		return nil
 	}
 
@@ -294,7 +323,7 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	}
 
 	slog.Info("internship applied email sent", "user_id", event.UserID, "internship_id", event.InternshipID)
-	if err := h.Store.RecordSentEmail(ctx, event.UserID, "internship-applied"); err != nil {
+	if err := h.Store.RecordSentEmail(ctx, event.UserID, emailKey); err != nil {
 		slog.Error("failed to record internship applied email", "error", err)
 	}
 	return nil
@@ -321,6 +350,18 @@ func (h *EventHandler) HandleContactForm(ctx context.Context, event *ContactForm
 
 // HandlePayment handles payment confirmation events
 func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) error {
+	// Dedup per order — one confirmation per OrderID
+	emailKey := "payment-thankyou-" + event.OrderID
+	if event.UserID != "" {
+		already, err := h.Store.HasReceivedEmail(ctx, event.UserID, emailKey)
+		if err != nil {
+			slog.Error("payment email: dedup check failed", "order_id", event.OrderID, "error", err)
+		} else if already {
+			slog.Info("payment email: already sent, skipping", "order_id", event.OrderID)
+			return nil
+		}
+	}
+
 	recipientEmail := event.Email
 	recipientName := event.Name
 	if recipientEmail == "" && event.UserID != "" {
@@ -346,7 +387,13 @@ func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) e
 		slog.Error("payment email: failed to send", "error", err, "email", recipientEmail)
 		return err
 	}
-	slog.Info("payment confirmation email sent", "email", recipientEmail)
+	slog.Info("payment confirmation email sent", "email", recipientEmail, "order_id", event.OrderID)
+
+	if event.UserID != "" {
+		if err := h.Store.RecordSentEmail(ctx, event.UserID, emailKey); err != nil {
+			slog.Error("payment email: failed to record", "order_id", event.OrderID, "error", err)
+		}
+	}
 	return nil
 }
 
