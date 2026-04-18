@@ -36,6 +36,34 @@ func NewSender(client *Client, renderer *TemplateRenderer) *Sender {
 	}
 }
 
+// RenderPreview renders a template with sample data and returns the HTML, for dashboard previews.
+func (s *Sender) RenderPreview(name string) (string, error) {
+	sample := map[string]interface{}{
+		"UserName":            "Alex",
+		"DashboardURL":        "https://studojo.com/",
+		"OutreachURL":         "https://studojo.com/outreach",
+		"InternshipURL":       "https://studojo.com/outreach",
+		"ResumeName":          "My Resume.pdf",
+		"ImprovementsSummary": "Your resume was optimised with 5 key improvements.",
+		"ViewResumeURL":       "https://studojo.com/resumes",
+		"ViewApplicationURL":  "https://studojo.com/my-applications",
+		"InternshipTitle":     "Software Engineering Intern",
+		"CompanyName":         "Example Corp",
+		"PlanName":            "Pro",
+		"Amount":              "$99",
+		"OrderID":             "ORD-PREVIEW-001",
+		"Name":                "Alex",
+		"Email":               "alex@example.com",
+		"Subject":             "Preview subject",
+		"Message":             "This is a preview message body.",
+		"TrackingPixelURL":    "",
+	}
+	if err := s.renderer.LoadTemplate(name); err != nil {
+		return "", fmt.Errorf("template not found: %w", err)
+	}
+	return s.renderer.Render(name, sample)
+}
+
 // SetLogger attaches a send logger (the store) for admin dashboard logging
 func (s *Sender) SetLogger(l SendLogger) {
 	s.logger = l

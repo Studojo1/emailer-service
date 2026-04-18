@@ -17,10 +17,13 @@
     .btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer; }
     .btn-primary { @apply btn bg-violet-600 text-white hover:bg-violet-700; }
     .btn-secondary { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
+    .btn-sm { @apply px-3 py-1.5 text-xs; }
     .input { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent; }
     .select { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white; }
     .table-row { @apply border-b border-slate-100 hover:bg-slate-50 transition-colors; }
     .spinner { @apply animate-spin h-5 w-5 text-violet-600; }
+    .bar-track { @apply h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden; }
+    .bar-fill { @apply h-1.5 rounded-full; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-900">
@@ -37,23 +40,18 @@
         <div class="text-xs text-slate-500">Admin Dashboard</div>
       </div>
     </div>
-
-    <!-- Primary: SSO login -->
     <a href="https://studojo.com/api/admin/email-dashboard-sso"
        class="btn-primary w-full justify-center mb-4 no-underline text-center block">
       <svg class="w-4 h-4 inline-block mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
       Continue with Studojo
     </a>
-
     <div class="relative my-4">
       <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
       <div class="relative flex justify-center text-xs text-slate-400 bg-white px-2">or use a token</div>
     </div>
-
     <div class="mb-4">
       <input type="password" x-model="authToken" @keydown.enter="login()"
-        placeholder="Paste JWT or ADMIN_SECRET"
-        class="input" />
+        placeholder="Paste JWT or ADMIN_SECRET" class="input" />
     </div>
     <div x-show="authError" class="text-red-600 text-sm mb-3" x-text="authError"></div>
     <button @click="login()" class="btn-secondary w-full justify-center">
@@ -80,25 +78,31 @@
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
         Overview
       </div>
-      <div @click="nav('logs')" :class="page==='logs' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-        Email Logs
+      <div @click="nav('segments')" :class="page==='segments' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+        Segments
+      </div>
+      <div @click="nav('scheduled')" :class="page==='scheduled' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Scheduled
+        <span x-show="scheduledTotal > 0" class="ml-auto bg-violet-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
       </div>
       <div @click="nav('users')" :class="page==='users' ? 'active' : ''" class="sidebar-link">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Users
       </div>
-      <div @click="nav('campaigns')" :class="page==='campaigns' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"/></svg>
-        Campaigns
-      </div>
-      <div @click="nav('trigger')" :class="page==='trigger' ? 'active' : ''" class="sidebar-link">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Fire Email
+      <div @click="nav('logs')" :class="page==='logs' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Email Logs
       </div>
       <div @click="nav('templates')" :class="page==='templates' ? 'active' : ''" class="sidebar-link">
         <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
         Templates
+      </div>
+      <div class="border-t border-slate-800 my-1"></div>
+      <div @click="nav('trigger')" :class="page==='trigger' ? 'active' : ''" class="sidebar-link">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Fire Email
       </div>
     </nav>
 
@@ -111,7 +115,7 @@
   <div class="ml-56 flex-1 flex flex-col min-h-screen">
 
     <!-- Header -->
-    <div class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between">
+    <div class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
       <div>
         <h1 class="text-lg font-semibold text-slate-900" x-text="pageTitle()"></h1>
         <p class="text-xs text-slate-500" x-text="pageSubtitle()"></p>
@@ -125,7 +129,7 @@
     <!-- Page content -->
     <div class="flex-1 p-8">
 
-      <!-- OVERVIEW -->
+      <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
       <div x-show="page==='overview'">
         <div x-show="statsLoading" class="flex justify-center py-20">
           <svg class="spinner w-8 h-8" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
@@ -148,28 +152,29 @@
               <div class="text-3xl font-bold text-slate-900" x-text="(stats.sent_today||0).toLocaleString()"></div>
               <div class="text-xs text-slate-400" x-text="(stats.sent_this_week||0).toLocaleString()+' this week'"></div>
             </div>
-            <div class="stat-card">
-              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Users</div>
-              <div class="text-3xl font-bold text-slate-900" x-text="(stats.total_users||0).toLocaleString()"></div>
-              <div class="text-xs text-slate-400">registered</div>
+            <div class="stat-card cursor-pointer hover:border-violet-300 transition-colors" @click="nav('scheduled')">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Scheduled</div>
+              <div class="text-3xl font-bold text-amber-500" x-text="scheduledTotal.toLocaleString()"></div>
+              <div class="text-xs text-slate-400">pending sends</div>
             </div>
           </div>
 
-          <!-- Chart + Top Templates -->
+          <!-- Chart + Top Segments -->
           <div class="grid grid-cols-3 gap-4 mb-6">
             <div class="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
               <div class="font-medium text-sm text-slate-700 mb-4">Email volume (last 14 days)</div>
               <canvas id="volumeChart" height="120"></canvas>
             </div>
             <div class="bg-white rounded-xl border border-slate-200 p-5">
-              <div class="font-medium text-sm text-slate-700 mb-4">Top templates</div>
+              <div class="font-medium text-sm text-slate-700 mb-1">Top segments</div>
+              <div class="text-xs text-slate-400 mb-4">by send volume</div>
               <div class="space-y-3">
-                <template x-for="t in (stats.top_templates||[])" :key="t.template_name">
-                  <div class="flex items-center gap-2">
+                <template x-for="t in (stats.top_templates||[]).slice(0,8)" :key="t.template_name">
+                  <div class="flex items-center gap-2 cursor-pointer" @click="nav('segments')">
                     <div class="flex-1 min-w-0">
                       <div class="text-xs font-medium text-slate-700 truncate" x-text="t.template_name"></div>
-                      <div class="h-1.5 bg-slate-100 rounded-full mt-1">
-                        <div class="h-1.5 bg-violet-400 rounded-full" :style="`width:${Math.min(t.open_rate,100)}%`"></div>
+                      <div class="bar-track">
+                        <div class="bar-fill bg-violet-400" :style="`width:${maxSendPct(t.send_count)}%`"></div>
                       </div>
                     </div>
                     <div class="text-right flex-shrink-0">
@@ -178,7 +183,7 @@
                     </div>
                   </div>
                 </template>
-                <div x-show="!(stats.top_templates||[]).length" class="text-xs text-slate-400 text-center py-4">No sends recorded yet</div>
+                <div x-show="!(stats.top_templates||[]).length" class="text-xs text-slate-400 text-center py-4">No sends yet</div>
               </div>
             </div>
           </div>
@@ -201,19 +206,20 @@
               <tbody>
                 <template x-for="log in recentLogs" :key="log.id">
                   <tr class="table-row">
-                    <td class="px-5 py-3 text-slate-700" x-text="log.email_to"></td>
                     <td class="px-5 py-3">
-                      <span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span>
+                      <div class="text-slate-700 font-medium" x-text="log.email_to"></div>
+                      <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
                     </td>
+                    <td class="px-5 py-3"><span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span></td>
                     <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
                     <td class="px-5 py-3">
-                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">opened</span>
-                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-500">not opened</span>
+                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
                     </td>
                   </tr>
                 </template>
                 <tr x-show="!recentLogs.length">
-                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No emails logged yet. Sends will appear here automatically.</td>
+                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No emails yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -221,130 +227,28 @@
         </div>
       </div>
 
-      <!-- LOGS -->
-      <div x-show="page==='logs'">
-        <div class="flex items-center gap-3 mb-5">
-          <input x-model="logsSearch" @input.debounce.400ms="loadLogs()" type="text" placeholder="Search by email, template…" class="input max-w-xs" />
-          <button @click="loadLogs()" class="btn-secondary">Refresh</button>
-          <span class="text-sm text-slate-500 ml-auto" x-text="logsTotal.toLocaleString()+' total'"></span>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50">
-              <tr class="text-xs text-slate-500 text-left">
-                <th class="px-5 py-3 font-medium">To</th>
-                <th class="px-5 py-3 font-medium">Template</th>
-                <th class="px-5 py-3 font-medium">From</th>
-                <th class="px-5 py-3 font-medium">Sent</th>
-                <th class="px-5 py-3 font-medium">Opened</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="log in logs" :key="log.id">
-                <tr class="table-row">
-                  <td class="px-5 py-3">
-                    <div class="text-slate-800 font-medium" x-text="log.email_to"></div>
-                    <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
-                  </td>
-                  <td class="px-5 py-3">
-                    <span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span>
-                  </td>
-                  <td class="px-5 py-3 text-slate-500 text-xs truncate max-w-xs" x-text="log.from_address||'—'"></td>
-                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
-                  <td class="px-5 py-3">
-                    <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
-                    <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
-                  </td>
-                </tr>
-              </template>
-              <tr x-show="!logs.length && !logsLoading">
-                <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No logs yet.</td>
-              </tr>
-            </tbody>
-          </table>
-          <!-- Pagination -->
-          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <button @click="logsPage > 0 && (logsPage--, loadLogs())" :disabled="logsPage===0"
-              class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
-            <span class="text-xs text-slate-500" x-text="`Page ${logsPage+1} of ${Math.max(1,Math.ceil(logsTotal/logsLimit))}`"></span>
-            <button @click="(logsPage+1)*logsLimit < logsTotal && (logsPage++, loadLogs())"
-              :disabled="(logsPage+1)*logsLimit >= logsTotal"
-              class="btn-secondary text-xs disabled:opacity-40">Next →</button>
-          </div>
-        </div>
-      </div>
+      <!-- ═══════════════════════════════════ SEGMENTS ═══════════════════════════════════ -->
+      <div x-show="page==='segments'">
 
-      <!-- USERS -->
-      <div x-show="page==='users'">
-        <div class="flex items-center gap-3 mb-5">
-          <input x-model="usersSearch" @input.debounce.400ms="loadUsers()" type="text" placeholder="Search by name or email…" class="input max-w-xs" />
-          <span class="text-sm text-slate-500 ml-auto" x-text="usersTotal.toLocaleString()+' users'"></span>
-        </div>
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50">
-              <tr class="text-xs text-slate-500 text-left">
-                <th class="px-5 py-3 font-medium">User</th>
-                <th class="px-5 py-3 font-medium">Joined</th>
-                <th class="px-5 py-3 font-medium">Sent</th>
-                <th class="px-5 py-3 font-medium">Opened</th>
-                <th class="px-5 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <template x-for="user in users" :key="user.id">
-                <tr class="table-row">
-                  <td class="px-5 py-3">
-                    <div class="font-medium text-slate-800" x-text="user.name||'(no name)'"></div>
-                    <div class="text-xs text-slate-400" x-text="user.email"></div>
-                  </td>
-                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(user.created_at)"></td>
-                  <td class="px-5 py-3 text-slate-700 font-medium" x-text="user.emails_sent"></td>
-                  <td class="px-5 py-3">
-                    <span x-show="user.emails_opened > 0" class="badge bg-emerald-50 text-emerald-700" x-text="user.emails_opened+' opens'"></span>
-                    <span x-show="user.emails_opened === 0" class="text-slate-400 text-xs">—</span>
-                  </td>
-                  <td class="px-5 py-3">
-                    <button @click="openSendModal(user)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">Send email</button>
-                    <button @click="openUserHistory(user)" class="text-xs text-slate-500 hover:text-slate-700 font-medium ml-3">History</button>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <button @click="usersPage > 0 && (usersPage--, loadUsers())" :disabled="usersPage===0"
-              class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
-            <span class="text-xs text-slate-500" x-text="`Page ${usersPage+1} of ${Math.max(1,Math.ceil(usersTotal/usersLimit))}`"></span>
-            <button @click="(usersPage+1)*usersLimit < usersTotal && (usersPage++, loadUsers())"
-              :disabled="(usersPage+1)*usersLimit >= usersTotal"
-              class="btn-secondary text-xs disabled:opacity-40">Next →</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- CAMPAIGNS -->
-      <div x-show="page==='campaigns'">
-
-        <!-- Drill-down: logs for a specific email type -->
-        <div x-show="campaignDrillType">
+        <!-- Drill-down view -->
+        <div x-show="segmentDrillType">
           <div class="flex items-center gap-3 mb-5">
-            <button @click="campaignDrillType=null; campaignDrillLogs=[]; campaignDrillTotal=0; campaignDrillPage=0" class="btn-secondary text-xs">← Back to campaigns</button>
-            <span class="font-semibold text-slate-800" x-text="campaignDrillType"></span>
-            <span class="text-sm text-slate-500 ml-auto" x-text="campaignDrillTotal.toLocaleString()+' sends'"></span>
+            <button @click="segmentDrillType=null; segmentDrillLogs=[]; segmentDrillTotal=0; segmentDrillPage=0" class="btn-secondary btn-sm">← All segments</button>
+            <span class="font-semibold text-slate-800" x-text="segmentDrillType"></span>
+            <span class="text-sm text-slate-500 ml-auto" x-text="segmentDrillTotal.toLocaleString()+' sends'"></span>
           </div>
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table class="w-full text-sm">
               <thead class="bg-slate-50">
                 <tr class="text-xs text-slate-500 text-left">
-                  <th class="px-5 py-3 font-medium">To</th>
+                  <th class="px-5 py-3 font-medium">Recipient</th>
                   <th class="px-5 py-3 font-medium">Name</th>
                   <th class="px-5 py-3 font-medium">Sent</th>
                   <th class="px-5 py-3 font-medium">Opened</th>
                 </tr>
               </thead>
               <tbody>
-                <template x-for="log in campaignDrillLogs" :key="log.id">
+                <template x-for="log in segmentDrillLogs" :key="log.id">
                   <tr class="table-row">
                     <td class="px-5 py-3 text-slate-700" x-text="log.email_to||'—'"></td>
                     <td class="px-5 py-3 text-slate-500 text-xs" x-text="log.user_name||'—'"></td>
@@ -355,26 +259,23 @@
                     </td>
                   </tr>
                 </template>
-                <tr x-show="!campaignDrillLogs.length">
+                <tr x-show="!segmentDrillLogs.length">
                   <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No sends found.</td>
                 </tr>
               </tbody>
             </table>
             <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-              <button @click="campaignDrillPage > 0 && (campaignDrillPage--, loadCampaignDrill())" :disabled="campaignDrillPage===0"
-                class="btn-secondary text-xs disabled:opacity-40">← Prev</button>
-              <span class="text-xs text-slate-500" x-text="`Page ${campaignDrillPage+1} of ${Math.max(1,Math.ceil(campaignDrillTotal/50))}`"></span>
-              <button @click="(campaignDrillPage+1)*50 < campaignDrillTotal && (campaignDrillPage++, loadCampaignDrill())"
-                :disabled="(campaignDrillPage+1)*50 >= campaignDrillTotal"
-                class="btn-secondary text-xs disabled:opacity-40">Next →</button>
+              <button @click="segmentDrillPage > 0 && (segmentDrillPage--, loadSegmentDrill())" :disabled="segmentDrillPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+              <span class="text-xs text-slate-500" x-text="`Page ${segmentDrillPage+1} of ${Math.max(1,Math.ceil(segmentDrillTotal/50))}`"></span>
+              <button @click="(segmentDrillPage+1)*50 < segmentDrillTotal && (segmentDrillPage++, loadSegmentDrill())" :disabled="(segmentDrillPage+1)*50 >= segmentDrillTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
             </div>
           </div>
         </div>
 
-        <!-- Campaign groups list -->
-        <div x-show="!campaignDrillType">
+        <!-- Segment overview + bulk send -->
+        <div x-show="!segmentDrillType">
           <div class="flex items-center justify-between mb-5">
-            <p class="text-sm text-slate-500">Every email type ever sent — organised by campaign. Click a row to see individual sends.</p>
+            <p class="text-sm text-slate-500">Every email type — sorted by volume. Click a row to see individual sends.</p>
             <button @click="showNewCampaign=!showNewCampaign" class="btn-primary">+ New Bulk Send</button>
           </div>
 
@@ -399,58 +300,61 @@
                 <label class="block text-sm font-medium text-slate-700 mb-1">Audience</label>
                 <select x-model="newCampaign.filter_days" class="select">
                   <option value="0">All users</option>
-                  <option value="7">Signed up in last 7 days</option>
-                  <option value="14">Signed up in last 14 days</option>
-                  <option value="30">Signed up in last 30 days</option>
-                  <option value="90">Signed up in last 90 days</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
                 </select>
               </div>
               <div class="flex items-end">
-                <button @click="previewCampaignCount()" class="btn-secondary">Preview audience size</button>
+                <button @click="previewCampaignCount()" class="btn-secondary">Preview audience</button>
               </div>
             </div>
             <div x-show="campaignPreviewCount !== null" class="bg-violet-50 text-violet-800 text-sm rounded-lg px-4 py-2.5 mb-4 font-medium">
               This will send to <span class="font-bold" x-text="campaignPreviewCount"></span> users.
             </div>
             <div class="flex gap-2">
-              <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name"
-                class="btn-primary disabled:opacity-50">Send campaign</button>
+              <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name" class="btn-primary disabled:opacity-50">Send campaign</button>
               <button @click="showNewCampaign=false; campaignPreviewCount=null" class="btn-secondary">Cancel</button>
             </div>
           </div>
 
-          <!-- Campaign groups table -->
+          <!-- Segment table -->
           <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <table class="w-full text-sm">
               <thead class="bg-slate-50">
                 <tr class="text-xs text-slate-500 text-left">
-                  <th class="px-5 py-3 font-medium">Email Type</th>
-                  <th class="px-5 py-3 font-medium">Total Sent</th>
+                  <th class="px-5 py-3 font-medium w-2/5">Segment</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
                   <th class="px-5 py-3 font-medium">Opens</th>
-                  <th class="px-5 py-3 font-medium">Open Rate</th>
-                  <th class="px-5 py-3 font-medium">First Sent</th>
-                  <th class="px-5 py-3 font-medium">Last Sent</th>
+                  <th class="px-5 py-3 font-medium">Open rate</th>
+                  <th class="px-5 py-3 font-medium">Last sent</th>
                   <th class="px-5 py-3 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
                 <template x-for="g in campaignGroups" :key="g.email_type">
-                  <tr class="table-row cursor-pointer" @click="drillInto(g.email_type)">
+                  <tr class="table-row cursor-pointer" @click="drillIntoSegment(g.email_type)">
                     <td class="px-5 py-3">
-                      <span class="badge bg-violet-50 text-violet-700" x-text="g.email_type"></span>
+                      <div class="flex items-center gap-2">
+                        <span class="badge" :class="segmentCategoryBadge(g.email_type)" x-text="segmentCategory(g.email_type)"></span>
+                        <span class="text-slate-700 font-medium text-xs" x-text="g.email_type"></span>
+                      </div>
+                      <div class="bar-track mt-1.5 max-w-xs">
+                        <div class="bar-fill bg-violet-300" :style="`width:${segmentBarPct(g.total_sent)}%`"></div>
+                      </div>
                     </td>
                     <td class="px-5 py-3 font-semibold text-slate-800" x-text="g.total_sent.toLocaleString()"></td>
                     <td class="px-5 py-3 text-slate-600" x-text="g.total_opened.toLocaleString()"></td>
                     <td class="px-5 py-3">
-                      <span :class="g.open_rate > 20 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'" class="badge" x-text="g.open_rate.toFixed(1)+'%'"></span>
+                      <span :class="g.open_rate >= 25 ? 'bg-emerald-50 text-emerald-700' : g.open_rate >= 10 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'" class="badge" x-text="g.open_rate.toFixed(1)+'%'"></span>
                     </td>
-                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="g.first_sent ? relTime(g.first_sent) : '—'"></td>
-                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="g.last_sent ? relTime(g.last_sent) : '—'"></td>
+                    <td class="px-5 py-3 text-slate-400 text-xs" x-text="g.last_sent ? relTime(g.last_sent) : '—'"></td>
                     <td class="px-5 py-3 text-violet-600 text-xs font-medium">View →</td>
                   </tr>
                 </template>
                 <tr x-show="!campaignGroups.length">
-                  <td colspan="7" class="px-5 py-8 text-center text-sm text-slate-400">No sends recorded yet.</td>
+                  <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">No sends recorded yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -458,7 +362,205 @@
         </div>
       </div>
 
-      <!-- FIRE EMAIL (trigger) -->
+      <!-- ═══════════════════════════════════ SCHEDULED ═══════════════════════════════════ -->
+      <div x-show="page==='scheduled'">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span><strong x-text="scheduledTotal"></strong> emails queued — the scheduler sends these automatically every minute.</span>
+          </div>
+          <button @click="loadScheduled()" class="btn-secondary ml-auto">Refresh</button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">Recipient</th>
+                <th class="px-5 py-3 font-medium">Email type</th>
+                <th class="px-5 py-3 font-medium">Scheduled for</th>
+                <th class="px-5 py-3 font-medium">Due in</th>
+                <th class="px-5 py-3 font-medium">Queued</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in scheduled" :key="s.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-slate-800" x-text="s.user_name || '(unknown)'"></div>
+                    <div class="text-xs text-slate-400" x-text="s.user_email || s.user_id"></div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span class="badge" :class="segmentCategoryBadge(s.email_type)" x-text="s.email_type"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-700 text-xs" x-text="fmtDate(s.scheduled_at)"></td>
+                  <td class="px-5 py-3">
+                    <span :class="isPast(s.scheduled_at) ? 'badge bg-red-50 text-red-700' : 'badge bg-amber-50 text-amber-700'" x-text="dueIn(s.scheduled_at)"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-400 text-xs" x-text="relTime(s.created_at)"></td>
+                </tr>
+              </template>
+              <tr x-show="!scheduled.length && !scheduledLoading">
+                <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No emails scheduled.</td>
+              </tr>
+              <tr x-show="scheduledLoading">
+                <td colspan="5" class="px-5 py-8 text-center"><svg class="spinner mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="scheduledPage > 0 && (scheduledPage--, loadScheduled())" :disabled="scheduledPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${scheduledPage+1} of ${Math.max(1,Math.ceil(scheduledTotal/scheduledLimit))}`"></span>
+            <button @click="(scheduledPage+1)*scheduledLimit < scheduledTotal && (scheduledPage++, loadScheduled())" :disabled="(scheduledPage+1)*scheduledLimit >= scheduledTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ USERS ═══════════════════════════════════ -->
+      <div x-show="page==='users'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="usersSearch" @input.debounce.400ms="loadUsers()" type="text" placeholder="Search by name or email…" class="input max-w-xs" />
+          <select x-model="usersSort" @change="loadUsers()" class="select max-w-[180px]">
+            <option value="emails_sent">Most emails sent</option>
+            <option value="joined">Recently joined</option>
+            <option value="opens">Most opens</option>
+          </select>
+          <span class="text-sm text-slate-500 ml-auto" x-text="usersTotal.toLocaleString()+' users'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">User</th>
+                <th class="px-5 py-3 font-medium">Joined</th>
+                <th class="px-5 py-3 font-medium">Emails sent</th>
+                <th class="px-5 py-3 font-medium">Opens</th>
+                <th class="px-5 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="user in usersSorted" :key="user.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-slate-800" x-text="user.name||'(no name)'"></div>
+                    <div class="text-xs text-slate-400" x-text="user.email"></div>
+                  </td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(user.created_at)"></td>
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-slate-800" x-text="user.emails_sent"></span>
+                      <div class="w-16 bar-track">
+                        <div class="bar-fill" :class="user.emails_sent > 5 ? 'bg-red-400' : user.emails_sent > 2 ? 'bg-amber-400' : 'bg-violet-300'" :style="`width:${Math.min(user.emails_sent/maxUserEmails*100,100)}%`"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span x-show="user.emails_opened > 0" class="badge bg-emerald-50 text-emerald-700" x-text="user.emails_opened+' opens'"></span>
+                    <span x-show="user.emails_opened === 0" class="text-slate-400 text-xs">—</span>
+                  </td>
+                  <td class="px-5 py-3 flex gap-3">
+                    <button @click="openUserHistory(user)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">History</button>
+                    <button @click="openSendModal(user)" class="text-xs text-slate-500 hover:text-slate-700 font-medium">Send</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="usersPage > 0 && (usersPage--, loadUsers())" :disabled="usersPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${usersPage+1} of ${Math.max(1,Math.ceil(usersTotal/usersLimit))}`"></span>
+            <button @click="(usersPage+1)*usersLimit < usersTotal && (usersPage++, loadUsers())" :disabled="(usersPage+1)*usersLimit >= usersTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ LOGS ═══════════════════════════════════ -->
+      <div x-show="page==='logs'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="logsSearch" @input.debounce.400ms="loadLogs()" type="text" placeholder="Search by email, template…" class="input max-w-xs" />
+          <button @click="loadLogs()" class="btn-secondary">Refresh</button>
+          <span class="text-sm text-slate-500 ml-auto" x-text="logsTotal.toLocaleString()+' total'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">To</th>
+                <th class="px-5 py-3 font-medium">Template</th>
+                <th class="px-5 py-3 font-medium">Sent</th>
+                <th class="px-5 py-3 font-medium">Opened</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="log in logs" :key="log.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="text-slate-800 font-medium" x-text="log.email_to"></div>
+                    <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
+                  </td>
+                  <td class="px-5 py-3"><span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span></td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                  <td class="px-5 py-3">
+                    <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                    <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!logs.length && !logsLoading">
+                <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No logs yet.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="logsPage > 0 && (logsPage--, loadLogs())" :disabled="logsPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${logsPage+1} of ${Math.max(1,Math.ceil(logsTotal/logsLimit))}`"></span>
+            <button @click="(logsPage+1)*logsLimit < logsTotal && (logsPage++, loadLogs())" :disabled="(logsPage+1)*logsLimit >= logsTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ TEMPLATES ═══════════════════════════════════ -->
+      <div x-show="page==='templates'">
+        <div class="mb-5 flex items-center gap-3">
+          <input x-model="templateSearch" type="text" placeholder="Filter templates…" class="input max-w-xs" />
+          <span class="text-sm text-slate-500 ml-auto" x-text="filteredTemplates.length+' templates'"></span>
+        </div>
+
+        <!-- Category groups -->
+        <template x-for="cat in templateCategories" :key="cat">
+          <div x-show="filteredTemplates.some(t => templateCategory(t) === cat)" class="mb-8">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3" x-text="cat"></div>
+            <div class="grid grid-cols-3 gap-3">
+              <template x-for="t in filteredTemplates.filter(t => templateCategory(t) === cat)" :key="t">
+                <div class="bg-white rounded-xl border border-slate-200 hover:border-violet-300 transition-colors group overflow-hidden cursor-pointer"
+                     @click="openPreview(t)">
+                  <!-- Mini preview thumbnail -->
+                  <div class="h-28 bg-slate-50 overflow-hidden relative border-b border-slate-100">
+                    <iframe :id="'thumb-'+t" class="absolute inset-0 w-full border-none pointer-events-none origin-top-left"
+                      style="transform:scale(0.28); width:357%; height:357%;"
+                      :src="'/v1/admin/templates/'+encodeURIComponent(t)+'/preview'"
+                      loading="lazy" referrerpolicy="no-referrer"></iframe>
+                    <div class="absolute inset-0 flex items-end justify-end p-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/30 to-transparent">
+                      <span class="text-white text-xs font-medium">Preview →</span>
+                    </div>
+                  </div>
+                  <div class="p-3 flex items-start justify-between">
+                    <div>
+                      <div class="font-medium text-sm text-slate-800" x-text="t"></div>
+                      <div class="text-xs text-slate-400 mt-0.5" x-text="templateCategory(t)"></div>
+                    </div>
+                    <button @click.stop="fireTriggerForTemplate(t)" class="text-xs text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity hover:text-violet-800 font-medium whitespace-nowrap ml-2">
+                      Test
+                    </button>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ═══════════════════════════════════ FIRE EMAIL ═══════════════════════════════════ -->
       <div x-show="page==='trigger'">
         <div class="max-w-lg">
           <div class="bg-white rounded-xl border border-slate-200 p-6">
@@ -482,44 +584,13 @@
                 <label class="block text-sm font-medium text-slate-700 mb-1">Name (optional)</label>
                 <input x-model="triggerName" class="input" placeholder="Jeremy" />
               </div>
-              <button @click="fireTrigger()" :disabled="!triggerEmail||!triggerTemplate"
-                class="btn-primary disabled:opacity-50 w-full justify-center">
+              <button @click="fireTrigger()" :disabled="!triggerEmail||!triggerTemplate" class="btn-primary disabled:opacity-50 w-full justify-center">
                 Send now
               </button>
               <div x-show="triggerResult" :class="triggerOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
                 class="text-sm rounded-lg px-4 py-2.5" x-text="triggerResult"></div>
             </div>
           </div>
-
-          <!-- Routing key reference -->
-          <div class="bg-white rounded-xl border border-slate-200 p-6 mt-4">
-            <h3 class="font-semibold text-slate-800 mb-3">Common routing keys</h3>
-            <div class="space-y-1.5 text-xs font-mono">
-              <div class="flex gap-2"><span class="text-violet-600">event.user.signup</span><span class="text-slate-400">→ welcome email</span></div>
-              <div class="flex gap-2"><span class="text-violet-600">event.payment.success</span><span class="text-slate-400">→ payment confirmation</span></div>
-              <div class="flex gap-2"><span class="text-violet-600">event.funnel.welcome_new</span><span class="text-slate-400">→ funnel welcome</span></div>
-              <div class="flex gap-2"><span class="text-violet-600">event.funnel.followup_v1</span><span class="text-slate-400">→ funnel follow-up 1</span></div>
-              <div class="flex gap-2"><span class="text-violet-600">event.funnel.pricing</span><span class="text-slate-400">→ pricing email</span></div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- TEMPLATES -->
-      <div x-show="page==='templates'">
-        <div class="grid grid-cols-3 gap-3">
-          <template x-for="t in templates" :key="t">
-            <div class="bg-white rounded-xl border border-slate-200 p-4 flex items-start justify-between hover:border-violet-300 transition-colors group">
-              <div>
-                <div class="font-medium text-sm text-slate-800" x-text="t"></div>
-                <div class="text-xs text-slate-400 mt-0.5" x-text="templateCategory(t)"></div>
-              </div>
-              <button @click="fireTriggerForTemplate(t)"
-                class="text-xs text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity hover:text-violet-800 font-medium whitespace-nowrap">
-                Test →
-              </button>
-            </div>
-          </template>
         </div>
       </div>
 
@@ -527,10 +598,30 @@
   </div>
 </div>
 
-<!-- Send to user modal -->
+<!-- ═══════════════════════════ TEMPLATE PREVIEW MODAL ═══════════════════════════ -->
+<div x-show="previewModal" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-6">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style="height:85vh">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
+      <div>
+        <h3 class="font-semibold text-slate-800" x-text="previewTemplate"></h3>
+        <p class="text-xs text-slate-500">Rendered with sample data</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="fireTriggerForTemplate(previewTemplate)" class="btn-secondary btn-sm">Test send</button>
+        <button @click="previewModal=false" class="btn-secondary btn-sm">✕ Close</button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-hidden rounded-b-2xl">
+      <iframe x-show="previewModal" :src="previewTemplate ? '/v1/admin/templates/'+encodeURIComponent(previewTemplate)+'/preview' : ''"
+        class="w-full h-full border-none" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SEND TO USER MODAL ═══════════════════════════ -->
 <div x-show="sendModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
   <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md" @click.outside="sendModal=false">
-    <h3 class="font-semibold text-slate-800 mb-1">Send email to <span x-text="sendModalUser?.name||sendModalUser?.email"></span></h3>
+    <h3 class="font-semibold text-slate-800 mb-1">Send to <span x-text="sendModalUser?.name||sendModalUser?.email"></span></h3>
     <p class="text-sm text-slate-500 mb-4" x-text="sendModalUser?.email"></p>
     <div class="mb-4">
       <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
@@ -549,13 +640,13 @@
   </div>
 </div>
 
-<!-- User history modal -->
+<!-- ═══════════════════════════ USER HISTORY MODAL ═══════════════════════════ -->
 <div x-show="historyModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
   <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" @click.outside="historyModal=false">
     <div class="flex items-center justify-between mb-4">
       <div>
         <h3 class="font-semibold text-slate-800" x-text="historyUser?.name||historyUser?.email"></h3>
-        <p class="text-xs text-slate-500" x-text="historyUser?.email"></p>
+        <p class="text-xs text-slate-500" x-text="historyUser?.email + ' · ' + (historyUser?.emails_sent||0) + ' emails sent'"></p>
       </div>
       <button @click="historyModal=false" class="text-slate-400 hover:text-slate-600">✕</button>
     </div>
@@ -570,7 +661,12 @@
       <tbody>
         <template x-for="h in userHistory" :key="h.id">
           <tr class="border-b border-slate-100">
-            <td class="px-3 py-2"><span class="badge bg-violet-50 text-violet-700" x-text="h.template_name"></span></td>
+            <td class="px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="badge bg-violet-50 text-violet-700" x-text="h.template_name"></span>
+                <button @click="openPreview(h.template_name)" class="text-xs text-slate-400 hover:text-violet-600">preview</button>
+              </div>
+            </td>
             <td class="px-3 py-2 text-slate-500 text-xs" x-text="relTime(h.sent_at)"></td>
             <td class="px-3 py-2">
               <span x-show="h.opened_at" class="badge bg-emerald-50 text-emerald-700">✓</span>
@@ -579,7 +675,7 @@
           </tr>
         </template>
         <tr x-show="!userHistory.length">
-          <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-400">No emails sent to this user yet.</td>
+          <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-400">No emails sent yet.</td>
         </tr>
       </tbody>
     </table>
@@ -590,95 +686,57 @@
 function app() {
   return {
     // Auth
-    authed: false,
-    authToken: '',
-    authError: '',
-    authLoading: false,
+    authed: false, authToken: '', authError: '', authLoading: false,
 
-    // Navigation
+    // Nav
     page: 'overview',
 
     // Overview
-    stats: {},
-    statsLoading: false,
-    recentLogs: [],
+    stats: {}, statsLoading: false, recentLogs: [],
 
-    // Logs
-    logs: [],
-    logsTotal: 0,
-    logsLoading: false,
-    logsSearch: '',
-    logsPage: 0,
-    logsLimit: 50,
-
-    // Users
-    users: [],
-    usersTotal: 0,
-    usersSearch: '',
-    usersPage: 0,
-    usersLimit: 50,
-
-    // Campaigns (bulk send records)
-    campaigns: [],
+    // Segments (campaign groups)
+    campaignGroups: [],
+    segmentDrillType: null, segmentDrillLogs: [], segmentDrillTotal: 0, segmentDrillPage: 0,
     showNewCampaign: false,
     newCampaign: { name: '', template_name: '', filter_days: 0 },
     campaignPreviewCount: null,
 
-    // Campaign groups (by email_type from scheduled_emails)
-    campaignGroups: [],
-    campaignDrillType: null,
-    campaignDrillLogs: [],
-    campaignDrillTotal: 0,
-    campaignDrillPage: 0,
+    // Scheduled
+    scheduled: [], scheduledTotal: 0, scheduledPage: 0, scheduledLimit: 50, scheduledLoading: false,
 
-    // Trigger
-    triggerEmail: '',
-    triggerTemplate: '',
-    triggerName: 'Jeremy',
-    triggerResult: '',
-    triggerOk: false,
+    // Users
+    users: [], usersTotal: 0, usersSearch: '', usersPage: 0, usersLimit: 50, usersSort: 'emails_sent',
+
+    // Logs
+    logs: [], logsTotal: 0, logsLoading: false, logsSearch: '', logsPage: 0, logsLimit: 50,
 
     // Templates
-    templates: [],
+    templates: [], templateSearch: '',
+    templateCategories: ['Transactional', 'Funnel', 'Signup', 'Nurture', 'Other'],
+
+    // Trigger
+    triggerEmail: '', triggerTemplate: '', triggerName: 'Jeremy', triggerResult: '', triggerOk: false,
 
     // Modals
-    sendModal: false,
-    sendModalUser: null,
-    sendModalTemplate: '',
-    sendModalResult: '',
-    historyModal: false,
-    historyUser: null,
-    userHistory: [],
+    sendModal: false, sendModalUser: null, sendModalTemplate: '', sendModalResult: '',
+    historyModal: false, historyUser: null, userHistory: [],
+    previewModal: false, previewTemplate: '',
 
-    // Chart instance
     _chart: null,
 
     async init() {
-      // Auto-login from SSO redirect: studojo.com passes token in URL fragment
       const hash = window.location.hash
       if (hash.startsWith('#token=')) {
-        const ssoToken = hash.slice(7)
-        if (ssoToken) {
-          this.authToken = ssoToken
-          localStorage.setItem('adminToken', ssoToken)
-          // Clean the token from the URL so it doesn't linger in history
-          history.replaceState(null, '', window.location.pathname)
-          await this.login(true)
-          return
-        }
+        const tok = hash.slice(7)
+        if (tok) { this.authToken = tok; localStorage.setItem('adminToken', tok); history.replaceState(null, '', window.location.pathname); await this.login(true); return }
       }
-      // Fall back to stored token
       const token = localStorage.getItem('adminToken')
-      if (token) {
-        this.authToken = token
-        await this.login(true)
-      }
+      if (token) { this.authToken = token; await this.login(true) }
     },
 
     async login(silent = false) {
       if (!this.authToken) return
-      this.authLoading = true
-      this.authError = ''
+      this.authLoading = true; this.authError = ''
       try {
         const r = await this.api('GET', '/v1/admin/stats')
         if (r.ok) {
@@ -686,183 +744,125 @@ function app() {
           localStorage.setItem('adminToken', this.authToken)
           await this.loadAll()
         } else {
-          if (!silent) this.authError = 'Invalid token or not admin.'
+          if (!silent) this.authError = 'Invalid token.'
           localStorage.removeItem('adminToken')
         }
-      } catch {
-        if (!silent) this.authError = 'Could not connect.'
-      }
+      } catch { if (!silent) this.authError = 'Could not connect.' }
       this.authLoading = false
     },
 
-    logout() {
-      localStorage.removeItem('adminToken')
-      this.authed = false
-      this.authToken = ''
-    },
+    logout() { localStorage.removeItem('adminToken'); this.authed = false; this.authToken = '' },
 
     async loadAll() {
-      await this.loadStats()
-      await this.loadLogs()
-      await this.loadUsers()
-      await this.loadCampaigns()
-      await this.loadTemplates()
+      await Promise.all([this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
     },
 
     async nav(p) {
       this.page = p
       if (p === 'overview') { await this.loadStats(); this.$nextTick(() => this.drawChart()) }
-      if (p === 'logs') await this.loadLogs()
+      if (p === 'segments') await this.loadCampaignGroups()
+      if (p === 'scheduled') await this.loadScheduled()
       if (p === 'users') await this.loadUsers()
-      if (p === 'campaigns') await this.loadCampaigns()
+      if (p === 'logs') await this.loadLogs()
       if (p === 'templates') await this.loadTemplates()
     },
 
     async loadStats() {
       this.statsLoading = true
       const r = await this.api('GET', '/v1/admin/stats')
-      if (r.ok) {
-        this.stats = await r.json()
-        this.$nextTick(() => this.drawChart())
-      }
+      if (r.ok) { this.stats = await r.json(); this.$nextTick(() => this.drawChart()) }
       this.statsLoading = false
-      // Also load recent logs for overview
       const r2 = await this.api('GET', '/v1/admin/logs?limit=10')
-      if (r2.ok) {
-        const d = await r2.json()
-        this.recentLogs = d.logs || []
-      }
+      if (r2.ok) { const d = await r2.json(); this.recentLogs = d.logs || [] }
     },
 
     async loadLogs() {
       this.logsLoading = true
       const r = await this.api('GET', `/v1/admin/logs?limit=${this.logsLimit}&offset=${this.logsPage*this.logsLimit}&q=${encodeURIComponent(this.logsSearch)}`)
-      if (r.ok) {
-        const d = await r.json()
-        this.logs = d.logs || []
-        this.logsTotal = d.total || 0
-      }
+      if (r.ok) { const d = await r.json(); this.logs = d.logs || []; this.logsTotal = d.total || 0 }
       this.logsLoading = false
     },
 
     async loadUsers() {
       const r = await this.api('GET', `/v1/admin/users?limit=${this.usersLimit}&offset=${this.usersPage*this.usersLimit}&q=${encodeURIComponent(this.usersSearch)}`)
-      if (r.ok) {
-        const d = await r.json()
-        this.users = d.users || []
-        this.usersTotal = d.total || 0
-      }
+      if (r.ok) { const d = await r.json(); this.users = d.users || []; this.usersTotal = d.total || 0 }
     },
 
-    async loadCampaigns() {
+    async loadCampaignGroups() {
       const r = await this.api('GET', '/v1/admin/campaign-groups')
-      if (r.ok) {
-        const d = await r.json()
-        this.campaignGroups = d.groups || []
-      }
+      if (r.ok) { const d = await r.json(); this.campaignGroups = (d.groups || []).sort((a,b) => b.total_sent - a.total_sent) }
     },
 
-    async drillInto(emailType) {
-      this.campaignDrillType = emailType
-      this.campaignDrillPage = 0
-      this.campaignDrillLogs = []
-      this.campaignDrillTotal = 0
-      await this.loadCampaignDrill()
+    async loadScheduledCount() {
+      const r = await this.api('GET', '/v1/admin/scheduled?limit=1&offset=0')
+      if (r.ok) { const d = await r.json(); this.scheduledTotal = d.total || 0 }
     },
 
-    async loadCampaignDrill() {
-      const r = await this.api('GET', `/v1/admin/campaign-groups/${encodeURIComponent(this.campaignDrillType)}/logs?limit=50&offset=${this.campaignDrillPage*50}`)
-      if (r.ok) {
-        const d = await r.json()
-        this.campaignDrillLogs = d.logs || []
-        this.campaignDrillTotal = d.total || 0
-      }
+    async loadScheduled() {
+      this.scheduledLoading = true
+      const r = await this.api('GET', `/v1/admin/scheduled?limit=${this.scheduledLimit}&offset=${this.scheduledPage*this.scheduledLimit}`)
+      if (r.ok) { const d = await r.json(); this.scheduled = d.scheduled || []; this.scheduledTotal = d.total || 0 }
+      this.scheduledLoading = false
     },
 
     async loadTemplates() {
       const r = await this.api('GET', '/v1/admin/templates')
-      if (r.ok) {
-        const d = await r.json()
-        this.templates = d.templates || []
-      }
+      if (r.ok) { const d = await r.json(); this.templates = d.templates || [] }
+    },
+
+    async drillIntoSegment(emailType) {
+      this.segmentDrillType = emailType; this.segmentDrillPage = 0; this.segmentDrillLogs = []; this.segmentDrillTotal = 0
+      await this.loadSegmentDrill()
+    },
+
+    async loadSegmentDrill() {
+      const r = await this.api('GET', `/v1/admin/campaign-groups/${encodeURIComponent(this.segmentDrillType)}/logs?limit=50&offset=${this.segmentDrillPage*50}`)
+      if (r.ok) { const d = await r.json(); this.segmentDrillLogs = d.logs || []; this.segmentDrillTotal = d.total || 0 }
     },
 
     async previewCampaignCount() {
       const r = await this.api('GET', `/v1/admin/campaigns/preview?filter_days=${this.newCampaign.filter_days}`)
-      if (r.ok) {
-        const d = await r.json()
-        this.campaignPreviewCount = d.count
-      }
+      if (r.ok) { const d = await r.json(); this.campaignPreviewCount = d.count }
     },
 
     async createAndSendCampaign() {
-      const r = await this.api('POST', '/v1/admin/campaigns', {
-        name: this.newCampaign.name,
-        template_name: this.newCampaign.template_name,
-        filter_days: parseInt(this.newCampaign.filter_days),
-      })
+      const r = await this.api('POST', '/v1/admin/campaigns', { name: this.newCampaign.name, template_name: this.newCampaign.template_name, filter_days: parseInt(this.newCampaign.filter_days) })
       if (!r.ok) return alert('Failed to create campaign')
-      const campaign = await r.json()
-      const r2 = await this.api('POST', `/v1/admin/campaigns/${campaign.id}/send`)
-      if (r2.ok) {
-        this.showNewCampaign = false
-        this.newCampaign = { name: '', template_name: '', filter_days: 0 }
-        this.campaignPreviewCount = null
-        await this.loadCampaigns()
-      }
+      const c = await r.json()
+      const r2 = await this.api('POST', `/v1/admin/campaigns/${c.id}/send`)
+      if (r2.ok) { this.showNewCampaign = false; this.newCampaign = { name:'', template_name:'', filter_days:0 }; this.campaignPreviewCount = null; await this.loadCampaignGroups() }
+    },
+
+    openPreview(template) {
+      this.previewTemplate = template; this.previewModal = true
     },
 
     async fireTrigger() {
       this.triggerResult = ''
-      // Map template name to routing key or use generic event.funnel.*
       const routingKey = this.templateToRoutingKey(this.triggerTemplate)
-      const event = { email: this.triggerEmail, name: this.triggerName || 'there', user_id: '' }
-      const r = await this.api('POST', '/v1/admin/trigger', { routing_key: routingKey, event })
-      if (r.ok) {
-        this.triggerOk = true
-        this.triggerResult = `Sent "${this.triggerTemplate}" to ${this.triggerEmail}`
-      } else {
-        this.triggerOk = false
-        this.triggerResult = 'Failed to send. Check logs.'
-      }
+      const r = await this.api('POST', '/v1/admin/trigger', { routing_key: routingKey, event: { email: this.triggerEmail, name: this.triggerName || 'there', user_id: '' } })
+      if (r.ok) { this.triggerOk = true; this.triggerResult = `Sent "${this.triggerTemplate}" to ${this.triggerEmail}` }
+      else { this.triggerOk = false; this.triggerResult = 'Failed. Check logs.' }
     },
 
     async fireTriggerForTemplate(template) {
       const email = prompt('Send test to:', 'studojo@gmail.com')
       if (!email) return
-      const routingKey = this.templateToRoutingKey(template)
-      await this.api('POST', '/v1/admin/trigger', {
-        routing_key: routingKey,
-        event: { email, name: 'Jeremy', user_id: '' }
-      })
+      await this.api('POST', '/v1/admin/trigger', { routing_key: this.templateToRoutingKey(template), event: { email, name: 'Jeremy', user_id: '' } })
       alert(`Sent "${template}" to ${email}`)
     },
 
-    openSendModal(user) {
-      this.sendModalUser = user
-      this.sendModalTemplate = ''
-      this.sendModalResult = ''
-      this.sendModal = true
-    },
+    openSendModal(user) { this.sendModalUser = user; this.sendModalTemplate = ''; this.sendModalResult = ''; this.sendModal = true },
 
     async sendToUser() {
-      const r = await this.api('POST', `/v1/admin/users/${this.sendModalUser.id}/send`, {
-        template_name: this.sendModalTemplate,
-      })
-      if (r.ok) {
-        this.sendModalResult = `Sent "${this.sendModalTemplate}" to ${this.sendModalUser.email}`
-      }
+      const r = await this.api('POST', `/v1/admin/users/${this.sendModalUser.id}/send`, { template_name: this.sendModalTemplate })
+      if (r.ok) this.sendModalResult = `Sent "${this.sendModalTemplate}" to ${this.sendModalUser.email}`
     },
 
     async openUserHistory(user) {
-      this.historyUser = user
-      this.userHistory = []
-      this.historyModal = true
+      this.historyUser = user; this.userHistory = []; this.historyModal = true
       const r = await this.api('GET', `/v1/admin/users/${user.id}`)
-      if (r.ok) {
-        const d = await r.json()
-        this.userHistory = d.history || []
-      }
+      if (r.ok) { const d = await r.json(); this.userHistory = d.history || [] }
     },
 
     drawChart() {
@@ -873,91 +873,105 @@ function app() {
       this._chart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: volume.map(v => v.date.slice(5)), // MM-DD
-          datasets: [{
-            data: volume.map(v => v.count),
-            backgroundColor: 'rgba(124, 58, 237, 0.15)',
-            borderColor: 'rgba(124, 58, 237, 0.8)',
-            borderWidth: 1.5,
-            borderRadius: 4,
-          }]
+          labels: volume.map(v => v.date.slice(5)),
+          datasets: [{ data: volume.map(v => v.count), backgroundColor: 'rgba(124,58,237,0.12)', borderColor: 'rgba(124,58,237,0.7)', borderWidth: 1.5, borderRadius: 4 }]
         },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-            y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } }
-          }
-        }
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { font: { size: 11 } } }, y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } } } }
       })
     },
 
-    templateToRoutingKey(t) {
-      const map = {
-        'welcome': 'event.user.signup',
-        'payment-thankyou': 'event.payment.success',
-        'forgot-password': 'event.user.signup',
-        'funnel-welcome-new': 'event.funnel.welcome_new',
-        'funnel-welcome-existing': 'event.funnel.welcome_existing',
-        'funnel-followup-v1': 'event.funnel.followup_v1',
-        'funnel-followup-v2': 'event.funnel.followup_v2',
-        'funnel-followup-v3': 'event.funnel.followup_v3',
-        'signup-thankyou': 'event.funnel.signup_thankyou',
-        'signup-followup': 'event.funnel.signup_followup',
-      }
-      if (map[t]) return map[t]
-      // Convert funnel-xxx-yyy → event.funnel.xxx_yyy
-      if (t.startsWith('funnel-')) return 'event.funnel.' + t.slice(7).replace(/-/g, '_')
-      if (t.startsWith('signup-')) return 'event.funnel.' + t.replace(/-/g, '_')
-      return 'event.user.signup'
+    // ── Computed helpers ──
+
+    get usersSorted() {
+      const arr = [...this.users]
+      if (this.usersSort === 'emails_sent') arr.sort((a,b) => b.emails_sent - a.emails_sent)
+      else if (this.usersSort === 'opens') arr.sort((a,b) => b.emails_opened - a.emails_opened)
+      return arr
+    },
+
+    get maxUserEmails() {
+      return Math.max(1, ...this.users.map(u => u.emails_sent))
+    },
+
+    get filteredTemplates() {
+      const q = this.templateSearch.toLowerCase()
+      return this.templates.filter(t => !q || t.includes(q))
+    },
+
+    maxSendPct(count) {
+      const max = Math.max(1, ...(this.stats.top_templates||[]).map(t=>t.send_count))
+      return Math.min(count/max*100, 100)
+    },
+
+    segmentBarPct(count) {
+      const max = Math.max(1, ...(this.campaignGroups||[]).map(g=>g.total_sent))
+      return Math.min(count/max*100, 100)
+    },
+
+    segmentCategory(t) {
+      if (t.startsWith('funnel-')) return 'Funnel'
+      if (t.startsWith('nurture')) return 'Nurture'
+      if (t.startsWith('signup-')) return 'Signup'
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready'].includes(t)) return 'Transact.'
+      return 'Other'
+    },
+
+    segmentCategoryBadge(t) {
+      const m = { 'Funnel':'bg-violet-50 text-violet-700', 'Nurture':'bg-blue-50 text-blue-700', 'Signup':'bg-emerald-50 text-emerald-700', 'Transact.':'bg-amber-50 text-amber-700', 'Other':'bg-slate-100 text-slate-500' }
+      return m[this.segmentCategory(t)] || 'bg-slate-100 text-slate-500'
     },
 
     templateCategory(t) {
       if (t.startsWith('funnel-')) return 'Funnel'
       if (t.startsWith('nurture-')) return 'Nurture'
       if (t.startsWith('signup-')) return 'Signup'
-      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou'].includes(t)) return 'Transactional'
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready'].includes(t)) return 'Transactional'
       return 'Other'
     },
 
-    statusBadge(s) {
-      return {
-        draft: 'bg-slate-100 text-slate-600',
-        running: 'bg-blue-50 text-blue-700',
-        completed: 'bg-emerald-50 text-emerald-700',
-        failed: 'bg-red-50 text-red-700',
-      }[s] || 'bg-slate-100 text-slate-600'
+    isPast(ts) { return new Date(ts) < new Date() },
+
+    dueIn(ts) {
+      const diff = (new Date(ts) - Date.now()) / 1000
+      if (diff < 0) return 'overdue'
+      if (diff < 60) return 'now'
+      if (diff < 3600) return 'in ' + Math.floor(diff/60) + 'm'
+      if (diff < 86400) return 'in ' + Math.floor(diff/3600) + 'h'
+      return 'in ' + Math.floor(diff/86400) + 'd'
+    },
+
+    fmtDate(ts) {
+      if (!ts) return '—'
+      return new Date(ts).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
     },
 
     relTime(ts) {
       if (!ts) return '—'
-      const d = new Date(ts)
-      const diff = (Date.now() - d) / 1000
+      const diff = (Date.now() - new Date(ts)) / 1000
       if (diff < 60) return 'just now'
       if (diff < 3600) return Math.floor(diff/60)+'m ago'
       if (diff < 86400) return Math.floor(diff/3600)+'h ago'
       if (diff < 604800) return Math.floor(diff/86400)+'d ago'
-      return d.toLocaleDateString()
+      return new Date(ts).toLocaleDateString()
+    },
+
+    templateToRoutingKey(t) {
+      const map = { 'welcome':'event.user.signup', 'payment-thankyou':'event.payment.success', 'forgot-password':'event.user.signup', 'funnel-welcome-new':'event.funnel.welcome_new', 'funnel-welcome-existing':'event.funnel.welcome_existing', 'signup-thankyou':'event.funnel.signup_thankyou', 'signup-followup':'event.funnel.signup_followup' }
+      if (map[t]) return map[t]
+      if (t.startsWith('funnel-')) return 'event.funnel.' + t.slice(7).replace(/-/g,'_')
+      if (t.startsWith('signup-')) return 'event.funnel.' + t.replace(/-/g,'_')
+      return 'event.user.signup'
     },
 
     pageTitle() {
-      return { overview: 'Overview', logs: 'Email Logs', users: 'Users', campaigns: 'Campaigns', trigger: 'Fire Email', templates: 'Templates' }[this.page] || ''
+      return { overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
     },
     pageSubtitle() {
-      return { overview: 'Send activity and open rates', logs: 'Every email sent, searchable', users: 'All registered users and their email history', campaigns: 'All sends organised by email type — signup triggers, bulk sends, everything', trigger: 'Send any template manually', templates: `${this.templates.length} templates available` }[this.page] || ''
+      return { overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
     },
 
     api(method, path, body) {
-      const base = window.location.origin
-      return fetch(base + path, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + this.authToken,
-        },
-        body: body ? JSON.stringify(body) : undefined,
-      })
+      return fetch(window.location.origin + path, { method, headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+this.authToken }, body: body ? JSON.stringify(body) : undefined })
     },
   }
 }

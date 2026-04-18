@@ -334,6 +334,8 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/campaign-groups", httpHandler.HandleAdminCampaignGroups)
 	adminMux.HandleFunc("GET /v1/admin/campaign-groups/{email_type}/logs", httpHandler.HandleAdminLogsByType)
 	adminMux.HandleFunc("POST /v1/admin/trigger", httpHandler.HandleAdminTrigger)
+	adminMux.HandleFunc("GET /v1/admin/scheduled", httpHandler.HandleAdminScheduled)
+	adminMux.HandleFunc("GET /v1/admin/templates/{name}/preview", httpHandler.HandleAdminTemplatePreview)
 
 	mux.Handle("/v1/admin/", handlers.AdminMiddleware(adminSecret, adminMux))
 

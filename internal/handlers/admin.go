@@ -366,6 +366,50 @@ func (h *Handler) HandleAdminLogsByType(w http.ResponseWriter, r *http.Request) 
 	}, http.StatusOK)
 }
 
+// HandleAdminScheduled handles GET /v1/admin/scheduled?limit=50&offset=0
+func (h *Handler) HandleAdminScheduled(w http.ResponseWriter, r *http.Request) {
+	limit := 50
+	offset := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if v, err := strconv.Atoi(l); err == nil && v > 0 && v <= 200 {
+			limit = v
+		}
+	}
+	if o := r.URL.Query().Get("offset"); o != "" {
+		if v, err := strconv.Atoi(o); err == nil && v >= 0 {
+			offset = v
+		}
+	}
+	emails, total, err := h.Store.ListPendingScheduledEmails(r.Context(), limit, offset)
+	if err != nil {
+		slog.Error("admin scheduled", "error", err)
+		writeError(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"scheduled": emails,
+		"total":     total,
+		"limit":     limit,
+		"offset":    offset,
+	}, http.StatusOK)
+}
+
+// HandleAdminTemplatePreview handles GET /v1/admin/templates/{name}/preview
+// Returns the rendered HTML of the template with sample data.
+func (h *Handler) HandleAdminTemplatePreview(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	html, err := h.Sender.RenderPreview(name)
+	if err != nil {
+		slog.Warn("template preview failed", "name", name, "error", err)
+		writeError(w, "template not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(html))
+}
+
 // HandleAdminCampaignPreview handles GET /v1/admin/campaigns/preview?filter_days=0
 func (h *Handler) HandleAdminCampaignPreview(w http.ResponseWriter, r *http.Request) {
 	filterDays := 0

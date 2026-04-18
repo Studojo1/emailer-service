@@ -136,6 +136,53 @@ func (s *PostgresStore) ListQuizCompletedWithoutEmail(ctx context.Context, email
 	return users, rows.Err()
 }
 
+// PendingScheduledEmail is a scheduled_emails row with denormalised user info.
+type PendingScheduledEmail struct {
+	ID          uuid.UUID  `json:"id"`
+	UserID      string     `json:"user_id"`
+	UserName    string     `json:"user_name"`
+	UserEmail   string     `json:"user_email"`
+	EmailType   string     `json:"email_type"`
+	ScheduledAt time.Time  `json:"scheduled_at"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// ListPendingScheduledEmails returns unsent scheduled emails with user info, newest first.
+func (s *PostgresStore) ListPendingScheduledEmails(ctx context.Context, limit, offset int) ([]PendingScheduledEmail, int, error) {
+	var total int
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM scheduled_emails WHERE sent_at IS NULL`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT se.id, se.user_id, COALESCE(u.name,'') AS user_name,
+		       COALESCE(u.email,'') AS user_email,
+		       se.email_type, se.scheduled_at, se.created_at
+		FROM scheduled_emails se
+		LEFT JOIN "user" u ON u.id = se.user_id
+		WHERE se.sent_at IS NULL
+		ORDER BY se.scheduled_at ASC
+		LIMIT $1 OFFSET $2`, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var out []PendingScheduledEmail
+	for rows.Next() {
+		var e PendingScheduledEmail
+		var idStr string
+		if err := rows.Scan(&idStr, &e.UserID, &e.UserName, &e.UserEmail,
+			&e.EmailType, &e.ScheduledAt, &e.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		e.ID, _ = uuid.Parse(idStr)
+		out = append(out, e)
+	}
+	return out, total, rows.Err()
+}
+
 // MarkScheduledEmailSent marks a scheduled email as sent
 func (s *PostgresStore) MarkScheduledEmailSent(ctx context.Context, id uuid.UUID) error {
 	now := time.Now().UTC()
