@@ -172,6 +172,12 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 
 		lastErr = err
 		slog.Error("email send failed", "attempt", i+1, "error", err)
+
+		// Don't retry if all ACS resources are rate-limited — no point waiting,
+		// the quota is subscription-wide and won't recover in seconds.
+		if strings.Contains(err.Error(), "exhausted") && strings.Contains(err.Error(), "429") {
+			break
+		}
 	}
 
 	return fmt.Errorf("failed to send email after %d attempts: %w", maxRetries, lastErr)

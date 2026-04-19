@@ -12,9 +12,10 @@ import (
 
 // Scheduler polls for due scheduled emails and sends them
 type Scheduler struct {
-	Store       *store.PostgresStore
-	Sender      *email.Sender
-	FrontendURL string
+	Store            *store.PostgresStore
+	Sender           *email.Sender
+	FrontendURL      string
+	rateLimitUntil   time.Time // circuit breaker: stop sending until quota resets
 }
 
 // NewScheduler creates a new Scheduler
@@ -46,6 +47,13 @@ func (sc *Scheduler) Run(ctx context.Context) {
 }
 
 func (sc *Scheduler) processDue(ctx context.Context) {
+	// Circuit breaker: if ACS rate-limited us recently, wait until quota resets
+	if time.Now().Before(sc.rateLimitUntil) {
+		remaining := time.Until(sc.rateLimitUntil).Round(time.Minute)
+		slog.Info("scheduler: rate limit backoff active, skipping tick", "resume_in", remaining)
+		return
+	}
+
 	emails, err := sc.Store.GetDueScheduledEmails(ctx)
 	if err != nil {
 		slog.Error("scheduler: failed to fetch due emails", "error", err)
@@ -53,11 +61,15 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 	for i, e := range emails {
 		if i > 0 {
-			// 20s between sends = 3 emails/min = 180/hr across both ACS resources.
-			// Staying under the 200/hr free-tier cap prevents the 3703s penalty cooldown.
+			// 20s between sends = 3/min = 180/hr — just under the 200/hr ACS free-tier cap
 			time.Sleep(20 * time.Second)
 		}
-		sc.send(ctx, e)
+		if rateLimited := sc.send(ctx, e); rateLimited {
+			// Both ACS resources exhausted — stop the batch and wait 65 min for quota reset
+			sc.rateLimitUntil = time.Now().Add(65 * time.Minute)
+			slog.Warn("scheduler: ACS rate limit hit, pausing sends for 65 minutes")
+			return
+		}
 	}
 }
 
@@ -137,98 +149,76 @@ func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
 	}
 }
 
-func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) {
-	// Get user
+// send attempts to send a single scheduled email.
+// Returns true if ACS rate-limited us (caller should pause the batch).
+func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimited bool) {
 	user, err := sc.Store.GetUserByID(ctx, e.UserID)
 	if err != nil || user == nil {
 		slog.Error("scheduler: user not found", "user_id", e.UserID, "email_type", e.EmailType)
-		return
+		return false
 	}
 
-	// Check preferences
 	prefs, err := sc.Store.GetEmailPreferences(ctx, e.UserID)
 	if err != nil {
 		slog.Error("scheduler: failed to get preferences", "user_id", e.UserID)
-		return
+		return false
 	}
 	if !prefs.ProductEmails {
 		slog.Info("scheduler: skipping email, product emails disabled", "user_id", e.UserID, "type", e.EmailType)
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
-		return
+		return false
 	}
 
-	// Dedup: if this email type was already sent (e.g. event handler sent it,
-	// or a previous scheduler run sent it but MarkScheduledEmailSent failed),
-	// mark the row done and skip to avoid a duplicate send.
 	already, err := sc.Store.HasReceivedEmail(ctx, e.UserID, e.EmailType)
 	if err != nil {
 		slog.Error("scheduler: dedup check failed", "user_id", e.UserID, "type", e.EmailType, "error", err)
 	} else if already {
 		slog.Info("scheduler: already sent, marking done", "user_id", e.UserID, "type", e.EmailType)
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
-		return
+		return false
 	}
 
-	// Build template data
 	var templateData map[string]interface{}
 	switch e.EmailType {
 	case "leads_ready":
-		templateData = map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": sc.FrontendURL + "/outreach",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "welcome":
-		templateData = map[string]interface{}{
-			"UserName":     user.Name,
-			"DashboardURL": sc.FrontendURL + "/",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	case "nurture_day3":
-		templateData = map[string]interface{}{
-			"UserName":      user.Name,
-			"InternshipURL": sc.FrontendURL + "/outreach",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "InternshipURL": sc.FrontendURL + "/outreach"}
 	case "nurture_day7":
-		templateData = map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": sc.FrontendURL + "/outreach",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "nurture_day14":
-		templateData = map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": sc.FrontendURL + "/outreach",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "nurture_day30":
-		templateData = map[string]interface{}{
-			"UserName":     user.Name,
-			"DashboardURL": sc.FrontendURL + "/",
-		}
+		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
-		// Handle all funnel-* types generically
 		if strings.HasPrefix(e.EmailType, "funnel-") {
-			templateData = map[string]interface{}{
-				"UserName": user.Name,
-			}
+			templateData = map[string]interface{}{"UserName": user.Name}
 		} else {
 			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
 			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
-			return
+			return false
 		}
 	}
 
 	templateName := emailTypeToTemplate(e.EmailType)
-
 	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
 	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
+
 	if err := sc.Sender.SendTemplateEmail(ctx, user.Email, templateName, templateData); err != nil {
+		if strings.Contains(err.Error(), "429") || strings.Contains(err.Error(), "TooManyRequests") || strings.Contains(err.Error(), "exhausted") {
+			return true // signal circuit breaker
+		}
 		slog.Error("scheduler: failed to send email", "error", err, "user_id", e.UserID, "type", e.EmailType)
-		return
+		return false
 	}
 
 	if err := sc.Store.MarkScheduledEmailSent(ctx, e.ID); err != nil {
 		slog.Error("scheduler: failed to mark sent", "error", err, "id", e.ID)
 	}
-
 	slog.Info("scheduler: email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
+	return false
 }
 
 func emailTypeToTemplate(emailType string) string {
