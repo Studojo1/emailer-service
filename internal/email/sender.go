@@ -91,17 +91,17 @@ func (s *Sender) SetSenderAddresses(support, welcome, promotions string) {
 // "Jeremy from Studojo" rather than a bare email address in Gmail.
 func (s *Sender) getSenderForTemplate(templateName string) string {
 	switch templateName {
-	// Support / transactional
+	// Transactional — support domain signals "not marketing" to Gmail
 	case "payment-thankyou", "password-changed", "forgot-password",
-		"resume-optimized", "internship-applied", "contact-form":
+		"resume-optimized", "internship-applied", "contact-form",
+		"welcome", "leads-ready", "signup-thankyou", "signup-followup",
+		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
+		"signup-welcome-v4", "signup-welcome-v5":
 		if s.supportSender != "" {
 			return s.supportSender
 		}
-	// Welcome / onboarding — use display name to improve Primary placement
-	case "welcome", "leads-ready", "signup-thankyou", "signup-followup",
-		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
-		"signup-welcome-v4", "signup-welcome-v5",
-		"funnel-welcome-new", "funnel-welcome-existing",
+	// Onboarding funnel — welcome domain
+	case "funnel-welcome-new", "funnel-welcome-existing",
 		"funnel-onboarding", "funnel-congratulations":
 		if s.welcomeSender != "" {
 			return s.welcomeSender
