@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +37,11 @@ type Sender struct {
 	supportSender    string // support.studojo.com — transactional, payment, product updates
 	welcomeSender    string // welcome.studojo.pro  — onboarding, signup
 	promotionsSender string // promotions.studojo.pro — funnel, marketing
+
+	// senderPool is all configured non-empty senders, rotated round-robin so
+	// volume is spread evenly across all domains instead of hammering one.
+	senderPool  []string
+	senderIndex uint64 // atomic counter
 }
 
 // NewSender creates a new email sender
@@ -79,11 +85,29 @@ func (s *Sender) SetLogger(l SendLogger) {
 	s.logger = l
 }
 
-// SetSenderAddresses configures per-category from addresses
+// SetSenderAddresses configures per-category from addresses and builds the
+// round-robin pool so volume is spread across all domains.
 func (s *Sender) SetSenderAddresses(support, welcome, promotions string) {
 	s.supportSender = support
 	s.welcomeSender = welcome
 	s.promotionsSender = promotions
+
+	s.senderPool = nil
+	for _, addr := range []string{support, welcome, promotions} {
+		if addr != "" {
+			s.senderPool = append(s.senderPool, addr)
+		}
+	}
+}
+
+// nextSender returns the next sender from the round-robin pool.
+// Falls back to the template-appropriate sender if the pool is empty.
+func (s *Sender) nextSender(templateName string) string {
+	if len(s.senderPool) > 0 {
+		idx := atomic.AddUint64(&s.senderIndex, 1) - 1
+		return s.senderPool[int(idx)%len(s.senderPool)]
+	}
+	return s.getSenderForTemplate(templateName)
 }
 
 // getSenderForTemplate returns the right from address for a given template.
@@ -157,7 +181,7 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 			time.Sleep(backoff)
 		}
 
-		fromAddr := s.getSenderForTemplate(templateName)
+		fromAddr := s.nextSender(templateName)
 		err := s.client.SendEmailFrom(ctx, fromAddr, to, subject, htmlContent)
 		if err == nil {
 			if s.logger != nil {
