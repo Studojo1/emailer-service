@@ -178,7 +178,12 @@ func (c *Client) sendViaACSPool(ctx context.Context, from, to, subject, htmlCont
 				"endpoint", cfg.endpoint, "pool_size", n)
 			continue
 		}
-		return err // non-429 error — don't bother trying other resources
+		if strings.Contains(err.Error(), "DomainNotLinked") {
+			slog.Warn("ACS domain not linked on resource, trying next in pool",
+				"endpoint", cfg.endpoint, "pool_size", n)
+			continue
+		}
+		return err // non-retryable error
 	}
 	return fmt.Errorf("all ACS resources exhausted: %w", lastErr)
 }

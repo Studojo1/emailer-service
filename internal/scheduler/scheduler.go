@@ -154,7 +154,8 @@ func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
 func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimited bool) {
 	user, err := sc.Store.GetUserByID(ctx, e.UserID)
 	if err != nil || user == nil {
-		slog.Error("scheduler: user not found", "user_id", e.UserID, "email_type", e.EmailType)
+		slog.Error("scheduler: user not found, discarding", "user_id", e.UserID, "email_type", e.EmailType)
+		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return false
 	}
 
