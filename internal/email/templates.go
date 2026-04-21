@@ -100,7 +100,7 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// Outreach funnel — order stage triggers
 		"leads-ready",
 		// Priority transactional
-		"signup-thankyou", "signup-followup", "payment-thankyou",
+		"signup-thankyou", "signup-followup", "payment-thankyou", "service-update",
 		// Welcome variants (A/B testing)
 		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
 		"signup-welcome-v4", "signup-welcome-v5",
