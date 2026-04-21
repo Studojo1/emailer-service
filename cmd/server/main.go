@@ -401,6 +401,7 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/users/{id}", httpHandler.HandleAdminUserDetail)
 	adminMux.HandleFunc("POST /v1/admin/users/{id}/send", httpHandler.HandleAdminSendToUser)
 	adminMux.HandleFunc("POST /v1/admin/users/{id}/cancel-scheduled", httpHandler.HandleAdminCancelUserScheduled)
+	adminMux.HandleFunc("POST /v1/admin/send-oneoff", httpHandler.HandleAdminSendOneOff)
 	adminMux.HandleFunc("GET /v1/admin/templates", httpHandler.HandleAdminTemplates)
 	adminMux.HandleFunc("GET /v1/admin/campaigns", httpHandler.HandleAdminCampaignList)
 	adminMux.HandleFunc("POST /v1/admin/campaigns", httpHandler.HandleAdminCampaignCreate)

@@ -210,6 +210,8 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 // getSubject returns the email subject based on template name
 func (s *Sender) getSubject(templateName string, data map[string]interface{}) (string, error) {
 	switch templateName {
+	case "service-update":
+		return "A note on service continuity", nil
 	case "leads-ready":
 		return "Your leads are ready.", nil
 	case "welcome":

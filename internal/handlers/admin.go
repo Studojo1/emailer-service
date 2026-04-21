@@ -459,3 +459,31 @@ func (h *Handler) HandleAdminCampaignPreview(w http.ResponseWriter, r *http.Requ
 	}
 	writeJSON(w, map[string]int{"count": count}, http.StatusOK)
 }
+
+// HandleAdminSendOneOff handles POST /v1/admin/send-oneoff
+// Body: {"to": "email", "template": "template-name", "user_name": "Name"}
+func (h *Handler) HandleAdminSendOneOff(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		To       string `json:"to"`
+		Template string `json:"template"`
+		UserName string `json:"user_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" || req.Template == "" {
+		writeError(w, "to and template are required", http.StatusBadRequest)
+		return
+	}
+	if req.UserName == "" {
+		req.UserName = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":    req.UserName,
+		"DashboardURL": "https://studojo.com/",
+	}
+	ctx := context.Background()
+	if err := h.Sender.SendTemplateEmail(ctx, req.To, req.Template, data); err != nil {
+		slog.Error("one-off send failed", "to", req.To, "template", req.Template, "error", err)
+		writeError(w, "send failed: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "sent", "to": req.To}, http.StatusOK)
+}
