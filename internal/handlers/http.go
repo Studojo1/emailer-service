@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -21,12 +24,13 @@ import (
 
 // Handler holds HTTP handlers for emailer service
 type Handler struct {
-	Store            *store.PostgresStore
-	Sender           *email.Sender
-	TokenStore       *auth.TokenStore
-	EventHandler     *EventHandler
-	FrontendURL      string // For internal service-to-service calls (e.g., http://frontend:3000)
-	EmailFrontendURL string // For email links that users click (e.g., http://localhost:3000)
+	Store               *store.PostgresStore
+	Sender              *email.Sender
+	TokenStore          *auth.TokenStore
+	EventHandler        *EventHandler
+	FrontendURL         string // For internal service-to-service calls (e.g., http://frontend:3000)
+	EmailFrontendURL    string // For email links that users click (e.g., http://localhost:3000)
+	UnsubscribeSecret   string // HMAC secret for signing unsubscribe tokens
 }
 
 // ForgotPasswordRequest represents a forgot password request
@@ -720,6 +724,49 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	w.Write(pixel)
+}
+
+// HandleUnsubscribe handles GET /v1/unsubscribe?uid=<userID>&t=<hmac>
+// Public endpoint — verifies a signed token then opts the user out of all marketing emails.
+func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	uid := r.URL.Query().Get("uid")
+	token := r.URL.Query().Get("t")
+	if uid == "" || token == "" {
+		http.Error(w, "invalid unsubscribe link", http.StatusBadRequest)
+		return
+	}
+
+	// Verify HMAC
+	mac := hmac.New(sha256.New, []byte(h.UnsubscribeSecret))
+	mac.Write([]byte(uid))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(token), []byte(expected)) {
+		http.Error(w, "invalid unsubscribe link", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.Store.UnsubscribeUser(r.Context(), uid); err != nil {
+		slog.Error("unsubscribe: failed to update preferences", "user_id", uid, "error", err)
+		http.Error(w, "something went wrong, please try again", http.StatusInternalServerError)
+		return
+	}
+
+	slog.Info("user unsubscribed", "user_id", uid)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unsubscribed — Studojo</title>
+<style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
+.card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
+h1{font-size:24px;font-weight:700;margin:0 0 12px;}
+p{color:#525252;font-size:15px;line-height:1.7;margin:0 0 20px;}
+a{color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
+</head><body><div class="card">
+<h1>You're unsubscribed.</h1>
+<p>You won't receive marketing emails from Studojo anymore. Transactional emails (password resets, payment confirmations) will still come through.</p>
+<p><a href="https://studojo.com">Back to Studojo</a></p>
+</div></body></html>`)
 }
 
 // Helper functions

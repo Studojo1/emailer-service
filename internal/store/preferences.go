@@ -208,6 +208,19 @@ func (s *PostgresStore) CountUsersBySignupDate(ctx context.Context, withinDays i
 	return count, err
 }
 
+// UnsubscribeUser sets all marketing email preferences to false for a user.
+// Uses upsert so it works even when no preferences row exists yet.
+func (s *PostgresStore) UnsubscribeUser(ctx context.Context, userID string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO email_preferences (id, user_id, product_emails, resume_emails, internship_emails, security_emails, created_at, updated_at)
+		VALUES (gen_random_uuid(), $1, false, false, false, true, NOW(), NOW())
+		ON CONFLICT (user_id) DO UPDATE
+		SET product_emails = false, resume_emails = false, internship_emails = false, updated_at = NOW()`,
+		userID,
+	)
+	return err
+}
+
 // HasPasswordAccount checks if user has a credential (password) account
 func (s *PostgresStore) HasPasswordAccount(ctx context.Context, userID string) (bool, error) {
 	var count int

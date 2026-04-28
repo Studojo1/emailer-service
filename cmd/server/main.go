@@ -195,6 +195,12 @@ func main() {
 	}
 	sender.SetTrackingURL(trackingBaseURL)
 
+	unsubscribeSecret := os.Getenv("UNSUBSCRIBE_SECRET")
+	if unsubscribeSecret == "" {
+		unsubscribeSecret = adminSecret
+	}
+	sender.SetUnsubscribeSecret(unsubscribeSecret, trackingBaseURL)
+
 	// Initialize stores
 	pgStore := store.NewPostgresStore(db)
 	tokenStore := auth.NewTokenStore(db)
@@ -356,12 +362,13 @@ func main() {
 	eventHandler := handlers.NewEventHandler(pgStore, sender, emailFrontendURL)
 
 	httpHandler := &handlers.Handler{
-		Store:            pgStore,
-		Sender:           sender,
-		TokenStore:       tokenStore,
-		EventHandler:     eventHandler,
-		FrontendURL:      frontendURL,
-		EmailFrontendURL: emailFrontendURL,
+		Store:             pgStore,
+		Sender:            sender,
+		TokenStore:        tokenStore,
+		EventHandler:      eventHandler,
+		FrontendURL:       frontendURL,
+		EmailFrontendURL:  emailFrontendURL,
+		UnsubscribeSecret: unsubscribeSecret,
 	}
 
 	// Serve the embedded dashboard SPA
@@ -392,6 +399,7 @@ func main() {
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
 	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
+	mux.HandleFunc("GET /v1/unsubscribe", httpHandler.HandleUnsubscribe)
 
 	// Admin API routes (JWT or ADMIN_SECRET protected)
 	adminMux := http.NewServeMux()

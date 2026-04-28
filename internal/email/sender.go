@@ -2,8 +2,12 @@ package email
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -42,6 +46,9 @@ type Sender struct {
 	// volume is spread evenly across all domains instead of hammering one.
 	senderPool  []string
 	senderIndex uint64 // atomic counter
+
+	unsubscribeSecret  string
+	unsubscribeBaseURL string
 }
 
 // NewSender creates a new email sender
@@ -143,6 +150,23 @@ func (s *Sender) SetTrackingURL(baseURL string) {
 	s.trackingURL = strings.TrimSuffix(baseURL, "/")
 }
 
+// SetUnsubscribeSecret configures the HMAC secret and base URL for signed unsubscribe links.
+func (s *Sender) SetUnsubscribeSecret(secret, baseURL string) {
+	s.unsubscribeSecret = secret
+	s.unsubscribeBaseURL = strings.TrimSuffix(baseURL, "/")
+}
+
+// unsubscribeURL returns a signed one-click unsubscribe URL for the given user ID.
+func (s *Sender) unsubscribeURL(userID string) string {
+	if userID == "" || s.unsubscribeSecret == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, []byte(s.unsubscribeSecret))
+	mac.Write([]byte(userID))
+	token := hex.EncodeToString(mac.Sum(nil))
+	return s.unsubscribeBaseURL + "/v1/unsubscribe?uid=" + url.QueryEscape(userID) + "&t=" + token
+}
+
 // SendTemplateEmail sends an email using a template
 func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string, data interface{}) error {
 	// Inject tracking pixel URL into template data
@@ -156,6 +180,9 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	} else {
 		dataMap["TrackingPixelURL"] = ""
 	}
+
+	uid, _ := ctx.Value(UserIDKey).(string)
+	dataMap["UnsubscribeURL"] = s.unsubscribeURL(uid)
 
 	htmlContent, err := s.renderer.Render(templateName, dataMap)
 	if err != nil {
