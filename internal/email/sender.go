@@ -125,6 +125,7 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 	// Transactional — support domain signals "not marketing" to Gmail
 	case "payment-thankyou", "password-changed", "forgot-password",
 		"resume-optimized", "internship-applied", "contact-form",
+		"ticket-created", "ticket-replied",
 		"welcome", "leads-ready", "signup-thankyou", "signup-followup",
 		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
 		"signup-welcome-v4", "signup-welcome-v5":
@@ -264,6 +265,24 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 			return fmt.Sprintf("Contact Form: %s", subj), nil
 		}
 		return "New Contact Form Submission", nil
+	case "ticket-created":
+		id, _ := data["TicketID"].(int)
+		priority, _ := data["Priority"].(string)
+		category, _ := data["Category"].(string)
+		prefix := ""
+		if priority == "high" {
+			prefix = "[HIGH] "
+		}
+		if id > 0 && category != "" {
+			return fmt.Sprintf("%sNew ticket #%d - %s", prefix, id, category), nil
+		}
+		return fmt.Sprintf("%sNew Studojo support ticket", prefix), nil
+	case "ticket-replied":
+		id, _ := data["TicketID"].(int)
+		if id > 0 {
+			return fmt.Sprintf("Re: Studojo ticket #%d", id), nil
+		}
+		return "Update on your Studojo support ticket", nil
 	// Funnel subjects
 	case "funnel-welcome-new":
 		return "You're in. Here's where to start.", nil

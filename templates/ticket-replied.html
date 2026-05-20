@@ -1,0 +1,18 @@
+{{define "content"}}
+<h2 class="greeting">Hey {{.UserName}},</h2>
+
+<p style="color:#171717;margin:0 0 16px;">The team replied on your support ticket #{{.TicketID}}.</p>
+
+<div class="feature-card" style="border-left:4px solid #7c3aed;">
+    <p style="font-size:13px;color:#737373;margin:0 0 6px;">{{.AdminName}} wrote</p>
+    <p style="color:#171717;margin:0;white-space:pre-wrap;">{{.ReplyBody}}</p>
+</div>
+
+<hr class="divider">
+
+<p style="text-align:center;margin:24px 0;">
+    <a href="{{.StudojoURL}}" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;">View ticket on Studojo</a>
+</p>
+
+<p style="font-size:13px;color:#737373;text-align:center;">You can reply from the support chat on studojo.com, or directly from your profile.</p>
+{{end}}

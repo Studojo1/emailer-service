@@ -75,6 +75,7 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// System
 		"welcome", "forgot-password", "resume-optimized", "internship-applied",
 		"password-changed", "contact-form",
+		"ticket-created", "ticket-replied",
 		// Legacy nurture
 		"nurture-day3", "nurture-day7", "nurture-day14", "nurture-day30",
 		// Funnel — 01 Welcome

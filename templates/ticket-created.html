@@ -1,0 +1,33 @@
+{{define "content"}}
+<h2 class="greeting">New support ticket #{{.TicketID}}</h2>
+
+<div class="feature-card" style="border-left:4px solid {{if eq .Priority "high"}}#dc2626{{else if eq .Priority "low"}}#737373{{else}}#7c3aed{{end}};">
+    <p style="font-size:13px;color:#737373;margin:0 0 4px;">Priority</p>
+    <p style="font-weight:600;color:#171717;margin:0;text-transform:uppercase;letter-spacing:0.5px;">{{.Priority}}</p>
+</div>
+
+<div class="feature-card">
+    <p style="font-size:13px;color:#737373;margin:0 0 4px;">Category</p>
+    <p style="font-weight:600;color:#171717;margin:0;">{{.Category}}</p>
+    <p style="font-size:12px;color:#737373;margin:6px 0 0;">via {{.Source}}</p>
+</div>
+
+<div class="feature-card" style="border-left:4px solid #171717;">
+    <p style="font-size:13px;color:#737373;margin:0 0 4px;">From</p>
+    <p style="font-weight:600;color:#171717;margin:0;">{{.UserName}}</p>
+    <p style="color:#7c3aed;margin:4px 0 0;"><a href="mailto:{{.UserEmail}}" style="color:#7c3aed;">{{.UserEmail}}</a></p>
+</div>
+
+<div class="feature-card">
+    <p style="font-size:13px;color:#737373;margin:0 0 8px;">Description</p>
+    <p style="color:#171717;margin:0;white-space:pre-wrap;">{{.Description}}</p>
+</div>
+
+<hr class="divider">
+
+<p style="text-align:center;margin:24px 0;">
+    <a href="{{.AdminURL}}" style="display:inline-block;background:#7c3aed;color:#ffffff;padding:12px 24px;border-radius:8px;font-weight:600;text-decoration:none;">Open ticket in admin panel</a>
+</p>
+
+<p style="font-size:13px;color:#737373;text-align:center;">Reply to the user from the ticket detail view. Screenshots they attached are visible there.</p>
+{{end}}

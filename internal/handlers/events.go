@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
@@ -162,6 +164,31 @@ type ContactFormEvent struct {
 	Email   string `json:"email"`
 	Subject string `json:"subject"`
 	Message string `json:"message"`
+}
+
+// TicketCreatedEvent fires when a user raises a support ticket on studojo.
+// Recipients is the comma-tolerant list of admin emails to notify.
+type TicketCreatedEvent struct {
+	TicketID    int      `json:"ticket_id"`
+	Category    string   `json:"category"`
+	Priority    string   `json:"priority"`
+	Description string   `json:"description"`
+	UserEmail   string   `json:"user_email"`
+	UserName    string   `json:"user_name"`
+	Source      string   `json:"source"`
+	Recipients  []string `json:"recipients"`
+	AdminURL    string   `json:"admin_url"`
+}
+
+// TicketRepliedEvent fires when an admin replies on a ticket. The reply is
+// emailed back to the ticket owner.
+type TicketRepliedEvent struct {
+	TicketID   int    `json:"ticket_id"`
+	UserEmail  string `json:"user_email"`
+	UserName   string `json:"user_name"`
+	AdminName  string `json:"admin_name"`
+	ReplyBody  string `json:"reply_body"`
+	StudojoURL string `json:"studojo_url"`
 }
 
 // InternshipAppliedEvent represents an internship application event
@@ -364,6 +391,87 @@ func (h *EventHandler) HandleContactForm(ctx context.Context, event *ContactForm
 	return nil
 }
 
+// HandleTicketCreated emails the configured admin recipients when a user
+// raises a support ticket. Falls back to TICKET_ADMIN_RECIPIENTS env var if
+// the event omits a recipient list. Sends one email per recipient so each
+// gets a real "To:" address (not BCC).
+func (h *EventHandler) HandleTicketCreated(ctx context.Context, event *TicketCreatedEvent) error {
+	recipients := event.Recipients
+	if len(recipients) == 0 {
+		envList := os.Getenv("TICKET_ADMIN_RECIPIENTS")
+		if envList != "" {
+			for _, addr := range strings.Split(envList, ",") {
+				if a := strings.TrimSpace(addr); a != "" {
+					recipients = append(recipients, a)
+				}
+			}
+		}
+	}
+	if len(recipients) == 0 {
+		slog.Warn("ticket-created: no recipients configured", "ticket_id", event.TicketID)
+		return nil
+	}
+
+	userName := event.UserName
+	if userName == "" {
+		userName = event.UserEmail
+	}
+	data := map[string]interface{}{
+		"TicketID":    event.TicketID,
+		"Category":    event.Category,
+		"Priority":    event.Priority,
+		"Description": event.Description,
+		"UserEmail":   event.UserEmail,
+		"UserName":    userName,
+		"Source":      event.Source,
+		"AdminURL":    event.AdminURL,
+	}
+
+	var firstErr error
+	for _, to := range recipients {
+		err := h.Sender.SendTemplateEmail(ctx, to, "ticket-created", data)
+		if err != nil {
+			slog.Error("ticket-created: send failed", "to", to, "ticket_id", event.TicketID, "error", err)
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		slog.Info("ticket-created email sent", "to", to, "ticket_id", event.TicketID)
+	}
+	return firstErr
+}
+
+// HandleTicketReplied emails the ticket owner when an admin replies.
+func (h *EventHandler) HandleTicketReplied(ctx context.Context, event *TicketRepliedEvent) error {
+	if event.UserEmail == "" {
+		slog.Warn("ticket-replied: no user_email", "ticket_id", event.TicketID)
+		return nil
+	}
+	userName := event.UserName
+	if userName == "" {
+		userName = "there"
+	}
+	adminName := event.AdminName
+	if adminName == "" {
+		adminName = "The Studojo team"
+	}
+	data := map[string]interface{}{
+		"TicketID":   event.TicketID,
+		"UserName":   userName,
+		"AdminName":  adminName,
+		"ReplyBody":  event.ReplyBody,
+		"StudojoURL": event.StudojoURL,
+	}
+	err := h.Sender.SendTemplateEmail(ctx, event.UserEmail, "ticket-replied", data)
+	if err != nil {
+		slog.Error("ticket-replied: send failed", "to", event.UserEmail, "ticket_id", event.TicketID, "error", err)
+		return err
+	}
+	slog.Info("ticket-replied email sent", "to", event.UserEmail, "ticket_id", event.TicketID)
+	return nil
+}
+
 // HandlePayment handles payment confirmation events
 func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) error {
 	// Dedup per order — one confirmation per OrderID
@@ -445,6 +553,20 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 			return err
 		}
 		return h.HandleContactForm(ctx, &event)
+
+	case "event.ticket.created":
+		var event TicketCreatedEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleTicketCreated(ctx, &event)
+
+	case "event.ticket.replied":
+		var event TicketRepliedEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleTicketReplied(ctx, &event)
 
 	case "event.payment.success":
 		var event PaymentEvent
