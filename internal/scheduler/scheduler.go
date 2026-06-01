@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
+	"github.com/studojo/emailer-service/internal/handlers"
 	"github.com/studojo/emailer-service/internal/store"
 )
 
 // Scheduler polls for due scheduled emails and sends them
 type Scheduler struct {
-	Store            *store.PostgresStore
-	Sender           *email.Sender
-	FrontendURL      string
-	rateLimitUntil   time.Time // circuit breaker: stop sending until quota resets
+	Store          *store.PostgresStore
+	Sender         *email.Sender
+	FrontendURL    string
+	rateLimitUntil time.Time // circuit breaker: stop sending until quota resets
 }
 
 // NewScheduler creates a new Scheduler
@@ -75,11 +76,9 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 
 // runCatchup finds users who missed emails because the service wasn't running
 // when they signed up or completed the quiz, and queues them now.
-// Welcome emails are NOT caught up here — they are already scheduled for all
-// users via the initial backfill and sent exclusively via the signup handler
-// going forward.
 func (sc *Scheduler) runCatchup(ctx context.Context) {
 	sc.catchupSegmentation(ctx)
+	sc.catchupSegmentationV2(ctx)
 	sc.catchupNurture(ctx)
 }
 
@@ -91,11 +90,11 @@ func (sc *Scheduler) catchupNurture(ctx context.Context) {
 	type nurtureSpec struct {
 		emailType  string
 		minDays    int
-		baseOffset time.Duration // delay from now before the first send of this type
+		baseOffset time.Duration
 	}
 	specs := []nurtureSpec{
 		{"nurture_day3", 3, 0},
-		{"nurture_day7", 7, 24 * time.Hour},
+		{"nurture_day10", 10, 24 * time.Hour}, // moved from day-7 slot
 		{"nurture_day14", 14, 48 * time.Hour},
 		{"nurture_day30", 30, 72 * time.Hour},
 	}
@@ -123,10 +122,10 @@ func (sc *Scheduler) catchupNurture(ctx context.Context) {
 	}
 }
 
-// catchupSegmentation queues a segmentation email for any user who completed
+// catchupSegmentation queues a segmentation-v1 email for any user who completed
 // the quiz (has target_roles set) but never received a segmentation email.
 func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
-	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel-segmentation-v1")
+	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel_segmentation_v1")
 	if err != nil {
 		slog.Error("catchup: failed to list quiz-completed users without segmentation email", "error", err)
 		return
@@ -138,15 +137,50 @@ func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
 		if i > 0 && i%20 == 0 {
 			delay += time.Duration(i/20) * 120 * time.Second
 		}
-		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel-segmentation-v1", now.Add(delay)); err != nil {
+		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel_segmentation_v1", now.Add(delay)); err != nil {
 			slog.Error("catchup: failed to queue segmentation", "user_id", u.ID, "error", err)
 			continue
 		}
 		queued++
 	}
 	if queued > 0 {
-		slog.Info("catchup: queued missed segmentation emails", "count", queued)
+		slog.Info("catchup: queued missed segmentation-v1 emails", "count", queued)
 	}
+}
+
+// catchupSegmentationV2 queues a segmentation-v2 email for quiz-completed users
+// who haven't received it yet. Mirrors catchupSegmentation.
+func (sc *Scheduler) catchupSegmentationV2(ctx context.Context) {
+	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel_segmentation_v2")
+	if err != nil {
+		slog.Error("catchup: failed to list quiz-completed users without segmentation-v2 email", "error", err)
+		return
+	}
+	queued := 0
+	now := time.Now().UTC()
+	for i, u := range users {
+		delay := time.Duration(i) * 10 * time.Second
+		if i > 0 && i%20 == 0 {
+			delay += time.Duration(i/20) * 120 * time.Second
+		}
+		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel_segmentation_v2", now.Add(delay)); err != nil {
+			slog.Error("catchup: failed to queue segmentation-v2", "user_id", u.ID, "error", err)
+			continue
+		}
+		queued++
+	}
+	if queued > 0 {
+		slog.Info("catchup: queued missed segmentation-v2 emails", "count", queued)
+	}
+}
+
+// isNurtureType returns true for email types that are part of the nurture sequence.
+func isNurtureType(emailType string) bool {
+	switch emailType {
+	case "nurture_day3", "nurture_day10", "nurture_day14", "nurture_day30":
+		return true
+	}
+	return false
 }
 
 // send attempts to send a single scheduled email.
@@ -170,6 +204,18 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		return false
 	}
 
+	// Suppress nurture emails for paid users — silently drain the row
+	if isNurtureType(e.EmailType) {
+		paid, err := sc.Store.IsUserPaid(ctx, e.UserID)
+		if err != nil {
+			slog.Warn("scheduler: paid check failed, sending nurture anyway", "user_id", e.UserID, "err", err)
+		} else if paid {
+			slog.Info("scheduler: suppressing nurture for paid user", "user_id", e.UserID, "type", e.EmailType)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
+		}
+	}
+
 	already, err := sc.Store.HasReceivedEmail(ctx, e.UserID, e.EmailType)
 	if err != nil {
 		slog.Error("scheduler: dedup check failed", "user_id", e.UserID, "type", e.EmailType, "error", err)
@@ -187,14 +233,14 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	case "nurture_day3":
 		templateData = map[string]interface{}{"UserName": user.Name, "InternshipURL": sc.FrontendURL + "/outreach"}
-	case "nurture_day7":
+	case "nurture_day10":
 		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "nurture_day14":
 		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "nurture_day30":
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
-		if strings.HasPrefix(e.EmailType, "funnel-") {
+		if strings.HasPrefix(e.EmailType, "funnel") {
 			templateData = map[string]interface{}{"UserName": user.Name}
 		} else {
 			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
@@ -219,6 +265,12 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		slog.Error("scheduler: failed to mark sent", "error", err, "id", e.ID)
 	}
 	slog.Info("scheduler: email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
+
+	// After segmentation fires, automatically schedule the follow-up sequence
+	if e.EmailType == "funnel_segmentation_v1" || e.EmailType == "funnel_segmentation_v2" {
+		handlers.ScheduleFunnelSequence(ctx, sc.Store, e.UserID, time.Now().UTC())
+	}
+
 	return false
 }
 
@@ -226,14 +278,24 @@ func emailTypeToTemplate(emailType string) string {
 	switch emailType {
 	case "nurture_day3":
 		return "nurture-day3"
-	case "nurture_day7":
-		return "nurture-day7"
+	case "nurture_day10":
+		return "nurture-day7" // content unchanged; slot moved from day-7 to day-10
 	case "nurture_day14":
 		return "nurture-day14"
 	case "nurture_day30":
 		return "nurture-day30"
 	case "leads_ready":
 		return "leads-ready"
+	case "funnel_segmentation_v1":
+		return "funnel-segmentation-v1"
+	case "funnel_segmentation_v2":
+		return "funnel-segmentation-v2"
+	case "funnel_followup_v1":
+		return "funnel-followup-v1"
+	case "funnel_pitching_v1":
+		return "funnel-pitching-v1"
+	case "funnel_recognition_v1":
+		return "funnel-recognition-v1"
 	default:
 		// funnel-* types already have the right hyphenated name
 		return emailType

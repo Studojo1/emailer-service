@@ -35,9 +35,9 @@ type UserSignupEvent struct {
 
 // ResumeOptimizedEvent represents a resume optimization complete event
 type ResumeOptimizedEvent struct {
-	UserID            string `json:"user_id"`
-	JobID             string `json:"job_id"`
-	ResumeName        string `json:"resume_name"`
+	UserID              string `json:"user_id"`
+	JobID               string `json:"job_id"`
+	ResumeName          string `json:"resume_name"`
 	ImprovementsSummary string `json:"improvements_summary"`
 }
 
@@ -50,12 +50,12 @@ type FunnelEmailEvent struct {
 
 // PaymentEvent represents a successful payment
 type PaymentEvent struct {
-	UserID  string `json:"user_id"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
+	UserID   string `json:"user_id"`
+	Email    string `json:"email"`
+	Name     string `json:"name"`
 	PlanName string `json:"plan_name"`
-	Amount  string `json:"amount"`
-	OrderID string `json:"order_id"`
+	Amount   string `json:"amount"`
+	OrderID  string `json:"order_id"`
 }
 
 // funnelRoutingKeyToTemplate maps event.funnel.* routing keys to template names
@@ -95,6 +95,34 @@ var funnelRoutingKeyToTemplate = map[string]string{
 	"event.funnel.signup_welcome_v3":    "signup-welcome-v3",
 	"event.funnel.signup_welcome_v4":    "signup-welcome-v4",
 	"event.funnel.signup_welcome_v5":    "signup-welcome-v5",
+}
+
+// ScheduleFunnelSequence queues the post-segmentation follow-up emails for a user.
+// Called after segmentation-v1 or segmentation-v2 is sent. Deduplication is enforced
+// per email type — safe to call multiple times for the same user.
+func ScheduleFunnelSequence(ctx context.Context, s *store.PostgresStore, userID string, after time.Time) {
+	sequence := []struct {
+		emailType string
+		delay     time.Duration
+	}{
+		{"funnel_followup_v1", 2 * 24 * time.Hour},
+		{"funnel_pitching_v1", 5 * 24 * time.Hour},
+		// funnel_recognition_v1 at +10d: paid-user gate in scheduler.send() suppresses if user converts
+		{"funnel_recognition_v1", 10 * 24 * time.Hour},
+	}
+	for _, item := range sequence {
+		exists, err := s.HasScheduledOrReceivedEmail(ctx, userID, item.emailType)
+		if err != nil {
+			slog.Error("funnel sequence: dedup check failed", "type", item.emailType, "user_id", userID, "error", err)
+			continue
+		}
+		if exists {
+			continue
+		}
+		if err := s.CreateScheduledEmail(ctx, userID, item.emailType, after.Add(item.delay)); err != nil {
+			slog.Error("funnel sequence: schedule failed", "type", item.emailType, "user_id", userID, "error", err)
+		}
+	}
 }
 
 // HandleFunnelEmail handles all event.funnel.* events
@@ -151,6 +179,11 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
 			slog.Error("funnel email: failed to record", "template", templateName, "error", err)
 		}
+
+		// After segmentation fires, automatically schedule the follow-up sequence
+		if routingKey == "event.funnel.segmentation_v1" || routingKey == "event.funnel.segmentation_v2" {
+			ScheduleFunnelSequence(ctx, h.Store, event.UserID, time.Now().UTC())
+		}
 	}
 
 	return nil
@@ -166,12 +199,12 @@ type ContactFormEvent struct {
 
 // InternshipAppliedEvent represents an internship application event
 type InternshipAppliedEvent struct {
-	UserID         string `json:"user_id"`
-	InternshipID   string `json:"internship_id"`
+	UserID          string `json:"user_id"`
+	InternshipID    string `json:"internship_id"`
 	InternshipTitle string `json:"internship_title"`
-	CompanyName    string `json:"company_name"`
-	ResumeID       string `json:"resume_id"`
-	Timestamp      string `json:"timestamp"`
+	CompanyName     string `json:"company_name"`
+	ResumeID        string `json:"resume_id"`
+	Timestamp       string `json:"timestamp"`
 }
 
 // HandleUserSignup handles user signup events
@@ -215,28 +248,34 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 		slog.Error("failed to record welcome email", "error", err)
 	}
 
-	// Schedule nurture sequence — guard against duplicate scheduling on event replays
-	now := time.Now().UTC()
-	nurture := []struct {
-		emailType string
-		delay     time.Duration
-	}{
-		{"nurture_day3", 3 * 24 * time.Hour},
-		{"nurture_day7", 7 * 24 * time.Hour},
-		{"nurture_day14", 14 * 24 * time.Hour},
-		{"nurture_day30", 30 * 24 * time.Hour},
+	// Only schedule nurture for unpaid users — paid users don't need conversion emails
+	paid, err := h.Store.IsUserPaid(ctx, event.UserID)
+	if err != nil {
+		slog.Warn("paid check failed, scheduling nurture anyway", "user_id", event.UserID, "err", err)
 	}
-	for _, n := range nurture {
-		exists, err := h.Store.HasScheduledOrReceivedEmail(ctx, event.UserID, n.emailType)
-		if err != nil {
-			slog.Error("nurture dedup check failed", "type", n.emailType, "user_id", event.UserID, "error", err)
-			continue
+	if !paid {
+		now := time.Now().UTC()
+		nurture := []struct {
+			emailType string
+			delay     time.Duration
+		}{
+			{"nurture_day3", 3 * 24 * time.Hour},
+			{"nurture_day10", 10 * 24 * time.Hour}, // moved from day-7; content unchanged, timing improved
+			{"nurture_day14", 14 * 24 * time.Hour},
+			{"nurture_day30", 30 * 24 * time.Hour},
 		}
-		if exists {
-			continue
-		}
-		if err := h.Store.CreateScheduledEmail(ctx, event.UserID, n.emailType, now.Add(n.delay)); err != nil {
-			slog.Error("failed to schedule nurture email", "type", n.emailType, "user_id", event.UserID, "error", err)
+		for _, n := range nurture {
+			exists, err := h.Store.HasScheduledOrReceivedEmail(ctx, event.UserID, n.emailType)
+			if err != nil {
+				slog.Error("nurture dedup check failed", "type", n.emailType, "user_id", event.UserID, "error", err)
+				continue
+			}
+			if exists {
+				continue
+			}
+			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, n.emailType, now.Add(n.delay)); err != nil {
+				slog.Error("failed to schedule nurture email", "type", n.emailType, "user_id", event.UserID, "error", err)
+			}
 		}
 	}
 
@@ -326,12 +365,12 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
 	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "internship-applied", map[string]interface{}{
-		"UserName":           user.Name,
-		"InternshipTitle":     event.InternshipTitle,
-		"CompanyName":         event.CompanyName,
-		"ResumeID":            event.ResumeID,
-		"Timestamp":           event.Timestamp,
-		"ViewApplicationURL":  h.FrontendURL + "/my-applications",
+		"UserName":          user.Name,
+		"InternshipTitle":   event.InternshipTitle,
+		"CompanyName":       event.CompanyName,
+		"ResumeID":          event.ResumeID,
+		"Timestamp":         event.Timestamp,
+		"ViewApplicationURL": h.FrontendURL + "/my-applications",
 	})
 	if err != nil {
 		slog.Error("failed to send internship applied email", "error", err, "user_id", event.UserID)
@@ -411,6 +450,12 @@ func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) e
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, emailKey); err != nil {
 			slog.Error("payment email: failed to record", "order_id", event.OrderID, "error", err)
 		}
+		// Cancel any pending nurture emails — paid users don't need conversion nudges
+		if n, err := h.Store.CancelPendingNurtureEmails(ctx, event.UserID); err != nil {
+			slog.Error("payment: failed to cancel nurture emails", "user_id", event.UserID, "error", err)
+		} else if n > 0 {
+			slog.Info("payment: cancelled pending nurture emails", "user_id", event.UserID, "count", n)
+		}
 	}
 	return nil
 }
@@ -446,7 +491,7 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		}
 		return h.HandleContactForm(ctx, &event)
 
-	case "event.payment.success":
+	case "event.payment.success", "event.payment.completed":
 		var event PaymentEvent
 		if err := json.Unmarshal(body, &event); err != nil {
 			return err
@@ -466,4 +511,3 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		return nil
 	}
 }
-

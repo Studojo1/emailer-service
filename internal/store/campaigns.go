@@ -82,6 +82,18 @@ func (s *PostgresStore) GetCampaign(ctx context.Context, id string) (*Campaign, 
 	return &c, nil
 }
 
+// IsUserPaid returns true if the user has a non-failed outreach order (i.e. has paid).
+// Fails soft — callers should log and proceed if this returns an error.
+func (s *PostgresStore) IsUserPaid(ctx context.Context, userID string) (bool, error) {
+	var paid bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM outreach_orders
+			WHERE user_id = $1 AND status NOT IN ('created','failed')
+		)`, userID).Scan(&paid)
+	return paid, err
+}
+
 // UpdateCampaignStatus updates status, sent_at, and recipient counts
 func (s *PostgresStore) UpdateCampaignStatus(ctx context.Context, id, status string, sentAt *time.Time, total, sent int) error {
 	_, err := s.db.ExecContext(ctx, `
