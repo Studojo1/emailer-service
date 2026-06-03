@@ -99,6 +99,8 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"funnel-walkthrough", "funnel-educational", "funnel-winback",
 		// Outreach funnel — order stage triggers
 		"leads-ready",
+		// Career Coach
+		"checkin-reminder",
 		// Priority transactional
 		"signup-thankyou", "signup-followup", "payment-thankyou", "service-update",
 		// Welcome variants (A/B testing)
