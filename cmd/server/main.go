@@ -397,6 +397,7 @@ func main() {
 	mux.HandleFunc("GET /v1/email/preferences/{user_id}", httpHandler.HandleGetEmailPreferences)
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
+	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
 	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
 	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
 	mux.HandleFunc("GET /v1/unsubscribe", httpHandler.HandleUnsubscribe)
