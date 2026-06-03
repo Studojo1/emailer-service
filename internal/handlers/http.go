@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -778,5 +779,44 @@ func writeJSON(w http.ResponseWriter, data interface{}, statusCode int) {
 
 func writeError(w http.ResponseWriter, message string, statusCode int) {
 	writeJSON(w, map[string]string{"error": message}, statusCode)
+}
+
+// CheckinReminderRequest is the body for POST /v1/email/checkin-reminder.
+type CheckinReminderRequest struct {
+	To       string `json:"to"`
+	UserName string `json:"user_name"`
+}
+
+// HandleCheckinReminder sends the Career Coach weekly check-in reminder.
+// Internal service-to-service route (the coach calls it). Gated by the
+// X-Internal-Secret header matching INTERNAL_SECRET. Unlike the funnel events
+// it does NOT dedup, since the reminder is intentionally recurring (weekly).
+func (h *Handler) HandleCheckinReminder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req CheckinReminderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" {
+		writeError(w, "to is required", http.StatusBadRequest)
+		return
+	}
+	if req.UserName == "" {
+		req.UserName = "there"
+	}
+	ctx := r.Context()
+	if err := h.Sender.SendTemplateEmail(ctx, req.To, "checkin-reminder", map[string]interface{}{
+		"UserName": req.UserName,
+	}); err != nil {
+		slog.Error("checkin-reminder send failed", "to", req.To, "error", err)
+		writeError(w, "send failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "sent", "to": req.To}, http.StatusOK)
 }
 
