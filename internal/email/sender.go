@@ -241,6 +241,8 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "A note on service continuity", nil
 	case "leads-ready":
 		return "Your leads are ready.", nil
+	case "checkin-reminder":
+		return "Your weekly check-in is due", nil
 	case "welcome":
 		return "You just made a better decision than most students will this week.", nil
 	case "forgot-password":
