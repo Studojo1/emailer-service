@@ -105,10 +105,11 @@ func ScheduleFunnelSequence(ctx context.Context, s *store.PostgresStore, userID 
 		emailType string
 		delay     time.Duration
 	}{
-		{"funnel_followup_v1", 2 * 24 * time.Hour},
-		{"funnel_pitching_v1", 5 * 24 * time.Hour},
-		// funnel_recognition_v1 at +10d: paid-user gate in scheduler.send() suppresses if user converts
-		{"funnel_recognition_v1", 10 * 24 * time.Hour},
+		{"funnel_segmentation_v2", 3 * 24 * time.Hour},  // follow-up segmentation, 3 days after v1
+		{"funnel_followup_v1", 5 * 24 * time.Hour},
+		{"funnel_pitching_v1", 8 * 24 * time.Hour},
+		// funnel_recognition_v1 at +13d: paid-user gate in scheduler.send() suppresses if user converts
+		{"funnel_recognition_v1", 13 * 24 * time.Hour},
 	}
 	for _, item := range sequence {
 		exists, err := s.HasScheduledOrReceivedEmail(ctx, userID, item.emailType)
@@ -180,8 +181,8 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 			slog.Error("funnel email: failed to record", "template", templateName, "error", err)
 		}
 
-		// After segmentation fires, automatically schedule the follow-up sequence
-		if routingKey == "event.funnel.segmentation_v1" || routingKey == "event.funnel.segmentation_v2" {
+		// Only schedule the follow-up sequence from v1 — v2 is itself part of the sequence
+		if routingKey == "event.funnel.segmentation_v1" {
 			ScheduleFunnelSequence(ctx, h.Store, event.UserID, time.Now().UTC())
 		}
 	}

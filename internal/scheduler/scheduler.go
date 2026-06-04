@@ -78,7 +78,6 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 // when they signed up or completed the quiz, and queues them now.
 func (sc *Scheduler) runCatchup(ctx context.Context) {
 	sc.catchupSegmentation(ctx)
-	sc.catchupSegmentationV2(ctx)
 	sc.catchupNurture(ctx)
 }
 
@@ -267,7 +266,8 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	slog.Info("scheduler: email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
 
 	// After segmentation fires, automatically schedule the follow-up sequence
-	if e.EmailType == "funnel_segmentation_v1" || e.EmailType == "funnel_segmentation_v2" {
+	// Only schedule the follow-up sequence from v1 — v2 is itself part of the sequence
+	if e.EmailType == "funnel_segmentation_v1" {
 		handlers.ScheduleFunnelSequence(ctx, sc.Store, e.UserID, time.Now().UTC())
 	}
 
