@@ -337,6 +337,95 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Did you get a chance to try it?", nil
 	case "payment-thankyou":
 		return "Your payment is confirmed. You're all set.", nil
+	// ── Career Coach / new efficient flows ──
+	case "cc-welcome-new-user":
+		return "You're in the top 3%. Here's how we know.", nil
+	case "cc-outreach-nudge-d1":
+		return "Did you get a chance to try Outreach Dojo?", nil
+	case "cc-outreach-nudge-d2":
+		return "What one student got after using Outreach Dojo", nil
+	case "cc-outreach-nudge-d3":
+		return "Here's exactly how to get started", nil
+	case "cc-outreach-nudge-d4":
+		return "The number that changes everything", nil
+	case "cc-outreach-push1":
+		return "You started. Here's what happens next", nil
+	case "cc-outreach-push2":
+		return "Students who finished this got real replies", nil
+	case "cc-outreach-push3":
+		return "You're one step away", nil
+	case "cc-outreach-convert1":
+		return "Here's what you actually get", nil
+	case "cc-outreach-convert2":
+		return "After you sign up. Here's exactly what happens", nil
+	case "cc-outreach-payment-page":
+		return "You were right there", nil
+	case "cc-outreach-coupon":
+		return "Something from me, Jeremy", nil
+	case "cc-welcome":
+		return "You asked for an honest look. Good.", nil
+	case "cc-nudge-1":
+		return "Did you get started?", nil
+	case "cc-nudge-2":
+		return "What the coach actually tells you", nil
+	case "cc-nudge-3":
+		return "What changed when she finally started", nil
+	case "cc-profiling-idle-1":
+		return "You started. Pick up where you left off.", nil
+	case "cc-profiling-idle-2":
+		return "You're closer than you think", nil
+	case "cc-profiling-idle-3":
+		return "What Vikram found when he finished", nil
+	case "cc-dna-ready":
+		return "Your career analysis is ready", nil
+	case "cc-dna-confirm-nudge":
+		return "Your analysis needs your confirmation", nil
+	case "cc-roadmap-delivered":
+		return "You have your roadmap. Here is how to use it.", nil
+	case "cc-checkin-1":
+		return "One action. This week.", nil
+	case "cc-checkin-2":
+		return "What students who act do differently", nil
+	case "cc-checkin-3":
+		return "Have you marked anything complete yet?", nil
+	case "cc-upskill-nudge":
+		return "The coach gets sharper every time you use it", nil
+	case "cc-coupon-unlock":
+		return "Log your progress and unlock something", nil
+	case "cc-dormant":
+		return "Most students stop here", nil
+	case "cc-to-outreach":
+		return "You know where you stand. Here is what to do with it.", nil
+	case "cc-returning-1":
+		return "Your analysis is still there", nil
+	case "cc-returning-2":
+		return "The gap closes fast when you focus", nil
+	case "cc-returning-3":
+		return "The most direct path from here", nil
+	case "cc-rm-strong-1":
+		return "Your resume is strong. Here is the next move.", nil
+	case "cc-rm-strong-2":
+		return "What students with strong resumes do next", nil
+	case "cc-rm-strong-3":
+		return "Your resume is ready. Are you using it?", nil
+	case "cc-rm-weak-1":
+		return "Your resume is a start. Here is what to do next.", nil
+	case "cc-rm-weak-2":
+		return "What was actually holding her back", nil
+	case "cc-rm-weak-3":
+		return "Before you apply, know where you stand", nil
+	case "cc-id-two-tools":
+		return "You have been applying. Here are two tools that change the results.", nil
+	case "cc-id-reengage-1":
+		return "The reason your applications are not landing", nil
+	case "cc-id-reengage-2":
+		return "How Rohan went from silence to three interviews", nil
+	case "cc-old-1":
+		return "The job search has changed since you were last here", nil
+	case "cc-old-2":
+		return "The students who came back", nil
+	case "cc-old-3":
+		return "One step, whenever you are ready", nil
 	default:
 		return "From Studojo", nil
 	}

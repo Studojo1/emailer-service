@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You know where you stand. Here is what to do with it.</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .bridge-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .bridge-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
+    .bridge-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #333; line-height: 1.6; }
+    .bridge-row:last-child { margin-bottom: 0; }
+    .bridge-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 7px; }
+    .testimonial-block { background-color: #f3f0ff; border-left: 4px solid #7c3aed; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; }
+    .testimonial-text { font-size: 15px; color: #222; line-height: 1.8; font-style: italic; margin: 0 0 12px; }
+    .testimonial-author { font-size: 13px; font-weight: 700; color: #7c3aed; margin: 0; }
+    .result-line { display: inline-block; background: #f0fdf4; border: 1.5px solid #10b981; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-top: 8px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You've been through the Career Coach. You have a picture of where you stand, what your gaps are, and what to work on. That's more than most students applying for the same roles as you.</p>
+
+      <p class="body-text">The next step is reaching the people who can actually act on it.</p>
+
+      <div class="bridge-box">
+        <div class="bridge-title">Here is what Outreach Dojo does</div>
+        <div class="bridge-row">
+          <div class="bridge-dot"></div>
+          <div>We find the right hiring managers at your target companies on LinkedIn. Not HR departments. The actual people who make or influence hiring decisions.</div>
+        </div>
+        <div class="bridge-row">
+          <div class="bridge-dot"></div>
+          <div>We write a personalised note to each one on your behalf. Built around their team, their company's work, and why you are reaching out specifically.</div>
+        </div>
+        <div class="bridge-row">
+          <div class="bridge-dot"></div>
+          <div>You review every message before it goes out. Nothing is sent without your approval.</div>
+        </div>
+        <div class="bridge-row">
+          <div class="bridge-dot"></div>
+          <div>You start getting replies. From people who read your message, found it specific and genuine, and want to talk.</div>
+        </div>
+      </div>
+
+      <div class="testimonial-block">
+        <p class="testimonial-text">"I used Career Coach first to understand where I actually stood. Then I started Outreach Dojo. The coach had told me my reply probability was around 20%. Within a week of outreach I had 4 replies. The two tools together made sense in a way neither would have alone."</p>
+        <p class="testimonial-author">Sanjana P., student, Hyderabad</p>
+        <div class="result-line">4 replies in 7 days. 2 interview conversations started.</div>
+      </div>
+
+      <p class="body-text">The coach built the map. This is how you use it.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Start your outreach &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

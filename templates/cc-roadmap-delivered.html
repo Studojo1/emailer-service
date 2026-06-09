@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You have your roadmap. Here is how to use it.</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .how-box { background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .how-item { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+    .how-item:last-child { margin-bottom: 0; }
+    .how-num { flex-shrink: 0; width: 26px; height: 26px; background: #19191a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .how-title { font-size: 14px; font-weight: 700; color: #111; margin: 0 0 3px; }
+    .how-desc { font-size: 13px; color: #666; line-height: 1.6; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <div class="tag">Roadmap Ready</div>
+
+      <h1 class="headline">You have your roadmap.<br>Here is how to actually use it.</h1>
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">Most students who get to this point do one of two things. They read their roadmap once, feel good about it, and don't act on it. Or they try to do everything at once and burn out in a week.</p>
+
+      <p class="body-text">Here is what the students who actually move forward do:</p>
+
+      <div class="how-box">
+        <div class="how-item">
+          <div class="how-num">1</div>
+          <div>
+            <div class="how-title">Pick the top action only</div>
+            <div class="how-desc">Your roadmap has priority actions ranked in order. Look at the first one. Only that one. Ignore the rest for now.</div>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="how-num">2</div>
+          <div>
+            <div class="how-title">Set a specific deadline for it</div>
+            <div class="how-desc">Not "this week." A date. "I will have this done by Tuesday." Specificity is the difference between an intention and a plan.</div>
+          </div>
+        </div>
+        <div class="how-item">
+          <div class="how-num">3</div>
+          <div>
+            <div class="how-title">Log it in the coach when it's done</div>
+            <div class="how-desc">Mark it complete in your dashboard. Your readiness score updates. You see what moved and what to focus on next.</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="body-text">The fastest path to your first hiring manager reply is a strong profile backed by direct outreach. Your roadmap is building the first half. Outreach Dojo handles the second.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Open your roadmap &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

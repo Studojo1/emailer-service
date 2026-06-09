@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What students with strong resumes do next</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .stat-row { display: flex; gap: 12px; margin: 24px 0; }
+    .stat-card { flex: 1; border-radius: 12px; padding: 16px; text-align: center; border: 2px solid #e5e5e5; }
+    .stat-card.highlight { border-color: #7c3aed; background: #f3f0ff; }
+    .stat-num { font-size: 32px; font-weight: 800; color: #111; line-height: 1; margin-bottom: 6px; }
+    .stat-card.highlight .stat-num { color: #7c3aed; }
+    .stat-label { font-size: 12px; color: #777; line-height: 1.4; }
+    .testimonial-block { background-color: #f3f0ff; border-left: 4px solid #7c3aed; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; }
+    .testimonial-text { font-size: 15px; color: #222; line-height: 1.8; font-style: italic; margin: 0 0 12px; }
+    .testimonial-author { font-size: 13px; font-weight: 700; color: #7c3aed; margin: 0; }
+    .result-line { display: inline-block; background: #f0fdf4; border: 1.5px solid #10b981; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-top: 8px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You built a resume. Most students stop there. The ones who get replies do one more thing: they get their profile in front of the right people directly.</p>
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-num">~2%</div>
+          <div class="stat-label">Reply rate applying through portals with a strong resume</div>
+        </div>
+        <div class="stat-card highlight">
+          <div class="stat-num">~25%</div>
+          <div class="stat-label">Reply rate with personalised direct outreach to hiring managers</div>
+        </div>
+      </div>
+
+      <p class="body-text">The resume is the foundation. Outreach is how you use it. Here is what that looks like when both come together:</p>
+
+      <div class="testimonial-block">
+        <p class="testimonial-text">"I built my resume on Studojo and then used Outreach Dojo the same week. I had never thought about reaching out directly to hiring managers. Within a few days I had two replies from people I genuinely wanted to work with. The resume gave me something real to back up the message."</p>
+        <p class="testimonial-author">Anika S., student, Pune</p>
+        <div class="result-line">2 replies in 5 days. 1 interview scheduled.</div>
+      </div>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Start your outreach &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

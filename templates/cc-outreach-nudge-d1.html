@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Did you get a chance to try Outreach Dojo?</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .highlight { background-color: #f3f0ff; border-radius: 10px; padding: 20px 24px; margin: 24px 0; }
+    .highlight-text { font-size: 15px; color: #333; line-height: 1.7; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You signed up a few hours ago. Did you get a chance to try Outreach Dojo?</p>
+
+      <p class="body-text">Most students who sign up tell us the same thing afterwards: they wish they'd started sooner. Not because it's complicated. Because it works fast, and they spent weeks before it doing the wrong thing.</p>
+
+      <div class="highlight">
+        <p class="highlight-text">Here's what it does: you tell us the role and companies you want. We find the actual hiring managers on LinkedIn, the people who decide who gets interviewed, and write a personalised note to each one. You review it, it goes out. That's the whole thing.</p>
+      </div>
+
+      <p class="body-text">Three minutes to get started. Most students have their first outreach batch ready the same day.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Try Outreach Dojo &rarr;</a>
+
+      <p class="body-text">Any questions, just reply here. I read every email.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

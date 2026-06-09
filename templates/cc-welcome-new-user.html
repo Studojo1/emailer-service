@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Studojo</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 30px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .tool-card { border: 2px solid #e5e5e5; border-radius: 14px; padding: 22px 26px; margin-bottom: 14px; }
+    .tool-name { font-size: 16px; font-weight: 800; color: #111111; margin: 0 0 6px; }
+    .tool-desc { font-size: 14px; color: #555555; line-height: 1.7; margin: 0 0 14px; }
+    .tool-link { font-size: 14px; font-weight: 700; color: #7c3aed; text-decoration: none; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 36px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+
+    <div class="header">
+      <div class="header-logo">Studojo</div>
+    </div>
+
+    <div class="body">
+
+      <div class="tag">Welcome</div>
+
+      <h1 class="headline">You're in the top 3%.<br>Here's how we know.</h1>
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">Most students in India apply to 200 jobs on portals, hear nothing back, and assume the market is bad. They're not wrong about the market. They're wrong about the method.</p>
+
+      <p class="body-text">The 3% who consistently land interviews and internships at companies they actually want? They don't apply more. They reach the right people, say the right thing, and show up prepared.</p>
+
+      <p class="body-text">You signed up for Studojo. That already tells us you're not willing to just wait and hope. So here's what we built to guide you there:</p>
+
+      <div class="tool-card">
+        <div class="tool-name">Outreach Dojo</div>
+        <div class="tool-desc">We find the hiring managers at companies you want to work at, and write a personalised note to each one on your behalf. Not a template blast. A message written specifically for that person and that team. The kind that gets a reply.</div>
+        <a class="tool-link" href="https://studojo.com/outreach">Start your outreach &rarr;</a>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-name">Career Coach</div>
+        <div class="tool-desc">An AI coach that builds your career profile, identifies your exact gaps, and tells you what to fix first. No generic tips. A real map of where you stand and what moves you forward, specific to you.</div>
+        <a class="tool-link" href="https://studojo.com/career-coach">Talk to your coach &rarr;</a>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-name">Internship Dojo</div>
+        <div class="tool-desc">Every internship listing that's actually worth your time, curated and updated. No sponsored posts. No ghost listings. Just roles you can realistically land.</div>
+        <a class="tool-link" href="https://studojo.com/dojos/internships">Browse internships &rarr;</a>
+      </div>
+
+      <hr class="divider" />
+
+      <div class="sign-off">
+        <p>We started Studojo because we watched too many sharp students get filtered out by a broken system. These tools exist to change that.</p>
+        <p>Reply to this email any time if you need help getting started. I read everything.</p>
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+
+    </div>
+
+    <div class="footer">
+      <p class="footer-text">
+        Studojo · studojo.com<br />
+        You're receiving this because you signed up at studojo.com.
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>

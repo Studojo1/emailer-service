@@ -820,3 +820,48 @@ func (h *Handler) HandleCheckinReminder(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]string{"status": "sent", "to": req.To}, http.StatusOK)
 }
 
+// SendTemplateRequest is the body for POST /v1/email/send-template.
+type SendTemplateRequest struct {
+	To         string `json:"to"`
+	Template   string `json:"template"`
+	UserName   string `json:"user_name"`
+	CouponCode string `json:"coupon_code"`
+}
+
+// HandleSendTemplate sends any registered template by name. Internal
+// service-to-service route (the Career Coach backend calls it for all the
+// new flow emails). Gated by the X-Internal-Secret header matching
+// INTERNAL_SECRET. Deduplication and scheduling are the caller's
+// responsibility, so this route always sends what it is asked to.
+func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req SendTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" || req.Template == "" {
+		writeError(w, "to and template are required", http.StatusBadRequest)
+		return
+	}
+	if req.UserName == "" {
+		req.UserName = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":     req.UserName,
+		"DashboardURL": "https://studojo.com/",
+		"CouponCode":   req.CouponCode,
+	}
+	ctx := r.Context()
+	if err := h.Sender.SendTemplateEmail(ctx, req.To, req.Template, data); err != nil {
+		slog.Error("send-template failed", "to", req.To, "template", req.Template, "error", err)
+		writeError(w, "send failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "sent", "to": req.To, "template": req.Template}, http.StatusOK)
+}
+

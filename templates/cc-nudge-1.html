@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Did you get started?</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .what-it-feels { background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .step-row { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+    .step-row:last-child { margin-bottom: 0; }
+    .step-num { flex-shrink: 0; width: 24px; height: 24px; background: #7c3aed; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .step-text { font-size: 14px; color: #444; line-height: 1.7; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">Did you get a chance to start your career analysis yet?</p>
+
+      <p class="body-text">A lot of students tell us they weren't sure what to expect from the conversation. So here is what it actually looks like:</p>
+
+      <div class="what-it-feels">
+        <div class="step-row">
+          <div class="step-num">1</div>
+          <div class="step-text">The coach asks you about your target role, your background, and what you've done so far. It's a conversation, not a form. You type naturally.</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">2</div>
+          <div class="step-text">It goes deeper into your motivations, where you feel strong, and where you feel stuck. This is the part that makes the analysis specific to you rather than generic.</div>
+        </div>
+        <div class="step-row">
+          <div class="step-num">3</div>
+          <div class="step-text">At the end, it generates your career analysis. What you're strong at, what's holding you back, and the specific actions that move the needle.</div>
+        </div>
+      </div>
+
+      <p class="body-text">Takes about 10 to 15 minutes. You can pause and come back. Nothing gets lost.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Start the conversation &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

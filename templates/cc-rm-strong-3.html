@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your resume is ready. Are you using it?</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .how-box { background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .how-row { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+    .how-row:last-child { margin-bottom: 0; }
+    .how-num { flex-shrink: 0; width: 26px; height: 26px; background: #7c3aed; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .how-title { font-size: 14px; font-weight: 700; color: #111; margin: 0 0 3px; }
+    .how-desc { font-size: 13px; color: #666; line-height: 1.6; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You built your resume a few days ago. Your profile is ready. The question is whether it is reaching anyone.</p>
+
+      <p class="body-text">A resume on its own does not land interviews. A resume backed by direct outreach to the right hiring manager does. Here is exactly what that looks like:</p>
+
+      <div class="how-box">
+        <div class="how-row">
+          <div class="how-num">1</div>
+          <div>
+            <div class="how-title">We take your resume and target role</div>
+            <div class="how-desc">Everything you built in Resume Maker feeds directly into your outreach. Your skills, your background, your target. We use it.</div>
+          </div>
+        </div>
+        <div class="how-row">
+          <div class="how-num">2</div>
+          <div>
+            <div class="how-title">We find the right hiring managers</div>
+            <div class="how-desc">Not HR inboxes. The actual people at your target companies who make or influence hiring decisions.</div>
+          </div>
+        </div>
+        <div class="how-row">
+          <div class="how-num">3</div>
+          <div>
+            <div class="how-title">We write a personalised note to each one</div>
+            <div class="how-desc">Specific to their team, their company, and why you are reaching out. You review it before anything goes out.</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="body-text">Your resume is ready. The next step is getting it in front of people who can act on it.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Start your outreach &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

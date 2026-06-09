@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Have you marked anything complete yet?</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .impact-box { border: 2px solid #e5e5e5; border-radius: 14px; padding: 22px 26px; margin: 24px 0; }
+    .impact-title { font-size: 13px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
+    .impact-row { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; font-size: 14px; color: #444; line-height: 1.5; }
+    .impact-row:last-child { margin-bottom: 0; }
+    .impact-arrow { font-size: 16px; color: #10b981; font-weight: 700; flex-shrink: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">One more check-in. Have you marked any of your priority actions as complete yet?</p>
+
+      <p class="body-text">This isn't about being done. It's about seeing what moves when you act. Each completed action does something concrete to your profile:</p>
+
+      <div class="impact-box">
+        <div class="impact-title">What completing actions actually changes</div>
+        <div class="impact-row">
+          <div class="impact-arrow">+</div>
+          <div>Your readiness score updates to reflect what you've built</div>
+        </div>
+        <div class="impact-row">
+          <div class="impact-arrow">+</div>
+          <div>Your reply probability changes. sometimes significantly</div>
+        </div>
+        <div class="impact-row">
+          <div class="impact-arrow">+</div>
+          <div>The coach reprioritises your remaining actions based on your new position</div>
+        </div>
+        <div class="impact-row">
+          <div class="impact-arrow">+</div>
+          <div>You get a clearer picture of when you're ready for direct outreach</div>
+        </div>
+      </div>
+
+      <p class="body-text">Log one thing. See what changes. Then decide what to do next.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Log a completed action &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

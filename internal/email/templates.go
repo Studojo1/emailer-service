@@ -106,6 +106,29 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// Welcome variants (A/B testing)
 		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
 		"signup-welcome-v4", "signup-welcome-v5",
+		// ── Career Coach / new efficient flows (cc- prefix) ──
+		// Outreach Dojo flow
+		"cc-welcome-new-user",
+		"cc-outreach-nudge-d1", "cc-outreach-nudge-d2", "cc-outreach-nudge-d3", "cc-outreach-nudge-d4",
+		"cc-outreach-push1", "cc-outreach-push2", "cc-outreach-push3",
+		"cc-outreach-convert1", "cc-outreach-convert2",
+		"cc-outreach-payment-page", "cc-outreach-coupon",
+		// Career Coach flow
+		"cc-welcome",
+		"cc-nudge-1", "cc-nudge-2", "cc-nudge-3",
+		"cc-profiling-idle-1", "cc-profiling-idle-2", "cc-profiling-idle-3",
+		"cc-dna-ready", "cc-dna-confirm-nudge", "cc-roadmap-delivered",
+		"cc-checkin-1", "cc-checkin-2", "cc-checkin-3",
+		"cc-upskill-nudge", "cc-coupon-unlock", "cc-dormant",
+		"cc-to-outreach",
+		"cc-returning-1", "cc-returning-2", "cc-returning-3",
+		// Resume Maker flow
+		"cc-rm-strong-1", "cc-rm-strong-2", "cc-rm-strong-3",
+		"cc-rm-weak-1", "cc-rm-weak-2", "cc-rm-weak-3",
+		// Internship Dojo flow
+		"cc-id-two-tools", "cc-id-reengage-1", "cc-id-reengage-2",
+		// Old user re-engagement
+		"cc-old-1", "cc-old-2", "cc-old-3",
 	}
 	for _, name := range templates {
 		if err := tr.LoadTemplate(name); err != nil {

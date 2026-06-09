@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>One step, whenever you are ready</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .two-btn { display: flex; gap: 12px; margin: 24px 0; }
+    .half-btn { flex: 1; text-align: center; font-size: 14px; font-weight: 700; padding: 14px 16px; border-radius: 8px; text-decoration: none; border: 2px solid #19191a; box-shadow: 3px 3px 0 rgba(25,26,35,1); }
+    .half-btn.primary { background: #7c3aed; color: #fff; }
+    .half-btn.ghost { background: #fff; color: #19191a; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">I will keep this short. You do not need a big plan to start again. You need one step.</p>
+
+      <p class="body-text">If you know what you want and just need to reach the right people, start with Outreach Dojo. If you are not sure where you stand or what to focus on, start with the Career Coach. Either one is a real move forward.</p>
+
+      <div class="two-btn">
+        <a class="half-btn primary" href="https://studojo.com/outreach">Outreach Dojo</a>
+        <a class="half-btn ghost" href="https://studojo.pro/career-coach">Career Coach</a>
+      </div>
+
+      <p class="body-text">Whenever you are ready, we are here. Your account and anything you built is still waiting for you.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>
