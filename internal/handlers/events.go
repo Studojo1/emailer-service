@@ -69,11 +69,14 @@ type PaymentEvent struct {
 var ccRoutingKeyToTemplate = map[string]string{
 	// Outreach Dojo
 	"event.cc.welcome_new_user":      "cc-welcome-new-user",
+	"event.cc.outreach_used":         "cc-outreach-push1",
 	"event.cc.outreach_payment_page": "cc-outreach-payment-page",
+	"event.cc.outreach_coupon":       "cc-outreach-coupon",
 	// Career Coach
 	"event.cc.welcome":           "cc-welcome",
 	"event.cc.dna_ready":         "cc-dna-ready",
 	"event.cc.roadmap_delivered": "cc-roadmap-delivered",
+	"event.cc.coupon_unlock":     "cc-coupon-unlock",
 	// Resume Maker
 	"event.cc.resume_strong": "cc-rm-strong-1",
 	"event.cc.resume_weak":   "cc-rm-weak-1",
@@ -121,6 +124,15 @@ var ccSequenceStarters = map[string][]ccSequence{
 		{"cc_outreach_nudge_d2", 31 * hour}, // 7h + 24h
 		{"cc_outreach_nudge_d3", 63 * hour}, // + 32h
 		{"cc_outreach_nudge_d4", 96 * hour}, // day 4
+	},
+	// Outreach USED (high intent): fires when the student uses the outreach tool.
+	// The instant email is push1 (cc-outreach-push1); these are the follow-ups.
+	// Entering this also cancels the not-used nudge chain (see HandleCCEmail).
+	"event.cc.outreach_used": {
+		{"cc_outreach_push2", 24 * hour},
+		{"cc_outreach_push3", 50 * hour},
+		{"cc_outreach_convert1", 60 * hour},
+		{"cc_outreach_convert2", 75 * hour},
 	},
 	// Career Coach NOT started: off cc-welcome
 	"event.cc.welcome": {
@@ -225,6 +237,15 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 	if event.UserID != "" {
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
 			slog.Error("cc email: failed to record", "template", templateName, "error", err)
+		}
+		// Exit rule: using the outreach tool cancels the not-used nudge chain so
+		// a high-intent user never gets "did you try it?" emails.
+		if routingKey == "event.cc.outreach_used" {
+			if n, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_outreach_nudge"); err != nil {
+				slog.Error("cc email: failed to cancel not-used chain", "user_id", event.UserID, "error", err)
+			} else if n > 0 {
+				slog.Info("cc email: cancelled not-used chain on tool use", "user_id", event.UserID, "count", n)
+			}
 		}
 		if steps, ok := ccSequenceStarters[routingKey]; ok {
 			ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
