@@ -125,20 +125,19 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 	// Transactional — support domain signals "not marketing" to Gmail
 	case "payment-thankyou", "password-changed", "forgot-password",
 		"resume-optimized", "internship-applied", "contact-form",
-		"welcome", "leads-ready", "signup-thankyou", "signup-followup",
-		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
-		"signup-welcome-v4", "signup-welcome-v5":
+		"welcome", "leads-ready",
+		// new-flow transactional sends (analysis/roadmap are not marketing)
+		"cc-dna-ready", "cc-roadmap-delivered":
 		if s.supportSender != "" {
 			return s.supportSender
 		}
-	// Onboarding funnel — welcome domain
-	case "funnel-welcome-new", "funnel-welcome-existing",
-		"funnel-onboarding", "funnel-congratulations":
+	// Onboarding — welcome domain
+	case "cc-welcome", "cc-welcome-new-user":
 		if s.welcomeSender != "" {
 			return s.welcomeSender
 		}
 	}
-	// Everything else (funnel, nurture, promo) → promotions sender
+	// Everything else (cc engagement, promo) → promotions sender
 	if s.promotionsSender != "" {
 		return s.promotionsSender
 	}
@@ -253,88 +252,11 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Application submitted successfully", nil
 	case "password-changed":
 		return "Your password has been changed", nil
-	case "nurture-day3":
-		return "Most students apply the wrong way", nil
-	case "nurture-day7":
-		return "Still looking?", nil
-	case "nurture-day14":
-		return "A student got 3 interview calls in one week", nil
-	case "nurture-day30":
-		return "One month in. Wanted to check in.", nil
 	case "contact-form":
 		if subj, ok := data["Subject"].(string); ok && subj != "" {
 			return fmt.Sprintf("Contact Form: %s", subj), nil
 		}
 		return "New Contact Form Submission", nil
-	// Funnel subjects
-	case "funnel-welcome-new":
-		return "You're in. Here's where to start.", nil
-	case "funnel-welcome-existing":
-		return "Good to have you back.", nil
-	case "funnel-followup-v1":
-		return "Still there?", nil
-	case "funnel-followup-v2":
-		return "Quick one.", nil
-	case "funnel-followup-v3":
-		return "Last nudge.", nil
-	case "funnel-segmentation-v1":
-		return "What are you actually trying to do right now?", nil
-	case "funnel-segmentation-v2":
-		return "Which one sounds like you?", nil
-	case "funnel-exploration-v1":
-		return "Where are students actually finding internships?", nil
-	case "funnel-exploration-v2":
-		return "The role that never gets posted", nil
-	case "funnel-congratulations":
-		return "You landed it. Now what?", nil
-	case "funnel-comparison":
-		return "What 300 applications and 4 callbacks actually means", nil
-	case "funnel-pitching-v1":
-		return "The students who skip the queue", nil
-	case "funnel-pitching-v2":
-		return "A reply in 48 hours", nil
-	case "funnel-pitching-v3":
-		return "One thing different about this approach", nil
-	case "funnel-honest-question-v1":
-		return "Honest question", nil
-	case "funnel-honest-question-v2":
-		return "Why most applications go nowhere", nil
-	case "funnel-honest-question-v3":
-		return "Is this still useful to you?", nil
-	case "funnel-onboarding":
-		return "Your 5-minute setup", nil
-	case "funnel-recognition-v1":
-		return "138 students placed. As of yesterday.", nil
-	case "funnel-recognition-v2":
-		return "Priya got 4 callbacks in 10 days", nil
-	case "funnel-recognition-v3":
-		return "From 0 replies to an offer in 2 weeks", nil
-	case "funnel-recognition-v4":
-		return "What changed for Tom at UCL", nil
-	case "funnel-testimonial":
-		return "Real students. Real roles.", nil
-	case "funnel-pricing":
-		return "Here's what you get (it's less than you think)", nil
-	case "funnel-case-study":
-		return "Monday to Friday: one student's week on Studojo", nil
-	case "funnel-walkthrough":
-		return "How it works in 4 steps", nil
-	case "funnel-educational":
-		return "The outreach playbook that actually gets replies", nil
-	case "funnel-winback":
-		return "Still here if you want it", nil
-	case "signup-thankyou", "signup-welcome-v1":
-		return "You're in. Here's where to start.", nil
-	case "signup-welcome-v2":
-		return "Most students apply to 40 roles and hear back from 3.", nil
-	case "signup-welcome-v3":
-		return "Here's the honest version.", nil
-	case "signup-welcome-v4":
-		return "One thing. Just one.", nil
-	case "signup-welcome-v5":
-		return "You just made a better decision than most students will this week.", nil
-	case "signup-followup":
-		return "Did you get a chance to try it?", nil
 	case "payment-thankyou":
 		return "Your payment is confirmed. You're all set.", nil
 	// ── Career Coach / new efficient flows ──
@@ -420,12 +342,32 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "The reason your applications are not landing", nil
 	case "cc-id-reengage-2":
 		return "How Rohan went from silence to three interviews", nil
-	case "cc-old-1":
-		return "The job search has changed since you were last here", nil
-	case "cc-old-2":
-		return "The students who came back", nil
-	case "cc-old-3":
+	// Old / dormant user flow (tool-neutral 3 stages)
+	case "cc-old-s1-1":
+		return "You were nearly there", nil
+	case "cc-old-s1-2":
+		return "What finishing actually looks like", nil
+	case "cc-old-s1-3":
+		return "The last step is the easy one", nil
+	case "cc-old-s2-1":
+		return "You got real work done, then it stalled", nil
+	case "cc-old-s2-2":
+		return "What picking back up actually takes", nil
+	case "cc-old-s2-3":
+		return "The one step to restart", nil
+	case "cc-old-s3-1":
+		return "What Studojo can do for you now", nil
+	case "cc-old-s3-2":
+		return "A student who came back and started fresh", nil
+	case "cc-old-s3-3":
 		return "One step, whenever you are ready", nil
+	// CTA variant blocks (swapped into S1/S2 closing emails at send time)
+	case "cc-old-cta-outreach":
+		return "Reach hiring managers now", nil
+	case "cc-old-cta-coach":
+		return "Talk to your career coach", nil
+	case "cc-old-cta-two-tool":
+		return "Pick the move that fits", nil
 	default:
 		return "From Studojo", nil
 	}

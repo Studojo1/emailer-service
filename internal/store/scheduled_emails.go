@@ -202,13 +202,29 @@ func (s *PostgresStore) ListPendingScheduledEmails(ctx context.Context, limit, o
 	return out, total, rows.Err()
 }
 
-// CancelPendingNurtureEmails marks all unsent nurture emails for a user as sent (suppresses them).
-// Called when a user completes payment so they stop receiving nurture sequences.
-func (s *PostgresStore) CancelPendingNurtureEmails(ctx context.Context, userID string) (int, error) {
+// CancelPendingEmailsByPrefix marks all unsent scheduled emails for a user whose
+// email_type starts with the given prefix as sent (suppresses them). Used to drop
+// a specific cc sequence (e.g. cancel the outreach-not-used chain once the tool is
+// used) without touching the user's other scheduled sequences.
+func (s *PostgresStore) CancelPendingEmailsByPrefix(ctx context.Context, userID, prefix string) (int, error) {
 	result, err := s.db.ExecContext(ctx, `
 		UPDATE scheduled_emails SET sent_at = NOW()
-		WHERE user_id = $1 AND sent_at IS NULL
-		  AND email_type IN ('nurture_day3','nurture_day10','nurture_day14','nurture_day30')`,
+		WHERE user_id = $1 AND sent_at IS NULL AND email_type LIKE $2`,
+		userID, prefix+"%")
+	if err != nil {
+		return 0, err
+	}
+	n, _ := result.RowsAffected()
+	return int(n), nil
+}
+
+// CancelPendingCCMarketingEmails suppresses all unsent cc marketing sequence emails
+// for a user. Called when a user becomes a paying Outreach customer. Transactional
+// cc sends (dna_ready, roadmap) are never scheduled, so this only hits sequences.
+func (s *PostgresStore) CancelPendingCCMarketingEmails(ctx context.Context, userID string) (int, error) {
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE scheduled_emails SET sent_at = NOW()
+		WHERE user_id = $1 AND sent_at IS NULL AND email_type LIKE 'cc\_%'`,
 		userID)
 	if err != nil {
 		return 0, err

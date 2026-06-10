@@ -519,11 +519,12 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Allow the transactional bulk types plus any cc_ / cc- sequence type.
 	validTypes := map[string]bool{
-		"welcome": true, "nurture_day3": true, "nurture_day7": true,
-		"nurture_day14": true, "nurture_day30": true, "leads_ready": true,
+		"welcome": true, "leads_ready": true,
 	}
-	if !validTypes[req.EmailType] {
+	isCC := strings.HasPrefix(req.EmailType, "cc_") || strings.HasPrefix(req.EmailType, "cc-")
+	if !validTypes[req.EmailType] && !isCC {
 		writeError(w, "invalid email_type", http.StatusBadRequest)
 		return
 	}
@@ -597,29 +598,15 @@ func (h *Handler) buildTemplateData(emailType string, user *store.User) (string,
 			"UserName":     user.Name,
 			"DashboardURL": h.EmailFrontendURL + "/",
 		}
-	case "nurture_day3":
-		return "nurture-day3", map[string]interface{}{
-			"UserName":      user.Name,
-			"InternshipURL": h.EmailFrontendURL + "/outreach",
+	default:
+		// cc_* types map to cc-* templates; any other passes through unchanged.
+		tmpl := emailType
+		if strings.HasPrefix(emailType, "cc_") {
+			tmpl = strings.ReplaceAll(emailType, "_", "-")
 		}
-	case "nurture_day7":
-		return "nurture-day7", map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach",
-		}
-	case "nurture_day14":
-		return "nurture-day14", map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach",
-		}
-	case "nurture_day30":
-		return "nurture-day30", map[string]interface{}{
+		return tmpl, map[string]interface{}{
 			"UserName":     user.Name,
 			"DashboardURL": h.EmailFrontendURL + "/",
-		}
-	default:
-		return emailType, map[string]interface{}{
-			"UserName": user.Name,
 		}
 	}
 }
