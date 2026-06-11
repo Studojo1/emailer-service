@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
@@ -81,10 +83,8 @@ var ccRoutingKeyToTemplate = map[string]string{
 	"event.cc.resume_weak":   "cc-rm-weak-1",
 	// Internship Dojo
 	"event.cc.id_two_tools": "cc-id-two-tools",
-	// Old / dormant user (intent stage; deepest-tool CTA chosen via CTAVariant)
-	"event.cc.old_s1": "cc-old-s1-1",
-	"event.cc.old_s2": "cc-old-s2-1",
-	"event.cc.old_s3": "cc-old-s3-1",
+	// Old / dormant user keys are handled by ccSpreadStarters (see HandleCCEmail),
+	// not here, so they are scheduled with a per-day spread instead of sent now.
 }
 
 // ccSequence is one step of a scheduled cc sequence.
@@ -168,20 +168,8 @@ var ccSequenceStarters = map[string][]ccSequence{
 		{"cc_id_reengage_1", 3 * day},
 		{"cc_id_reengage_2", 7 * day},
 	},
-	// Old user stages (tool-neutral). CTA on the closing email is chosen at send
-	// time from the user's stored deepest-tool signal.
-	"event.cc.old_s1": {
-		{"cc_old_s1_2", 5 * day},
-		{"cc_old_s1_3", 9 * day},
-	},
-	"event.cc.old_s2": {
-		{"cc_old_s2_2", 6 * day},
-		{"cc_old_s2_3", 9 * day},
-	},
-	"event.cc.old_s3": {
-		{"cc_old_s3_2", 7 * day},
-		{"cc_old_s3_3", 14 * day},
-	},
+	// Old-user stages are handled separately by ccSpreadStarters (see below) so
+	// they cascade across days under a per-day cap.
 }
 
 // ccDeferredStarters maps routing keys that send NOTHING instantly and instead
@@ -197,10 +185,64 @@ var ccDeferredStarters = map[string][]ccSequence{
 	},
 }
 
+// ccOldUserPerDay caps how many old-user re-engagement emails are scheduled to
+// land on any single day, so a large dormant batch cascades over days and never
+// consumes the daily provider quota that new-user mail needs. Configurable via
+// EMAIL_OLDUSER_PER_DAY (default 100). New-user mail is uncapped (top priority).
+func ccOldUserPerDay() int {
+	if v := os.Getenv("EMAIL_OLDUSER_PER_DAY"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 100
+}
+
+// ccSpreadStarters maps old-user routing keys to their full sequence (first email
+// included). Unlike instant starters, the first email is placed at the next
+// available "spread slot" (respecting the per-day cap) and the followups chain
+// off that slot, so the whole dormant batch cascades across days by intent: the
+// queue is also priority-ordered (s1 before s2 before s3) at send time.
+var ccSpreadStarters = map[string][]ccSequence{
+	"event.cc.old_s1": {
+		{"cc_old_s1_1", 0},
+		{"cc_old_s1_2", 5 * day},
+		{"cc_old_s1_3", 9 * day},
+	},
+	"event.cc.old_s2": {
+		{"cc_old_s2_1", 0},
+		{"cc_old_s2_2", 6 * day},
+		{"cc_old_s2_3", 9 * day},
+	},
+	"event.cc.old_s3": {
+		{"cc_old_s3_1", 0},
+		{"cc_old_s3_2", 7 * day},
+		{"cc_old_s3_3", 14 * day},
+	},
+}
+
 // HandleCCEmail handles all event.cc.* events. Instant-send keys send their email
 // now and schedule any follow-ups; deferred-start keys send nothing now and
-// schedule the whole sequence with a delay (so a conversion can cancel it first).
+// schedule the whole sequence with a delay; spread-start (old-user) keys place
+// the first email at the next per-day spread slot so big dormant batches cascade.
 func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	// Spread starters (old-user re-engagement): cascade across days under a cap,
+	// using only the room new-user mail leaves free.
+	if steps, ok := ccSpreadStarters[routingKey]; ok {
+		if event.UserID == "" {
+			slog.Warn("cc spread email: missing user_id, cannot schedule", "routing_key", routingKey)
+			return nil
+		}
+		start, err := h.Store.NextSpreadSlot(ctx, "cc_old_", ccOldUserPerDay(), time.Now().UTC())
+		if err != nil {
+			slog.Error("cc spread: failed to find slot, scheduling now", "error", err)
+			start = time.Now().UTC()
+		}
+		ScheduleCCSequence(ctx, h.Store, event.UserID, start, steps)
+		slog.Info("cc old-user sequence scheduled (spread)", "routing_key", routingKey, "user_id", event.UserID, "first_at", start)
+		return nil
+	}
+
 	// Deferred starters: schedule the sequence, send nothing now.
 	if steps, ok := ccDeferredStarters[routingKey]; ok {
 		if event.UserID == "" {

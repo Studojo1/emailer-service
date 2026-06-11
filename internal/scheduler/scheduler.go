@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -16,12 +17,38 @@ type Scheduler struct {
 	Store          *store.PostgresStore
 	Sender         *email.Sender
 	FrontendURL    string
-	rateLimitUntil time.Time // circuit breaker: stop sending until quota resets
+	rateLimitUntil time.Time     // circuit breaker: stop sending until quota resets
+	sendInterval   time.Duration // gap between sends, derived from the per-hour cap
+	backoff        time.Duration // how long to pause the batch on a hard 429
 }
 
-// NewScheduler creates a new Scheduler
+// ratePerHour returns the configured provider send cap per hour. Defaults to 180
+// (just under the Azure free-tier 200/hr), override with EMAIL_RATE_PER_HOUR.
+func ratePerHour() int {
+	if v := os.Getenv("EMAIL_RATE_PER_HOUR"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 180
+}
+
+// NewScheduler creates a new Scheduler. Pacing is derived from EMAIL_RATE_PER_HOUR
+// so the same binary serves a free tier or a higher paid quota with no code change.
 func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL string) *Scheduler {
-	return &Scheduler{Store: s, Sender: sender, FrontendURL: frontendURL}
+	rph := ratePerHour()
+	interval := time.Duration(float64(time.Hour) / float64(rph))
+	if interval < time.Second {
+		interval = time.Second // never busier than 1/s regardless of config
+	}
+	// On a hard rate-limit with no Retry-After, pause ~one hour for the quota window.
+	return &Scheduler{
+		Store:        s,
+		Sender:       sender,
+		FrontendURL:  frontendURL,
+		sendInterval: interval,
+		backoff:      65 * time.Minute,
+	}
 }
 
 // Run starts the scheduler loop. Call in a goroutine.
@@ -55,6 +82,9 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 		return
 	}
 
+	// Priority-ordered: new/active-user emails always drain before old-user
+	// re-engagement, so high-intent students are never starved by a big dormant
+	// batch. The DB query orders by priority then scheduled_at (see the store).
 	emails, err := sc.Store.GetDueScheduledEmails(ctx)
 	if err != nil {
 		slog.Error("scheduler: failed to fetch due emails", "error", err)
@@ -62,13 +92,18 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 	for i, e := range emails {
 		if i > 0 {
-			// 20s between sends = 3/min = 180/hr — just under the 200/hr ACS free-tier cap
-			time.Sleep(20 * time.Second)
+			// Pace to stay under the provider cap (EMAIL_RATE_PER_HOUR).
+			time.Sleep(sc.sendInterval)
 		}
 		if rateLimited := sc.send(ctx, e); rateLimited {
-			// Both ACS resources exhausted — stop the batch and wait 65 min for quota reset
-			sc.rateLimitUntil = time.Now().Add(65 * time.Minute)
-			slog.Warn("scheduler: ACS rate limit hit, pausing sends for 65 minutes")
+			// Provider rate-limited us. Honour Retry-After if the sender surfaced
+			// one; otherwise pause ~one hour for the quota window.
+			pause := sc.backoff
+			if ra := sc.Sender.LastRetryAfter(); ra > 0 {
+				pause = ra + 30*time.Second
+			}
+			sc.rateLimitUntil = time.Now().Add(pause)
+			slog.Warn("scheduler: provider rate limit hit, pausing sends", "pause", pause.Round(time.Second))
 			return
 		}
 	}

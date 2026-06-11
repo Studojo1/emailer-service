@@ -18,6 +18,53 @@ type ScheduledEmail struct {
 	CreatedAt   time.Time
 }
 
+// CountScheduledOnDay returns how many emails (of the given type prefix) are
+// already scheduled to send on the same UTC day as `day`. Used to cap how many
+// low-priority (old-user) emails land on any single day so they never flood the
+// provider quota. typePrefix is a LIKE prefix, e.g. "cc_old_".
+func (s *PostgresStore) CountScheduledOnDay(ctx context.Context, typePrefix string, day time.Time) (int, error) {
+	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	var n int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM scheduled_emails
+		WHERE email_type LIKE $1 AND scheduled_at >= $2 AND scheduled_at < $3`,
+		typePrefix+"%", start, end,
+	).Scan(&n)
+	return n, err
+}
+
+// NextSpreadSlot returns a scheduled_at for a low-priority email so that no more
+// than perDay of the given type-prefix land on any single UTC day, starting from
+// `from`. It walks forward day by day until it finds one with room. This is how
+// large old-user re-engagement batches are spread over days instead of dumped at
+// once — the per-day cap leaves the daily provider quota free for new-user mail.
+func (s *PostgresStore) NextSpreadSlot(ctx context.Context, typePrefix string, perDay int, from time.Time) (time.Time, error) {
+	if perDay < 1 {
+		perDay = 1
+	}
+	day := from
+	for i := 0; i < 60; i++ { // cap the search at 60 days out
+		n, err := s.CountScheduledOnDay(ctx, typePrefix, day)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if n < perDay {
+			// Place it at a deterministic offset within the day so rows are unique
+			// and spaced; the scheduler paces the actual sends anyway.
+			base := time.Date(day.Year(), day.Month(), day.Day(), 6, 0, 0, 0, time.UTC) // 06:00 UTC
+			slot := base.Add(time.Duration(n) * time.Minute)
+			if slot.Before(from) {
+				slot = from
+			}
+			return slot, nil
+		}
+		day = day.Add(24 * time.Hour)
+	}
+	// Fallback: 60 days out if everything is somehow full.
+	return from.Add(60 * 24 * time.Hour), nil
+}
+
 // CreateScheduledEmail inserts a new scheduled email row.
 // ON CONFLICT DO NOTHING means a duplicate (user_id, email_type) is silently ignored
 // once the unique index is in place — safe to call multiple times.
@@ -32,13 +79,24 @@ func (s *PostgresStore) CreateScheduledEmail(ctx context.Context, userID, emailT
 	return err
 }
 
-// GetDueScheduledEmails returns all emails due to be sent (scheduled_at <= now, not yet sent)
+// GetDueScheduledEmails returns emails due to be sent (scheduled_at <= now, not
+// yet sent), PRIORITY ORDERED. New / active-user emails (everything that is not
+// old-user re-engagement) always come first, so high-intent students are sent
+// before any dormant batch consumes the hourly cap. Within old-user, the intent
+// cascade is s1 (nearest to converting) -> s2 -> s3. Ties break on scheduled_at.
 func (s *PostgresStore) GetDueScheduledEmails(ctx context.Context) ([]ScheduledEmail, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT id, user_id, email_type, scheduled_at, sent_at, created_at
 		FROM scheduled_emails
 		WHERE scheduled_at <= NOW() AND sent_at IS NULL
-		ORDER BY scheduled_at ASC
+		ORDER BY
+			CASE
+				WHEN email_type LIKE 'cc\_old\_s1\_%' THEN 2
+				WHEN email_type LIKE 'cc\_old\_s2\_%' THEN 3
+				WHEN email_type LIKE 'cc\_old\_s3\_%' THEN 4
+				ELSE 1            -- all new / active-user emails: top priority
+			END ASC,
+			scheduled_at ASC
 		LIMIT 50`,
 	)
 	if err != nil {

@@ -49,6 +49,15 @@ type Sender struct {
 
 	unsubscribeSecret  string
 	unsubscribeBaseURL string
+
+	lastRetryAfter time.Duration // Retry-After parsed from the most recent 429, if any
+}
+
+// LastRetryAfter returns the Retry-After duration the provider asked for on the
+// most recent 429, or 0 if none was surfaced. The scheduler uses it to size its
+// backoff; 0 means "use the default window".
+func (s *Sender) LastRetryAfter() time.Duration {
+	return s.lastRetryAfter
 }
 
 // NewSender creates a new email sender
