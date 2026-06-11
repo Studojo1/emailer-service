@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Students who finished this got real replies</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .result-card { border: 2px solid #e5e5e5; border-radius: 14px; padding: 22px 26px; margin: 14px 0; }
+    .result-name { font-size: 12px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 10px; }
+    .result-quote { font-size: 15px; color: #333333; line-height: 1.8; font-style: italic; margin: 0 0 12px; }
+    .result-outcome { font-size: 13px; font-weight: 700; color: #10b981; background: #f0fdf4; border: 1.5px solid #10b981; border-radius: 6px; display: inline-block; padding: 4px 12px; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 20px 0 8px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You've already done something most students don't. You started. Here's what the students who finished it got:</p>
+
+      <div class="result-card">
+        <div class="result-name">Riya M., Commerce student, Mumbai</div>
+        <div class="result-quote">"I had never thought about reaching out to hiring managers directly. I always assumed that was for people with connections. Outreach Dojo made it feel possible. Within 6 days I had three replies. One of them turned into a call the following week."</div>
+        <div class="result-outcome">3 replies in 6 days &rarr; interview call</div>
+      </div>
+
+      <div class="result-card">
+        <div class="result-name">Karan T., MBA student, Bangalore</div>
+        <div class="result-quote">"I've sent cold LinkedIn messages before and never heard back. The difference with Studojo was the specificity. The message mentioned the exact product the team was working on. The manager replied and said it was the most thoughtful cold message he'd ever received from a student."</div>
+        <div class="result-outcome">5 replies, 2 interview calls</div>
+      </div>
+
+      <p class="body-text">Neither of them had extraordinary profiles. No IIT, no FAANG internship, no referral. They just reached the right people with something real to say.</p>
+
+      <p class="body-text">You're one step from being in that position.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Finish your outreach &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

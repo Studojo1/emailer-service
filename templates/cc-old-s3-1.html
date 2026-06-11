@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What Studojo can do for you now</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .tools-box { background-color: #f3f0ff; border-radius: 14px; padding: 22px 26px; margin: 24px 0; }
+    .tools-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
+    .tools-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; color: #333; line-height: 1.6; }
+    .tools-item:last-child { margin-bottom: 0; }
+    .tools-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 7px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">It has been a while since you signed up for Studojo and you never really got going. No guilt and no pressure. It happens to most people. The job search gets put down and life fills the gap.</p>
+
+      <p class="body-text">A lot has moved since then. If you are still looking, or looking again, here is what Studojo can do for you now:</p>
+
+      <div class="tools-box">
+        <div class="tools-title">Two ways we help</div>
+        <div class="tools-item"><div class="tools-dot"></div><div>The Career Coach builds an honest picture of where you stand and what to fix first. Most students learn things they wish they had known months earlier.</div></div>
+        <div class="tools-item"><div class="tools-dot"></div><div>Outreach Dojo reaches the right hiring managers at your target companies with personalised notes, instead of applying into a void.</div></div>
+      </div>
+
+      <p class="body-text">You do not have to commit to anything. Just take a look and see what fits.</p>
+
+      <a class="cta-button" href="https://studojo.com">See what Studojo does now</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

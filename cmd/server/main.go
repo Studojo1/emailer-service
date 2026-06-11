@@ -330,18 +330,12 @@ func main() {
 		`CREATE UNIQUE INDEX IF NOT EXISTS idx_scheduled_emails_unique_user_type
 		 ON scheduled_emails (user_id, email_type)`,
 
-		// Restore nurture emails that were incorrectly marked as sent by a prior
-		// migration (bulk-mark-done) but were never actually delivered — i.e. no
-		// corresponding row exists in email_send_log. Reset sent_at to NULL so
-		// the scheduler picks them up and sends them.
-		`UPDATE scheduled_emails se SET sent_at = NULL
-		 WHERE se.email_type LIKE 'nurture%'
-		   AND se.sent_at IS NOT NULL
-		   AND NOT EXISTS (
-		     SELECT 1 FROM email_send_log esl
-		     WHERE esl.user_id = se.user_id
-		       AND esl.template_name = REPLACE(se.email_type, '_', '-')
-		   )`,
+		// The old funnel/nurture flow is retired (archived in
+		// Studojo1/emailer-legacy-flow). Suppress any still-pending old-flow
+		// scheduled rows so the scheduler never tries to send a deleted template.
+		`UPDATE scheduled_emails SET sent_at = NOW()
+		 WHERE sent_at IS NULL
+		   AND (email_type LIKE 'nurture%' OR email_type LIKE 'funnel%')`,
 
 		// Cancel all pending emails for admin accounts so they don't get
 		// spammed during backlog drain.
@@ -398,6 +392,7 @@ func main() {
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
+	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
 	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
 	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
 	mux.HandleFunc("GET /v1/unsubscribe", httpHandler.HandleUnsubscribe)

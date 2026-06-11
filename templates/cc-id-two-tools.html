@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You have been applying. Here are two tools that change the results.</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .tool-card { border: 2px solid #19191a; border-radius: 14px; padding: 24px 26px; margin: 16px 0; box-shadow: 4px 4px 0 rgba(25,26,35,1); }
+    .tool-card.coach { border-color: #7c3aed; }
+    .tool-name { font-size: 18px; font-weight: 800; color: #111111; margin: 0 0 8px; }
+    .tool-desc { font-size: 14px; color: #555555; line-height: 1.7; margin: 0 0 16px; }
+    .tool-when { font-size: 12px; font-weight: 700; color: #7c3aed; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 14px; }
+    .tool-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 14px; font-weight: 700; padding: 12px 24px; border-radius: 8px; text-decoration: none; }
+    .tool-button.dark { background-color: #19191a; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You have been applying to internships through the job board. We noticed you have put in real effort and the replies have not been coming back the way they should.</p>
+
+      <p class="body-text">That is not a reflection of you. The job board is a numbers game, and the numbers are brutal. The average reply rate on portal applications is around 2%. You can do everything right and still hear nothing.</p>
+
+      <p class="body-text">There are two tools that change the math. Pick the one that fits where you are right now.</p>
+
+      <div class="tool-card">
+        <div class="tool-when">If you know what you want</div>
+        <div class="tool-name">Outreach Dojo</div>
+        <div class="tool-desc">Stop applying into a void. We find the actual hiring managers at your target companies and write personalised notes to each one on your behalf. Direct outreach gets reply rates around 25%, not 2%. This is for when you know the roles you want and you just need to reach the right people.</div>
+        <a class="tool-button" href="https://studojo.com/outreach">Start with Outreach &rarr;</a>
+      </div>
+
+      <div class="tool-card coach">
+        <div class="tool-when">If you are not sure where you stand</div>
+        <div class="tool-name">Career Coach</div>
+        <div class="tool-desc">Before you apply to one more thing, find out exactly where you stand as a candidate and what is holding you back. The coach builds a clear picture of your gaps and the actions that move the needle. This is for when the silence has you wondering whether the problem is your approach or your profile.</div>
+        <a class="tool-button" href="https://studojo.pro/career-coach">Start with the Coach &rarr;</a>
+      </div>
+
+      <p class="body-text">Either one is a better use of your time than another portal application. Pick where you are, and start there.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

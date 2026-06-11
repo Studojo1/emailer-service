@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What the coach actually tells you</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .output-card { border: 2px solid #e5e5e5; border-radius: 14px; padding: 20px 24px; margin: 12px 0; }
+    .output-label { font-size: 11px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 6px; }
+    .output-desc { font-size: 14px; color: #444; line-height: 1.7; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">I want to tell you what the career analysis actually gives you when you complete it. Because most students don't know what's on the other side.</p>
+
+      <p class="body-text">After your conversation with the coach, here is what you get:</p>
+
+      <div class="output-card">
+        <div class="output-label">Your readiness score</div>
+        <div class="output-desc">A specific measure of where you stand as a candidate for your target role. Not a generic percentage, but a number that reflects your profile, your gaps, and how you compare to other candidates going for the same things.</div>
+      </div>
+
+      <div class="output-card">
+        <div class="output-label">Your exact skill and experience gaps</div>
+        <div class="output-desc">The specific things that are holding your profile back, ranked by how much fixing them would actually move your readiness. You stop guessing and start knowing what to work on.</div>
+      </div>
+
+      <div class="output-card">
+        <div class="output-label">Your priority actions</div>
+        <div class="output-desc">A ranked list of what to do next, built around your situation. Each action is specific, executable, and tied to a clear outcome. Not "build your network." The actual steps.</div>
+      </div>
+
+      <div class="output-card">
+        <div class="output-label">Your reply probability</div>
+        <div class="output-desc">An honest estimate of how likely a hiring manager is to reply to outreach from you right now. This tells you whether to act now or what to fix first.</div>
+      </div>
+
+      <p class="body-text">This is what clarity looks like. Most students make decisions about their career without any of this.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Build your career analysis &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The most direct path from here</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .two-paths { display: flex; gap: 16px; margin: 24px 0; }
+    .path-card { flex: 1; border-radius: 12px; padding: 18px 20px; border: 2px solid #e5e5e5; }
+    .path-card.active { border-color: #7c3aed; background: #f3f0ff; }
+    .path-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px; }
+    .path-card.active .path-label { color: #7c3aed; }
+    .path-card:not(.active) .path-label { color: #999; }
+    .path-desc { font-size: 13px; color: #444; line-height: 1.6; margin: 0; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 8px; }
+    .cta-secondary { display: inline-block; background-color: #ffffff; color: #7c3aed; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; border: 2px solid #7c3aed; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You've built something real with Career Coach. A career analysis, a gap breakdown, a roadmap. That's not nothing. Most students applying for the same roles as you don't have any of that.</p>
+
+      <p class="body-text">From here, there are two paths:</p>
+
+      <div class="two-paths">
+        <div class="path-card">
+          <div class="path-label">Come back to the coach</div>
+          <div class="path-desc">Update your profile, log any progress you've made, and continue building toward your roadmap. The coach is here whenever you're ready.</div>
+        </div>
+        <div class="path-card active">
+          <div class="path-label">Start your outreach now</div>
+          <div class="path-desc">Take what the coach built and put it in front of the right hiring managers. Outreach Dojo handles the research and the personalised messages. You review and go.</div>
+        </div>
+      </div>
+
+      <p class="body-text">Both are good moves. The most direct path to your first hiring manager reply is starting outreach from where you already are.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Start your outreach &rarr;</a><br />
+      <a class="cta-secondary" href="https://studojo.pro/career-coach">Return to your coach &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

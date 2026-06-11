@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The number that changes everything</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .stat-block { background-color: #7c3aed; border-radius: 14px; padding: 32px 28px; margin: 28px 0; text-align: center; }
+    .stat-number { font-size: 60px; font-weight: 800; color: #ffffff; line-height: 1; margin: 0 0 8px; }
+    .stat-label { font-size: 15px; color: #e0d4ff; margin: 0; line-height: 1.5; }
+    .comparison-table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+    .comparison-table th { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 10px 16px; text-align: left; }
+    .comparison-table td { font-size: 14px; padding: 12px 16px; border-top: 1px solid #eeeeee; line-height: 1.5; }
+    .col-bad { color: #ef4444; }
+    .col-good { color: #10b981; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">This is the last email I'll send you about getting started. I want to leave you with one number.</p>
+
+      <div class="stat-block">
+        <div class="stat-number">~2%</div>
+        <div class="stat-label">Average reply rate when applying<br>through job portals in India</div>
+      </div>
+
+      <p class="body-text">Two percent. Submit 100 applications through Naukri, LinkedIn, Internshala. On a good month, you get 2 replies. Most of those are rejections. This is the system most students are playing.</p>
+
+      <p class="body-text">Direct, personalised outreach to hiring managers tells a completely different story. When the right person at the right company gets a message that's clearly written for them, not copy-pasted, not sent to 500 people, they reply. Because it's rare. Because it shows intent.</p>
+
+      <table class="comparison-table">
+        <tr>
+          <th></th>
+          <th class="col-bad">Portal Apply</th>
+          <th class="col-good">Direct Outreach</th>
+        </tr>
+        <tr>
+          <td>Who sees it</td>
+          <td class="col-bad">An ATS algorithm</td>
+          <td class="col-good">A real hiring manager</td>
+        </tr>
+        <tr>
+          <td>Reply rate</td>
+          <td class="col-bad">~2%</td>
+          <td class="col-good">~20-25%</td>
+        </tr>
+        <tr>
+          <td>Your message</td>
+          <td class="col-bad">Identical to 500 others</td>
+          <td class="col-good">Written for that one person</td>
+        </tr>
+        <tr>
+          <td>Time to first reply</td>
+          <td class="col-bad">Weeks, if ever</td>
+          <td class="col-good">Days</td>
+        </tr>
+      </table>
+
+      <p class="body-text">You signed up for Outreach Dojo a few days ago. The tool is ready. The difference between where you are now and your first hiring manager reply is three minutes of setup.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Start now, takes 3 minutes &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

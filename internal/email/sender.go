@@ -49,6 +49,15 @@ type Sender struct {
 
 	unsubscribeSecret  string
 	unsubscribeBaseURL string
+
+	lastRetryAfter time.Duration // Retry-After parsed from the most recent 429, if any
+}
+
+// LastRetryAfter returns the Retry-After duration the provider asked for on the
+// most recent 429, or 0 if none was surfaced. The scheduler uses it to size its
+// backoff; 0 means "use the default window".
+func (s *Sender) LastRetryAfter() time.Duration {
+	return s.lastRetryAfter
 }
 
 // NewSender creates a new email sender
@@ -125,20 +134,19 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 	// Transactional — support domain signals "not marketing" to Gmail
 	case "payment-thankyou", "password-changed", "forgot-password",
 		"resume-optimized", "internship-applied", "contact-form",
-		"welcome", "leads-ready", "signup-thankyou", "signup-followup",
-		"signup-welcome-v1", "signup-welcome-v2", "signup-welcome-v3",
-		"signup-welcome-v4", "signup-welcome-v5":
+		"welcome", "leads-ready",
+		// new-flow transactional sends (analysis/roadmap are not marketing)
+		"cc-dna-ready", "cc-roadmap-delivered":
 		if s.supportSender != "" {
 			return s.supportSender
 		}
-	// Onboarding funnel — welcome domain
-	case "funnel-welcome-new", "funnel-welcome-existing",
-		"funnel-onboarding", "funnel-congratulations":
+	// Onboarding — welcome domain
+	case "cc-welcome", "cc-welcome-new-user":
 		if s.welcomeSender != "" {
 			return s.welcomeSender
 		}
 	}
-	// Everything else (funnel, nurture, promo) → promotions sender
+	// Everything else (cc engagement, promo) → promotions sender
 	if s.promotionsSender != "" {
 		return s.promotionsSender
 	}
@@ -253,90 +261,122 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Application submitted successfully", nil
 	case "password-changed":
 		return "Your password has been changed", nil
-	case "nurture-day3":
-		return "Most students apply the wrong way", nil
-	case "nurture-day7":
-		return "Still looking?", nil
-	case "nurture-day14":
-		return "A student got 3 interview calls in one week", nil
-	case "nurture-day30":
-		return "One month in. Wanted to check in.", nil
 	case "contact-form":
 		if subj, ok := data["Subject"].(string); ok && subj != "" {
 			return fmt.Sprintf("Contact Form: %s", subj), nil
 		}
 		return "New Contact Form Submission", nil
-	// Funnel subjects
-	case "funnel-welcome-new":
-		return "You're in. Here's where to start.", nil
-	case "funnel-welcome-existing":
-		return "Good to have you back.", nil
-	case "funnel-followup-v1":
-		return "Still there?", nil
-	case "funnel-followup-v2":
-		return "Quick one.", nil
-	case "funnel-followup-v3":
-		return "Last nudge.", nil
-	case "funnel-segmentation-v1":
-		return "What are you actually trying to do right now?", nil
-	case "funnel-segmentation-v2":
-		return "Which one sounds like you?", nil
-	case "funnel-exploration-v1":
-		return "Where are students actually finding internships?", nil
-	case "funnel-exploration-v2":
-		return "The role that never gets posted", nil
-	case "funnel-congratulations":
-		return "You landed it. Now what?", nil
-	case "funnel-comparison":
-		return "What 300 applications and 4 callbacks actually means", nil
-	case "funnel-pitching-v1":
-		return "The students who skip the queue", nil
-	case "funnel-pitching-v2":
-		return "A reply in 48 hours", nil
-	case "funnel-pitching-v3":
-		return "One thing different about this approach", nil
-	case "funnel-honest-question-v1":
-		return "Honest question", nil
-	case "funnel-honest-question-v2":
-		return "Why most applications go nowhere", nil
-	case "funnel-honest-question-v3":
-		return "Is this still useful to you?", nil
-	case "funnel-onboarding":
-		return "Your 5-minute setup", nil
-	case "funnel-recognition-v1":
-		return "138 students placed. As of yesterday.", nil
-	case "funnel-recognition-v2":
-		return "Priya got 4 callbacks in 10 days", nil
-	case "funnel-recognition-v3":
-		return "From 0 replies to an offer in 2 weeks", nil
-	case "funnel-recognition-v4":
-		return "What changed for Tom at UCL", nil
-	case "funnel-testimonial":
-		return "Real students. Real roles.", nil
-	case "funnel-pricing":
-		return "Here's what you get (it's less than you think)", nil
-	case "funnel-case-study":
-		return "Monday to Friday: one student's week on Studojo", nil
-	case "funnel-walkthrough":
-		return "How it works in 4 steps", nil
-	case "funnel-educational":
-		return "The outreach playbook that actually gets replies", nil
-	case "funnel-winback":
-		return "Still here if you want it", nil
-	case "signup-thankyou", "signup-welcome-v1":
-		return "You're in. Here's where to start.", nil
-	case "signup-welcome-v2":
-		return "Most students apply to 40 roles and hear back from 3.", nil
-	case "signup-welcome-v3":
-		return "Here's the honest version.", nil
-	case "signup-welcome-v4":
-		return "One thing. Just one.", nil
-	case "signup-welcome-v5":
-		return "You just made a better decision than most students will this week.", nil
-	case "signup-followup":
-		return "Did you get a chance to try it?", nil
 	case "payment-thankyou":
 		return "Your payment is confirmed. You're all set.", nil
+	// ── Career Coach / new efficient flows ──
+	case "cc-welcome-new-user":
+		return "You're in the top 3%. Here's how we know.", nil
+	case "cc-outreach-nudge-d1":
+		return "Did you get a chance to try Outreach Dojo?", nil
+	case "cc-outreach-nudge-d2":
+		return "What one student got after using Outreach Dojo", nil
+	case "cc-outreach-nudge-d3":
+		return "Here's exactly how to get started", nil
+	case "cc-outreach-nudge-d4":
+		return "The number that changes everything", nil
+	case "cc-outreach-push1":
+		return "You started. Here's what happens next", nil
+	case "cc-outreach-push2":
+		return "Students who finished this got real replies", nil
+	case "cc-outreach-push3":
+		return "You're one step away", nil
+	case "cc-outreach-convert1":
+		return "Here's what you actually get", nil
+	case "cc-outreach-convert2":
+		return "After you sign up. Here's exactly what happens", nil
+	case "cc-outreach-payment-page":
+		return "You were right there", nil
+	case "cc-outreach-coupon":
+		return "Something from me, Jeremy", nil
+	case "cc-welcome":
+		return "You asked for an honest look. Good.", nil
+	case "cc-nudge-1":
+		return "Did you get started?", nil
+	case "cc-nudge-2":
+		return "What the coach actually tells you", nil
+	case "cc-nudge-3":
+		return "What changed when she finally started", nil
+	case "cc-profiling-idle-1":
+		return "You started. Pick up where you left off.", nil
+	case "cc-profiling-idle-2":
+		return "You're closer than you think", nil
+	case "cc-profiling-idle-3":
+		return "What Vikram found when he finished", nil
+	case "cc-dna-ready":
+		return "Your career analysis is ready", nil
+	case "cc-dna-confirm-nudge":
+		return "Your analysis needs your confirmation", nil
+	case "cc-roadmap-delivered":
+		return "You have your roadmap. Here is how to use it.", nil
+	case "cc-checkin-1":
+		return "One action. This week.", nil
+	case "cc-checkin-2":
+		return "What students who act do differently", nil
+	case "cc-checkin-3":
+		return "Have you marked anything complete yet?", nil
+	case "cc-upskill-nudge":
+		return "The coach gets sharper every time you use it", nil
+	case "cc-coupon-unlock":
+		return "Log your progress and unlock something", nil
+	case "cc-dormant":
+		return "Most students stop here", nil
+	case "cc-to-outreach":
+		return "You know where you stand. Here is what to do with it.", nil
+	case "cc-returning-1":
+		return "Your analysis is still there", nil
+	case "cc-returning-2":
+		return "The gap closes fast when you focus", nil
+	case "cc-returning-3":
+		return "The most direct path from here", nil
+	case "cc-rm-strong-1":
+		return "Your resume is strong. Here is the next move.", nil
+	case "cc-rm-strong-2":
+		return "What students with strong resumes do next", nil
+	case "cc-rm-strong-3":
+		return "Your resume is ready. Are you using it?", nil
+	case "cc-rm-weak-1":
+		return "Your resume is a start. Here is what to do next.", nil
+	case "cc-rm-weak-2":
+		return "What was actually holding her back", nil
+	case "cc-rm-weak-3":
+		return "Before you apply, know where you stand", nil
+	case "cc-id-two-tools":
+		return "You have been applying. Here are two tools that change the results.", nil
+	case "cc-id-reengage-1":
+		return "The reason your applications are not landing", nil
+	case "cc-id-reengage-2":
+		return "How Rohan went from silence to three interviews", nil
+	// Old / dormant user flow (tool-neutral 3 stages)
+	case "cc-old-s1-1":
+		return "You were nearly there", nil
+	case "cc-old-s1-2":
+		return "What finishing actually looks like", nil
+	case "cc-old-s1-3":
+		return "The last step is the easy one", nil
+	case "cc-old-s2-1":
+		return "You got real work done, then it stalled", nil
+	case "cc-old-s2-2":
+		return "What picking back up actually takes", nil
+	case "cc-old-s2-3":
+		return "The one step to restart", nil
+	case "cc-old-s3-1":
+		return "What Studojo can do for you now", nil
+	case "cc-old-s3-2":
+		return "A student who came back and started fresh", nil
+	case "cc-old-s3-3":
+		return "One step, whenever you are ready", nil
+	// CTA variant blocks (swapped into S1/S2 closing emails at send time)
+	case "cc-old-cta-outreach":
+		return "Reach hiring managers now", nil
+	case "cc-old-cta-coach":
+		return "Talk to your career coach", nil
+	case "cc-old-cta-two-tool":
+		return "Pick the move that fits", nil
 	default:
 		return "From Studojo", nil
 	}

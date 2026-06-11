@@ -437,10 +437,19 @@ func (h *Handler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": "Password changed successfully"}, http.StatusOK)
 }
 
-// HandlePublishEvent handles POST /v1/email/events - accepts events from frontend/other services
+// HandlePublishEvent handles POST /v1/email/events - accepts events from other
+// services (coach backend, main platform server-side). Internal-only: gated by
+// the X-Internal-Secret header matching INTERNAL_SECRET. Browser/client callers
+// must go through a server-side proxy that holds the secret, never call this
+// endpoint directly.
 func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
@@ -519,11 +528,12 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Allow the transactional bulk types plus any cc_ / cc- sequence type.
 	validTypes := map[string]bool{
-		"welcome": true, "nurture_day3": true, "nurture_day7": true,
-		"nurture_day14": true, "nurture_day30": true, "leads_ready": true,
+		"welcome": true, "leads_ready": true,
 	}
-	if !validTypes[req.EmailType] {
+	isCC := strings.HasPrefix(req.EmailType, "cc_") || strings.HasPrefix(req.EmailType, "cc-")
+	if !validTypes[req.EmailType] && !isCC {
 		writeError(w, "invalid email_type", http.StatusBadRequest)
 		return
 	}
@@ -597,29 +607,15 @@ func (h *Handler) buildTemplateData(emailType string, user *store.User) (string,
 			"UserName":     user.Name,
 			"DashboardURL": h.EmailFrontendURL + "/",
 		}
-	case "nurture_day3":
-		return "nurture-day3", map[string]interface{}{
-			"UserName":      user.Name,
-			"InternshipURL": h.EmailFrontendURL + "/outreach",
+	default:
+		// cc_* types map to cc-* templates; any other passes through unchanged.
+		tmpl := emailType
+		if strings.HasPrefix(emailType, "cc_") {
+			tmpl = strings.ReplaceAll(emailType, "_", "-")
 		}
-	case "nurture_day7":
-		return "nurture-day7", map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach",
-		}
-	case "nurture_day14":
-		return "nurture-day14", map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach",
-		}
-	case "nurture_day30":
-		return "nurture-day30", map[string]interface{}{
+		return tmpl, map[string]interface{}{
 			"UserName":     user.Name,
 			"DashboardURL": h.EmailFrontendURL + "/",
-		}
-	default:
-		return emailType, map[string]interface{}{
-			"UserName": user.Name,
 		}
 	}
 }
@@ -818,5 +814,50 @@ func (h *Handler) HandleCheckinReminder(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, map[string]string{"status": "sent", "to": req.To}, http.StatusOK)
+}
+
+// SendTemplateRequest is the body for POST /v1/email/send-template.
+type SendTemplateRequest struct {
+	To         string `json:"to"`
+	Template   string `json:"template"`
+	UserName   string `json:"user_name"`
+	CouponCode string `json:"coupon_code"`
+}
+
+// HandleSendTemplate sends any registered template by name. Internal
+// service-to-service route (the Career Coach backend calls it for all the
+// new flow emails). Gated by the X-Internal-Secret header matching
+// INTERNAL_SECRET. Deduplication and scheduling are the caller's
+// responsibility, so this route always sends what it is asked to.
+func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req SendTemplateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" || req.Template == "" {
+		writeError(w, "to and template are required", http.StatusBadRequest)
+		return
+	}
+	if req.UserName == "" {
+		req.UserName = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":     req.UserName,
+		"DashboardURL": "https://studojo.com/",
+		"CouponCode":   req.CouponCode,
+	}
+	ctx := r.Context()
+	if err := h.Sender.SendTemplateEmail(ctx, req.To, req.Template, data); err != nil {
+		slog.Error("send-template failed", "to", req.To, "template", req.Template, "error", err)
+		writeError(w, "send failed", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]string{"status": "sent", "to": req.To, "template": req.Template}, http.StatusOK)
 }
 

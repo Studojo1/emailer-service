@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>What students who act on their analysis do differently</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .comparison-row { display: flex; gap: 16px; margin: 24px 0; }
+    .comparison-card { flex: 1; border-radius: 12px; padding: 18px 20px; }
+    .comparison-card.neutral { background: #f5f4f0; border: 1.5px solid #e0e0e0; }
+    .comparison-card.active { background: #f3f0ff; border: 1.5px solid #7c3aed; }
+    .comp-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px; }
+    .comparison-card.neutral .comp-label { color: #999; }
+    .comparison-card.active .comp-label { color: #7c3aed; }
+    .comp-point { font-size: 13px; color: #444; line-height: 1.6; margin-bottom: 8px; display: flex; gap: 8px; }
+    .comp-point:last-child { margin-bottom: 0; }
+    .comp-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; }
+    .comparison-card.neutral .comp-dot { background: #ccc; }
+    .comparison-card.active .comp-dot { background: #7c3aed; }
+    .testimonial-block { background-color: #f3f0ff; border-left: 4px solid #7c3aed; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; }
+    .testimonial-text { font-size: 15px; color: #222; line-height: 1.8; font-style: italic; margin: 0 0 12px; }
+    .testimonial-author { font-size: 13px; font-weight: 700; color: #7c3aed; margin: 0; }
+    .result-line { display: inline-block; background: #f0fdf4; border: 1.5px solid #10b981; border-radius: 8px; padding: 5px 12px; font-size: 12px; font-weight: 700; color: #065f46; margin-top: 8px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">It's been about a week since your career analysis was generated. Here's something we've noticed about students who act on their analysis versus those who don't.</p>
+
+      <div class="comparison-row">
+        <div class="comparison-card neutral">
+          <div class="comp-label">Students who sit on it</div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Read the analysis once, feel informed</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Plan to start "next week" repeatedly</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Still applying on portals 6 weeks later</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Readiness score stays flat</div></div>
+        </div>
+        <div class="comparison-card active">
+          <div class="comp-label">Students who act on it</div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Pick the top priority action only</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Complete it and log it in the coach</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>See their readiness score move</div></div>
+          <div class="comp-point"><div class="comp-dot"></div><div>Start outreach from a stronger position</div></div>
+        </div>
+      </div>
+
+      <div class="testimonial-block">
+        <p class="testimonial-text">"I completed two actions from my roadmap in the first two weeks. My readiness went up. When I started my outreach, the coach told me my reply probability had gone from 12% to 24%. That felt real."</p>
+        <p class="testimonial-author">Ishaan K., MBA student, Mumbai</p>
+        <div class="result-line">Readiness score up 19 points. 4 outreach replies in first week.</div>
+      </div>
+
+      <p class="body-text">Where are you on your first action? Log it in the dashboard and see what shifts.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Log your progress &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

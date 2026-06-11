@@ -140,6 +140,19 @@
           class="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-2 py-1 transition-colors">↻ Refresh</button>
         <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
         <span class="text-xs text-slate-500">Live</span>
+        <!-- Overflow menu -->
+        <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+          <button @click="open = !open" aria-label="More"
+            class="text-slate-400 hover:text-slate-700 rounded px-1.5 py-1 transition-colors text-lg leading-none">⋯</button>
+          <div x-show="open" x-cloak x-transition
+            class="absolute right-0 mt-2 w-52 bg-white rounded-lg border border-slate-200 shadow-lg py-1 z-20">
+            <a href="https://studojo1.github.io/efficent-email-flow-/" target="_blank" rel="noopener"
+              class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              <span>🗺️</span><span>Flow blueprint</span>
+              <span class="ml-auto text-xs text-slate-400">↗</span>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -305,7 +318,7 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Campaign name</label>
-                <input x-model="newCampaign.name" class="input" placeholder="e.g. April nurture blast" />
+                <input x-model="newCampaign.name" class="input" placeholder="e.g. Outreach re-engage blast" />
               </div>
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
@@ -797,7 +810,7 @@ function app() {
 
     // Templates
     templates: [], templateSearch: '',
-    templateCategories: ['Transactional', 'Funnel', 'Signup', 'Nurture', 'Other'],
+    templateCategories: ['Transactional', 'Outreach', 'Career Coach', 'Resume', 'Internship', 'Old Users', 'Other'],
 
     // Trigger
     triggerEmail: '', triggerTemplate: '', triggerName: 'Jeremy', triggerResult: '', triggerOk: false,
@@ -1054,43 +1067,55 @@ function app() {
       return Math.min(count/max*100, 100)
     },
 
+    // The new flow is entirely cc-* templates across five sequences plus a
+    // small set of transactional emails. Categories map to those five flows.
+    ccFlow(t) {
+      if (t.startsWith('cc-outreach')) return 'Outreach'
+      if (t.startsWith('cc-rm-')) return 'Resume'
+      if (t.startsWith('cc-id-')) return 'Internship'
+      if (t.startsWith('cc-old')) return 'Old Users'
+      if (t.startsWith('cc-')) return 'Career Coach'
+      return null
+    },
+
     segmentCategory(t) {
-      if (t.startsWith('funnel-')) return 'Funnel'
-      if (t.startsWith('nurture')) return 'Nurture'
-      if (t.startsWith('signup-')) return 'Signup'
-      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready'].includes(t)) return 'Transact.'
+      const f = this.ccFlow(t)
+      if (f) return f
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready','checkin-reminder','service-update'].includes(t)) return 'Transact.'
       return 'Other'
     },
 
     segmentCategoryBadge(t) {
-      const m = { 'Funnel':'bg-violet-50 text-violet-700', 'Nurture':'bg-blue-50 text-blue-700', 'Signup':'bg-emerald-50 text-emerald-700', 'Transact.':'bg-amber-50 text-amber-700', 'Other':'bg-slate-100 text-slate-500' }
+      const m = { 'Outreach':'bg-violet-50 text-violet-700', 'Career Coach':'bg-indigo-50 text-indigo-700', 'Resume':'bg-blue-50 text-blue-700', 'Internship':'bg-emerald-50 text-emerald-700', 'Old Users':'bg-rose-50 text-rose-700', 'Transact.':'bg-amber-50 text-amber-700', 'Other':'bg-slate-100 text-slate-500' }
       return m[this.segmentCategory(t)] || 'bg-slate-100 text-slate-500'
     },
 
     templateCategoryBg(t) {
       const c = this.templateCategory(t)
-      return { 'Funnel':'bg-violet-50', 'Nurture':'bg-blue-50', 'Signup':'bg-emerald-50', 'Transactional':'bg-amber-50', 'Other':'bg-slate-50' }[c] || 'bg-slate-50'
+      return { 'Outreach':'bg-violet-50', 'Career Coach':'bg-indigo-50', 'Resume':'bg-blue-50', 'Internship':'bg-emerald-50', 'Old Users':'bg-rose-50', 'Transactional':'bg-amber-50', 'Other':'bg-slate-50' }[c] || 'bg-slate-50'
     },
 
     templateIcon(t) {
-      if (t.startsWith('funnel-')) return '📊'
-      if (t.startsWith('nurture')) return '🌱'
-      if (t.startsWith('signup-')) return '✅'
+      if (t.startsWith('cc-outreach')) return '🚀'
+      if (t.startsWith('cc-rm-')) return '📄'
+      if (t.startsWith('cc-id-')) return '🎯'
+      if (t.startsWith('cc-old')) return '🔄'
+      if (t.startsWith('cc-')) return '🧭'
       if (t === 'welcome') return '👋'
       if (t === 'payment-thankyou') return '💳'
       if (t === 'forgot-password' || t === 'password-changed') return '🔑'
       if (t === 'resume-optimized') return '📄'
       if (t === 'internship-applied') return '🎯'
       if (t === 'leads-ready') return '🚀'
+      if (t === 'checkin-reminder') return '⏰'
       if (t === 'contact-form') return '✉️'
       return '📧'
     },
 
     templateCategory(t) {
-      if (t.startsWith('funnel-')) return 'Funnel'
-      if (t.startsWith('nurture-')) return 'Nurture'
-      if (t.startsWith('signup-')) return 'Signup'
-      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready'].includes(t)) return 'Transactional'
+      const f = this.ccFlow(t)
+      if (f) return f
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready','checkin-reminder','service-update'].includes(t)) return 'Transactional'
       return 'Other'
     },
 
@@ -1121,10 +1146,21 @@ function app() {
     },
 
     templateToRoutingKey(t) {
-      const map = { 'welcome':'event.user.signup', 'payment-thankyou':'event.payment.success', 'forgot-password':'event.user.signup', 'funnel-welcome-new':'event.funnel.welcome_new', 'funnel-welcome-existing':'event.funnel.welcome_existing', 'signup-thankyou':'event.funnel.signup_thankyou', 'signup-followup':'event.funnel.signup_followup' }
+      // Transactional emails fire off platform events; cc-* templates each
+      // map to an event.cc.* key. Sequence followups (e.g. cc-outreach-push2)
+      // are scheduled off their starter, so the starter key is shown.
+      const map = {
+        'welcome':'event.user.signup', 'payment-thankyou':'event.payment.success', 'forgot-password':'event.user.signup',
+        'cc-welcome':'event.cc.welcome', 'cc-welcome-new-user':'event.cc.welcome_new_user',
+        'cc-dna-ready':'event.cc.dna_ready', 'cc-roadmap-delivered':'event.cc.roadmap_delivered',
+        'cc-outreach-push1':'event.cc.outreach_used', 'cc-outreach-payment-page':'event.cc.outreach_payment_page',
+        'cc-outreach-coupon':'event.cc.outreach_coupon', 'cc-coupon-unlock':'event.cc.coupon_unlock',
+        'cc-rm-strong-1':'event.cc.resume_strong', 'cc-rm-weak-1':'event.cc.resume_weak',
+        'cc-id-two-tools':'event.cc.id_two_tools',
+        'cc-old-s1-1':'event.cc.old_s1', 'cc-old-s2-1':'event.cc.old_s2', 'cc-old-s3-1':'event.cc.old_s3'
+      }
       if (map[t]) return map[t]
-      if (t.startsWith('funnel-')) return 'event.funnel.' + t.slice(7).replace(/-/g,'_')
-      if (t.startsWith('signup-')) return 'event.funnel.' + t.replace(/-/g,'_')
+      if (t.startsWith('cc-')) return 'event.cc.' + t.slice(3).replace(/-/g,'_')
       return 'event.user.signup'
     },
 

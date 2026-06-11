@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
@@ -41,11 +43,16 @@ type ResumeOptimizedEvent struct {
 	ImprovementsSummary string `json:"improvements_summary"`
 }
 
-// FunnelEmailEvent represents a manually triggered funnel email
-type FunnelEmailEvent struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
-	Name   string `json:"name"`
+// CCEmailEvent represents a new-flow (career-coach / efficient flow) email
+// trigger. CTAVariant (when set) selects the closing CTA block for old-user
+// stage emails: "outreach" | "coach" | "two-tool". CouponCode is passed through
+// for coupon emails.
+type CCEmailEvent struct {
+	UserID     string `json:"user_id"`
+	Email      string `json:"email"`
+	Name       string `json:"name"`
+	CTAVariant string `json:"cta_variant,omitempty"`
+	CouponCode string `json:"coupon_code,omitempty"`
 }
 
 // PaymentEvent represents a successful payment
@@ -58,102 +65,217 @@ type PaymentEvent struct {
 	OrderID  string `json:"order_id"`
 }
 
-// funnelRoutingKeyToTemplate maps event.funnel.* routing keys to template names
-var funnelRoutingKeyToTemplate = map[string]string{
-	"event.funnel.welcome_new":          "funnel-welcome-new",
-	"event.funnel.welcome_existing":     "funnel-welcome-existing",
-	"event.funnel.followup_v1":          "funnel-followup-v1",
-	"event.funnel.followup_v2":          "funnel-followup-v2",
-	"event.funnel.followup_v3":          "funnel-followup-v3",
-	"event.funnel.segmentation_v1":      "funnel-segmentation-v1",
-	"event.funnel.segmentation_v2":      "funnel-segmentation-v2",
-	"event.funnel.exploration_v1":       "funnel-exploration-v1",
-	"event.funnel.exploration_v2":       "funnel-exploration-v2",
-	"event.funnel.congratulations":      "funnel-congratulations",
-	"event.funnel.comparison":           "funnel-comparison",
-	"event.funnel.pitching_v1":          "funnel-pitching-v1",
-	"event.funnel.pitching_v2":          "funnel-pitching-v2",
-	"event.funnel.pitching_v3":          "funnel-pitching-v3",
-	"event.funnel.honest_question_v1":   "funnel-honest-question-v1",
-	"event.funnel.honest_question_v2":   "funnel-honest-question-v2",
-	"event.funnel.honest_question_v3":   "funnel-honest-question-v3",
-	"event.funnel.onboarding":           "funnel-onboarding",
-	"event.funnel.recognition_v1":       "funnel-recognition-v1",
-	"event.funnel.recognition_v2":       "funnel-recognition-v2",
-	"event.funnel.recognition_v3":       "funnel-recognition-v3",
-	"event.funnel.recognition_v4":       "funnel-recognition-v4",
-	"event.funnel.testimonial":          "funnel-testimonial",
-	"event.funnel.pricing":              "funnel-pricing",
-	"event.funnel.case_study":           "funnel-case-study",
-	"event.funnel.walkthrough":          "funnel-walkthrough",
-	"event.funnel.educational":          "funnel-educational",
-	"event.funnel.winback":              "funnel-winback",
-	"event.funnel.signup_thankyou":      "signup-thankyou",
-	"event.funnel.signup_followup":      "signup-followup",
-	"event.funnel.signup_welcome_v1":    "signup-welcome-v1",
-	"event.funnel.signup_welcome_v2":    "signup-welcome-v2",
-	"event.funnel.signup_welcome_v3":    "signup-welcome-v3",
-	"event.funnel.signup_welcome_v4":    "signup-welcome-v4",
-	"event.funnel.signup_welcome_v5":    "signup-welcome-v5",
+// ccRoutingKeyToTemplate maps event.cc.* routing keys to template names for the
+// instant-send emails (the first email of a flow, or a standalone trigger). Each
+// of these may also START a scheduled sequence; see ccSequenceStarters below.
+var ccRoutingKeyToTemplate = map[string]string{
+	// Outreach Dojo
+	"event.cc.welcome_new_user": "cc-welcome-new-user",
+	"event.cc.outreach_used":    "cc-outreach-push1",
+	"event.cc.outreach_coupon":  "cc-outreach-coupon",
+	// Career Coach
+	"event.cc.welcome":           "cc-welcome",
+	"event.cc.dna_ready":         "cc-dna-ready",
+	"event.cc.roadmap_delivered": "cc-roadmap-delivered",
+	"event.cc.coupon_unlock":     "cc-coupon-unlock",
+	// Resume Maker
+	"event.cc.resume_strong": "cc-rm-strong-1",
+	"event.cc.resume_weak":   "cc-rm-weak-1",
+	// Internship Dojo
+	"event.cc.id_two_tools": "cc-id-two-tools",
+	// Old / dormant user keys are handled by ccSpreadStarters (see HandleCCEmail),
+	// not here, so they are scheduled with a per-day spread instead of sent now.
 }
 
-// ScheduleFunnelSequence queues the post-segmentation follow-up emails for a user.
-// Called after segmentation-v1 or segmentation-v2 is sent. Deduplication is enforced
-// per email type — safe to call multiple times for the same user.
-func ScheduleFunnelSequence(ctx context.Context, s *store.PostgresStore, userID string, after time.Time) {
-	sequence := []struct {
-		emailType string
-		delay     time.Duration
-	}{
-		{"funnel_segmentation_v2", 3 * 24 * time.Hour},  // follow-up segmentation, 3 days after v1
-		{"funnel_followup_v1", 5 * 24 * time.Hour},
-		{"funnel_pitching_v1", 8 * 24 * time.Hour},
-		// funnel_recognition_v1 at +13d: paid-user gate in scheduler.send() suppresses if user converts
-		{"funnel_recognition_v1", 13 * 24 * time.Hour},
-	}
-	for _, item := range sequence {
-		exists, err := s.HasScheduledOrReceivedEmail(ctx, userID, item.emailType)
+// ccSequence is one step of a scheduled cc sequence.
+type ccSequence struct {
+	emailType string
+	delay     time.Duration
+}
+
+// ScheduleCCSequence queues a list of cc sequence steps into scheduled_emails with
+// per-type dedup. Mirrors ScheduleFunnelSequence. Safe to call repeatedly.
+func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, steps []ccSequence) {
+	for _, step := range steps {
+		exists, err := s.HasScheduledOrReceivedEmail(ctx, userID, step.emailType)
 		if err != nil {
-			slog.Error("funnel sequence: dedup check failed", "type", item.emailType, "user_id", userID, "error", err)
+			slog.Error("cc sequence: dedup check failed", "type", step.emailType, "user_id", userID, "error", err)
 			continue
 		}
 		if exists {
 			continue
 		}
-		if err := s.CreateScheduledEmail(ctx, userID, item.emailType, after.Add(item.delay)); err != nil {
-			slog.Error("funnel sequence: schedule failed", "type", item.emailType, "user_id", userID, "error", err)
+		if err := s.CreateScheduledEmail(ctx, userID, step.emailType, after.Add(step.delay)); err != nil {
+			slog.Error("cc sequence: schedule failed", "type", step.emailType, "user_id", userID, "error", err)
 		}
 	}
 }
 
-// HandleFunnelEmail handles all event.funnel.* events
-func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string, event *FunnelEmailEvent) error {
-	templateName, ok := funnelRoutingKeyToTemplate[routingKey]
-	if !ok {
-		slog.Warn("unknown funnel routing key", "routing_key", routingKey)
+const hour = time.Hour
+const day = 24 * time.Hour
+
+// ccSequenceStarters maps a sequence-starting routing key to the follow-up steps
+// scheduled after its instant email is sent. Delays come straight from the flow spec.
+var ccSequenceStarters = map[string][]ccSequence{
+	// Outreach NOT used: scheduled off the welcome (the welcome itself is event.cc.welcome_new_user)
+	"event.cc.welcome_new_user": {
+		{"cc_outreach_nudge_d1", 7 * hour},
+		{"cc_outreach_nudge_d2", 31 * hour}, // 7h + 24h
+		{"cc_outreach_nudge_d3", 63 * hour}, // + 32h
+		{"cc_outreach_nudge_d4", 96 * hour}, // day 4
+	},
+	// Outreach USED (high intent): fires when the student uses the outreach tool.
+	// The instant email is push1 (cc-outreach-push1); these are the follow-ups.
+	// Entering this also cancels the not-used nudge chain (see HandleCCEmail).
+	"event.cc.outreach_used": {
+		{"cc_outreach_push2", 24 * hour},
+		{"cc_outreach_push3", 50 * hour},
+		{"cc_outreach_convert1", 60 * hour},
+		{"cc_outreach_convert2", 75 * hour},
+	},
+	// Career Coach NOT started: off cc-welcome
+	"event.cc.welcome": {
+		{"cc_nudge_1", 8 * hour},
+		{"cc_nudge_2", 32 * hour},
+		{"cc_nudge_3", 56 * hour},
+	},
+	// Post-DNA sequence: off dna_ready
+	"event.cc.dna_ready": {
+		{"cc_dna_confirm_nudge", 2 * day},
+		{"cc_checkin_1", 4 * day},
+		{"cc_checkin_2", 7 * day},
+		{"cc_checkin_3", 10 * day},
+	},
+	// Roadmap sequence: off roadmap_delivered
+	"event.cc.roadmap_delivered": {
+		{"cc_upskill_nudge", 7 * day},
+		{"cc_coupon_unlock", 9 * day},
+		{"cc_dormant", 11 * day},
+		{"cc_to_outreach", 14 * day},
+	},
+	// Resume strong -> outreach lean
+	"event.cc.resume_strong": {
+		{"cc_rm_strong_2", 2 * day},
+		{"cc_rm_strong_3", 3 * day},
+	},
+	// Resume weak -> coach lean
+	"event.cc.resume_weak": {
+		{"cc_rm_weak_2", 2 * day},
+		{"cc_rm_weak_3", 3 * day},
+	},
+	// Internship two-tool offer -> re-engage if no click
+	"event.cc.id_two_tools": {
+		{"cc_id_reengage_1", 3 * day},
+		{"cc_id_reengage_2", 7 * day},
+	},
+	// Old-user stages are handled separately by ccSpreadStarters (see below) so
+	// they cascade across days under a per-day cap.
+}
+
+// ccDeferredStarters maps routing keys that send NOTHING instantly and instead
+// schedule their whole sequence (including the first email) with a delay. Used
+// for abandoned-checkout: the student reached the payment page, but we wait so a
+// student who pays within the window never gets the "you were right there"
+// email. Payment success cancels all pending cc_ rows, which drains these.
+var ccDeferredStarters = map[string][]ccSequence{
+	// Reached the outreach payment page but did not pay yet.
+	"event.cc.outreach_payment_page": {
+		{"cc_outreach_payment_page", 2 * hour}, // abandoned-checkout nudge after a 2h buffer
+		{"cc_outreach_coupon", 6 * hour},        // founder coupon a few hours later
+	},
+}
+
+// ccOldUserPerDay caps how many old-user re-engagement emails are scheduled to
+// land on any single day, so a large dormant batch cascades over days and never
+// consumes the daily provider quota that new-user mail needs. Configurable via
+// EMAIL_OLDUSER_PER_DAY (default 100). New-user mail is uncapped (top priority).
+func ccOldUserPerDay() int {
+	if v := os.Getenv("EMAIL_OLDUSER_PER_DAY"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 100
+}
+
+// ccSpreadStarters maps old-user routing keys to their full sequence (first email
+// included). Unlike instant starters, the first email is placed at the next
+// available "spread slot" (respecting the per-day cap) and the followups chain
+// off that slot, so the whole dormant batch cascades across days by intent: the
+// queue is also priority-ordered (s1 before s2 before s3) at send time.
+var ccSpreadStarters = map[string][]ccSequence{
+	"event.cc.old_s1": {
+		{"cc_old_s1_1", 0},
+		{"cc_old_s1_2", 5 * day},
+		{"cc_old_s1_3", 9 * day},
+	},
+	"event.cc.old_s2": {
+		{"cc_old_s2_1", 0},
+		{"cc_old_s2_2", 6 * day},
+		{"cc_old_s2_3", 9 * day},
+	},
+	"event.cc.old_s3": {
+		{"cc_old_s3_1", 0},
+		{"cc_old_s3_2", 7 * day},
+		{"cc_old_s3_3", 14 * day},
+	},
+}
+
+// HandleCCEmail handles all event.cc.* events. Instant-send keys send their email
+// now and schedule any follow-ups; deferred-start keys send nothing now and
+// schedule the whole sequence with a delay; spread-start (old-user) keys place
+// the first email at the next per-day spread slot so big dormant batches cascade.
+func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	// Spread starters (old-user re-engagement): cascade across days under a cap,
+	// using only the room new-user mail leaves free.
+	if steps, ok := ccSpreadStarters[routingKey]; ok {
+		if event.UserID == "" {
+			slog.Warn("cc spread email: missing user_id, cannot schedule", "routing_key", routingKey)
+			return nil
+		}
+		start, err := h.Store.NextSpreadSlot(ctx, "cc_old_", ccOldUserPerDay(), time.Now().UTC())
+		if err != nil {
+			slog.Error("cc spread: failed to find slot, scheduling now", "error", err)
+			start = time.Now().UTC()
+		}
+		ScheduleCCSequence(ctx, h.Store, event.UserID, start, steps)
+		slog.Info("cc old-user sequence scheduled (spread)", "routing_key", routingKey, "user_id", event.UserID, "first_at", start)
 		return nil
 	}
 
-	// Dedup: skip if this user has already received this template.
-	// Record uses templateName (not routingKey) so the scheduler catchup
-	// dedup query also finds it correctly.
+	// Deferred starters: schedule the sequence, send nothing now.
+	if steps, ok := ccDeferredStarters[routingKey]; ok {
+		if event.UserID == "" {
+			slog.Warn("cc deferred email: missing user_id, cannot schedule", "routing_key", routingKey)
+			return nil
+		}
+		ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
+		slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
+		return nil
+	}
+	templateName, ok := ccRoutingKeyToTemplate[routingKey]
+	if !ok {
+		slog.Warn("unknown cc routing key", "routing_key", routingKey)
+		return nil
+	}
+
+	// Dedup on the template name (matches what RecordSentEmail stores).
 	if event.UserID != "" {
 		already, err := h.Store.HasReceivedEmail(ctx, event.UserID, templateName)
 		if err != nil {
-			slog.Error("funnel email: dedup check failed", "user_id", event.UserID, "template", templateName, "error", err)
+			slog.Error("cc email: dedup check failed", "user_id", event.UserID, "template", templateName, "error", err)
 		} else if already {
-			slog.Info("funnel email: already sent, skipping", "user_id", event.UserID, "template", templateName)
+			slog.Info("cc email: already sent, skipping", "user_id", event.UserID, "template", templateName)
 			return nil
 		}
 	}
 
-	// Resolve email/name from user ID if not provided directly
 	recipientEmail := event.Email
 	recipientName := event.Name
 	if recipientEmail == "" && event.UserID != "" {
 		user, err := h.Store.GetUserByID(ctx, event.UserID)
 		if err != nil || user == nil {
-			slog.Error("funnel email: failed to get user", "user_id", event.UserID, "error", err)
+			slog.Error("cc email: failed to get user", "user_id", event.UserID, "error", err)
 			return err
 		}
 		recipientEmail = user.Email
@@ -163,27 +285,35 @@ func (h *EventHandler) HandleFunnelEmail(ctx context.Context, routingKey string,
 		recipientName = "there"
 	}
 
-	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
-	ctx = context.WithValue(ctx, email.UserNameKey, recipientName)
-	if err := h.Sender.SendTemplateEmail(ctx, recipientEmail, templateName, map[string]interface{}{
-		"UserName": recipientName,
-	}); err != nil {
-		slog.Error("funnel email: failed to send", "routing_key", routingKey, "template", templateName, "error", err)
-		return err
+	data := map[string]interface{}{
+		"UserName":     recipientName,
+		"DashboardURL": h.FrontendURL + "/",
+		"CouponCode":   event.CouponCode,
 	}
 
-	slog.Info("funnel email sent", "routing_key", routingKey, "template", templateName, "email", recipientEmail)
+	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
+	ctx = context.WithValue(ctx, email.UserNameKey, recipientName)
+	if err := h.Sender.SendTemplateEmail(ctx, recipientEmail, templateName, data); err != nil {
+		slog.Error("cc email: failed to send", "routing_key", routingKey, "template", templateName, "error", err)
+		return err
+	}
+	slog.Info("cc email sent", "routing_key", routingKey, "template", templateName, "email", recipientEmail)
 
 	if event.UserID != "" {
-		// Record with templateName so HasReceivedEmail and the catchup scheduler
-		// both find it with the same key they query.
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
-			slog.Error("funnel email: failed to record", "template", templateName, "error", err)
+			slog.Error("cc email: failed to record", "template", templateName, "error", err)
 		}
-
-		// Only schedule the follow-up sequence from v1 — v2 is itself part of the sequence
-		if routingKey == "event.funnel.segmentation_v1" {
-			ScheduleFunnelSequence(ctx, h.Store, event.UserID, time.Now().UTC())
+		// Exit rule: using the outreach tool cancels the not-used nudge chain so
+		// a high-intent user never gets "did you try it?" emails.
+		if routingKey == "event.cc.outreach_used" {
+			if n, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_outreach_nudge"); err != nil {
+				slog.Error("cc email: failed to cancel not-used chain", "user_id", event.UserID, "error", err)
+			} else if n > 0 {
+				slog.Info("cc email: cancelled not-used chain on tool use", "user_id", event.UserID, "count", n)
+			}
+		}
+		if steps, ok := ccSequenceStarters[routingKey]; ok {
+			ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
 		}
 	}
 
@@ -249,36 +379,9 @@ func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEv
 		slog.Error("failed to record welcome email", "error", err)
 	}
 
-	// Only schedule nurture for unpaid users — paid users don't need conversion emails
-	paid, err := h.Store.IsUserPaid(ctx, event.UserID)
-	if err != nil {
-		slog.Warn("paid check failed, scheduling nurture anyway", "user_id", event.UserID, "err", err)
-	}
-	if !paid {
-		now := time.Now().UTC()
-		nurture := []struct {
-			emailType string
-			delay     time.Duration
-		}{
-			{"nurture_day3", 3 * 24 * time.Hour},
-			{"nurture_day10", 10 * 24 * time.Hour}, // moved from day-7; content unchanged, timing improved
-			{"nurture_day14", 14 * 24 * time.Hour},
-			{"nurture_day30", 30 * 24 * time.Hour},
-		}
-		for _, n := range nurture {
-			exists, err := h.Store.HasScheduledOrReceivedEmail(ctx, event.UserID, n.emailType)
-			if err != nil {
-				slog.Error("nurture dedup check failed", "type", n.emailType, "user_id", event.UserID, "error", err)
-				continue
-			}
-			if exists {
-				continue
-			}
-			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, n.emailType, now.Add(n.delay)); err != nil {
-				slog.Error("failed to schedule nurture email", "type", n.emailType, "user_id", event.UserID, "error", err)
-			}
-		}
-	}
+	// The old nurture sequence is retired. The new efficient flow's engagement
+	// sequences are started by their own event.cc.* triggers (welcome_new_user,
+	// welcome, dna_ready, etc.), not from this transactional account-welcome.
 
 	return nil
 }
@@ -451,12 +554,31 @@ func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) e
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, emailKey); err != nil {
 			slog.Error("payment email: failed to record", "order_id", event.OrderID, "error", err)
 		}
-		// Cancel any pending nurture emails — paid users don't need conversion nudges
-		if n, err := h.Store.CancelPendingNurtureEmails(ctx, event.UserID); err != nil {
-			slog.Error("payment: failed to cancel nurture emails", "user_id", event.UserID, "error", err)
+		// Cancel any pending cc marketing sequences — paid users don't need conversion nudges
+		if n, err := h.Store.CancelPendingCCMarketingEmails(ctx, event.UserID); err != nil {
+			slog.Error("payment: failed to cancel cc marketing emails", "user_id", event.UserID, "error", err)
 		} else if n > 0 {
-			slog.Info("payment: cancelled pending nurture emails", "user_id", event.UserID, "count", n)
+			slog.Info("payment: cancelled pending cc marketing emails", "user_id", event.UserID, "count", n)
 		}
+	}
+	return nil
+}
+
+// HandleCCPaid cancels all pending cc marketing sequences for a user who just
+// paid, without sending anything. Used by the Outreach checkout, which confirms
+// payment via its own backend (not event.payment.success), so this is the signal
+// that drains the abandoned-checkout and nudge sequences for converters.
+func (h *EventHandler) HandleCCPaid(ctx context.Context, event *CCEmailEvent) error {
+	if event.UserID == "" {
+		return nil
+	}
+	n, err := h.Store.CancelPendingCCMarketingEmails(ctx, event.UserID)
+	if err != nil {
+		slog.Error("cc paid: failed to cancel cc marketing emails", "user_id", event.UserID, "error", err)
+		return err
+	}
+	if n > 0 {
+		slog.Info("cc paid: cancelled pending cc marketing emails", "user_id", event.UserID, "count", n)
 	}
 	return nil
 }
@@ -499,14 +621,23 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		}
 		return h.HandlePayment(ctx, &event)
 
+	case "event.cc.paid":
+		// Cancel-only signal from a flow whose payment is confirmed out-of-band
+		// (e.g. the Outreach checkout). Drains pending cc marketing sequences.
+		var event CCEmailEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleCCPaid(ctx, &event)
+
 	default:
-		// Handle all event.funnel.* routing keys generically
-		if _, ok := funnelRoutingKeyToTemplate[routingKey]; ok {
-			var event FunnelEmailEvent
+		// Handle all event.cc.* routing keys generically (the new efficient flow)
+		if _, ok := ccRoutingKeyToTemplate[routingKey]; ok {
+			var event CCEmailEvent
 			if err := json.Unmarshal(body, &event); err != nil {
 				return err
 			}
-			return h.HandleFunnelEmail(ctx, routingKey, &event)
+			return h.HandleCCEmail(ctx, routingKey, &event)
 		}
 		slog.Warn("unknown event type", "routing_key", routingKey)
 		return nil

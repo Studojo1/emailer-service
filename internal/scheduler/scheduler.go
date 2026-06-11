@@ -3,11 +3,12 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
-	"github.com/studojo/emailer-service/internal/handlers"
 	"github.com/studojo/emailer-service/internal/store"
 )
 
@@ -16,12 +17,38 @@ type Scheduler struct {
 	Store          *store.PostgresStore
 	Sender         *email.Sender
 	FrontendURL    string
-	rateLimitUntil time.Time // circuit breaker: stop sending until quota resets
+	rateLimitUntil time.Time     // circuit breaker: stop sending until quota resets
+	sendInterval   time.Duration // gap between sends, derived from the per-hour cap
+	backoff        time.Duration // how long to pause the batch on a hard 429
 }
 
-// NewScheduler creates a new Scheduler
+// ratePerHour returns the configured provider send cap per hour. Defaults to 180
+// (just under the Azure free-tier 200/hr), override with EMAIL_RATE_PER_HOUR.
+func ratePerHour() int {
+	if v := os.Getenv("EMAIL_RATE_PER_HOUR"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 180
+}
+
+// NewScheduler creates a new Scheduler. Pacing is derived from EMAIL_RATE_PER_HOUR
+// so the same binary serves a free tier or a higher paid quota with no code change.
 func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL string) *Scheduler {
-	return &Scheduler{Store: s, Sender: sender, FrontendURL: frontendURL}
+	rph := ratePerHour()
+	interval := time.Duration(float64(time.Hour) / float64(rph))
+	if interval < time.Second {
+		interval = time.Second // never busier than 1/s regardless of config
+	}
+	// On a hard rate-limit with no Retry-After, pause ~one hour for the quota window.
+	return &Scheduler{
+		Store:        s,
+		Sender:       sender,
+		FrontendURL:  frontendURL,
+		sendInterval: interval,
+		backoff:      65 * time.Minute,
+	}
 }
 
 // Run starts the scheduler loop. Call in a goroutine.
@@ -55,6 +82,9 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 		return
 	}
 
+	// Priority-ordered: new/active-user emails always drain before old-user
+	// re-engagement, so high-intent students are never starved by a big dormant
+	// batch. The DB query orders by priority then scheduled_at (see the store).
 	emails, err := sc.Store.GetDueScheduledEmails(ctx)
 	if err != nil {
 		slog.Error("scheduler: failed to fetch due emails", "error", err)
@@ -62,124 +92,68 @@ func (sc *Scheduler) processDue(ctx context.Context) {
 	}
 	for i, e := range emails {
 		if i > 0 {
-			// 20s between sends = 3/min = 180/hr — just under the 200/hr ACS free-tier cap
-			time.Sleep(20 * time.Second)
+			// Pace to stay under the provider cap (EMAIL_RATE_PER_HOUR).
+			time.Sleep(sc.sendInterval)
 		}
 		if rateLimited := sc.send(ctx, e); rateLimited {
-			// Both ACS resources exhausted — stop the batch and wait 65 min for quota reset
-			sc.rateLimitUntil = time.Now().Add(65 * time.Minute)
-			slog.Warn("scheduler: ACS rate limit hit, pausing sends for 65 minutes")
+			// Provider rate-limited us. Honour Retry-After if the sender surfaced
+			// one; otherwise pause ~one hour for the quota window.
+			pause := sc.backoff
+			if ra := sc.Sender.LastRetryAfter(); ra > 0 {
+				pause = ra + 30*time.Second
+			}
+			sc.rateLimitUntil = time.Now().Add(pause)
+			slog.Warn("scheduler: provider rate limit hit, pausing sends", "pause", pause.Round(time.Second))
 			return
 		}
 	}
 }
 
-// runCatchup finds users who missed emails because the service wasn't running
-// when they signed up or completed the quiz, and queues them now.
+// runCatchup re-queues platform-owned new-flow emails for users who crossed a
+// trigger window while the service was down. Coach-owned sequences (dormancy,
+// returning, old-user) are driven by the coach backend cron, not caught up here.
 func (sc *Scheduler) runCatchup(ctx context.Context) {
-	sc.catchupSegmentation(ctx)
-	sc.catchupNurture(ctx)
+	sc.catchupCC(ctx)
 }
 
-// catchupNurture queues missing nurture emails for users who signed up before
-// the emailer service was running and never had their sequence scheduled.
-// Each nurture type is offset by one day so a user who missed all four never
-// receives more than one nurture email per day.
-func (sc *Scheduler) catchupNurture(ctx context.Context) {
-	type nurtureSpec struct {
+// catchupCC queues the first email of a platform-owned cc sequence for users who
+// passed its entry window but have no row of that type yet. Only the first step is
+// caught up; the rest chain off it in send().
+func (sc *Scheduler) catchupCC(ctx context.Context) {
+	type ccCatchupSpec struct {
 		emailType  string
-		minDays    int
+		minMinutes int
 		baseOffset time.Duration
 	}
-	specs := []nurtureSpec{
-		{"nurture_day3", 3, 0},
-		{"nurture_day10", 10, 24 * time.Hour}, // moved from day-7 slot
-		{"nurture_day14", 14, 48 * time.Hour},
-		{"nurture_day30", 30, 72 * time.Hour},
+	specs := []ccCatchupSpec{
+		{"cc_outreach_nudge_d1", 7 * 60, 0}, // outreach not-used, 7h after signup
 	}
-
 	now := time.Now().UTC()
 	for _, spec := range specs {
-		users, err := sc.Store.ListUsersWithoutEmail(ctx, spec.emailType, spec.minDays*24*60)
+		users, err := sc.Store.ListUsersWithoutEmail(ctx, spec.emailType, spec.minMinutes)
 		if err != nil {
-			slog.Error("catchup nurture: list failed", "type", spec.emailType, "error", err)
+			slog.Error("catchup cc: list failed", "type", spec.emailType, "error", err)
 			continue
 		}
 		queued := 0
 		for i, u := range users {
-			// 1s apart so scheduled_at is unique per user; baseOffset separates types by a day
 			sendAt := now.Add(spec.baseOffset + time.Duration(i)*time.Second)
 			if err := sc.Store.CreateScheduledEmail(ctx, u.ID, spec.emailType, sendAt); err != nil {
-				slog.Error("catchup nurture: schedule failed", "type", spec.emailType, "user_id", u.ID, "error", err)
+				slog.Error("catchup cc: schedule failed", "type", spec.emailType, "user_id", u.ID, "error", err)
 				continue
 			}
 			queued++
 		}
 		if queued > 0 {
-			slog.Info("catchup nurture: queued missed emails", "type", spec.emailType, "count", queued)
+			slog.Info("catchup cc: queued missed emails", "type", spec.emailType, "count", queued)
 		}
 	}
 }
 
-// catchupSegmentation queues a segmentation-v1 email for any user who completed
-// the quiz (has target_roles set) but never received a segmentation email.
-func (sc *Scheduler) catchupSegmentation(ctx context.Context) {
-	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel_segmentation_v1")
-	if err != nil {
-		slog.Error("catchup: failed to list quiz-completed users without segmentation email", "error", err)
-		return
-	}
-	queued := 0
-	now := time.Now().UTC()
-	for i, u := range users {
-		delay := time.Duration(i) * 10 * time.Second
-		if i > 0 && i%20 == 0 {
-			delay += time.Duration(i/20) * 120 * time.Second
-		}
-		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel_segmentation_v1", now.Add(delay)); err != nil {
-			slog.Error("catchup: failed to queue segmentation", "user_id", u.ID, "error", err)
-			continue
-		}
-		queued++
-	}
-	if queued > 0 {
-		slog.Info("catchup: queued missed segmentation-v1 emails", "count", queued)
-	}
-}
-
-// catchupSegmentationV2 queues a segmentation-v2 email for quiz-completed users
-// who haven't received it yet. Mirrors catchupSegmentation.
-func (sc *Scheduler) catchupSegmentationV2(ctx context.Context) {
-	users, err := sc.Store.ListQuizCompletedWithoutEmail(ctx, "funnel_segmentation_v2")
-	if err != nil {
-		slog.Error("catchup: failed to list quiz-completed users without segmentation-v2 email", "error", err)
-		return
-	}
-	queued := 0
-	now := time.Now().UTC()
-	for i, u := range users {
-		delay := time.Duration(i) * 10 * time.Second
-		if i > 0 && i%20 == 0 {
-			delay += time.Duration(i/20) * 120 * time.Second
-		}
-		if err := sc.Store.CreateScheduledEmail(ctx, u.ID, "funnel_segmentation_v2", now.Add(delay)); err != nil {
-			slog.Error("catchup: failed to queue segmentation-v2", "user_id", u.ID, "error", err)
-			continue
-		}
-		queued++
-	}
-	if queued > 0 {
-		slog.Info("catchup: queued missed segmentation-v2 emails", "count", queued)
-	}
-}
-
-// isNurtureType returns true for email types that are part of the nurture sequence.
-func isNurtureType(emailType string) bool {
-	switch emailType {
-	case "nurture_day3", "nurture_day10", "nurture_day14", "nurture_day30":
-		return true
-	}
-	return false
+// isCCMarketingType returns true for cc sequence emails suppressed for paying
+// Outreach customers.
+func isCCMarketingType(emailType string) bool {
+	return strings.HasPrefix(emailType, "cc_")
 }
 
 // send attempts to send a single scheduled email.
@@ -203,13 +177,13 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		return false
 	}
 
-	// Suppress nurture emails for paid users — silently drain the row
-	if isNurtureType(e.EmailType) {
+	// Suppress cc marketing sequences for paid users — silently drain the row
+	if isCCMarketingType(e.EmailType) {
 		paid, err := sc.Store.IsUserPaid(ctx, e.UserID)
 		if err != nil {
-			slog.Warn("scheduler: paid check failed, sending nurture anyway", "user_id", e.UserID, "err", err)
+			slog.Warn("scheduler: paid check failed, sending cc email anyway", "user_id", e.UserID, "err", err)
 		} else if paid {
-			slog.Info("scheduler: suppressing nurture for paid user", "user_id", e.UserID, "type", e.EmailType)
+			slog.Info("scheduler: suppressing cc marketing for paid user", "user_id", e.UserID, "type", e.EmailType)
 			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 			return false
 		}
@@ -230,17 +204,23 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
 	case "welcome":
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
-	case "nurture_day3":
-		templateData = map[string]interface{}{"UserName": user.Name, "InternshipURL": sc.FrontendURL + "/outreach"}
-	case "nurture_day10":
-		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
-	case "nurture_day14":
-		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
-	case "nurture_day30":
-		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
-		if strings.HasPrefix(e.EmailType, "funnel") {
-			templateData = map[string]interface{}{"UserName": user.Name}
+		if strings.HasPrefix(e.EmailType, "cc_") {
+			// cc sequence emails are self-contained (links hardcoded). The two
+			// coupon-bearing types get a default code from env (DEFAULT_COUPON_CODE)
+			// when scheduled (e.g. the abandoned-checkout coupon); instant coupon
+			// events carry their own code on the payload instead.
+			templateData = map[string]interface{}{
+				"UserName":     user.Name,
+				"DashboardURL": sc.FrontendURL + "/",
+			}
+			if e.EmailType == "cc_outreach_coupon" || e.EmailType == "cc_coupon_unlock" {
+				code := os.Getenv("DEFAULT_COUPON_CODE")
+				if code == "" {
+					code = "STUDOJO20"
+				}
+				templateData["CouponCode"] = code
+			}
 		} else {
 			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
 			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
@@ -265,39 +245,20 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	}
 	slog.Info("scheduler: email sent", "user_id", e.UserID, "type", e.EmailType, "email", user.Email)
 
-	// After segmentation fires, automatically schedule the follow-up sequence
-	// Only schedule the follow-up sequence from v1 — v2 is itself part of the sequence
-	if e.EmailType == "funnel_segmentation_v1" {
-		handlers.ScheduleFunnelSequence(ctx, sc.Store, e.UserID, time.Now().UTC())
-	}
-
+	// cc sequences are scheduled in full up front by ScheduleCCSequence, so there
+	// is no mid-stream chaining to do here.
 	return false
 }
 
 func emailTypeToTemplate(emailType string) string {
 	switch emailType {
-	case "nurture_day3":
-		return "nurture-day3"
-	case "nurture_day10":
-		return "nurture-day7" // content unchanged; slot moved from day-7 to day-10
-	case "nurture_day14":
-		return "nurture-day14"
-	case "nurture_day30":
-		return "nurture-day30"
 	case "leads_ready":
 		return "leads-ready"
-	case "funnel_segmentation_v1":
-		return "funnel-segmentation-v1"
-	case "funnel_segmentation_v2":
-		return "funnel-segmentation-v2"
-	case "funnel_followup_v1":
-		return "funnel-followup-v1"
-	case "funnel_pitching_v1":
-		return "funnel-pitching-v1"
-	case "funnel_recognition_v1":
-		return "funnel-recognition-v1"
 	default:
-		// funnel-* types already have the right hyphenated name
+		// cc_* sequence types map 1:1 to cc-* templates (underscore -> hyphen).
+		if strings.HasPrefix(emailType, "cc_") {
+			return strings.ReplaceAll(emailType, "_", "-")
+		}
 		return emailType
 	}
 }

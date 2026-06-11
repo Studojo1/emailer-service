@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>You started. Here's what happens next</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .what-next { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .what-next-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
+    .what-next-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; font-size: 15px; color: #333; line-height: 1.6; }
+    .what-next-item:last-child { margin-bottom: 0; }
+    .what-next-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 7px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">You used Outreach Dojo. That matters more than you might think. Most students who sign up never start. You did.</p>
+
+      <p class="body-text">Here's what's happening on our end right now:</p>
+
+      <div class="what-next">
+        <div class="what-next-title">What we're doing</div>
+        <div class="what-next-item">
+          <div class="what-next-dot"></div>
+          <div>We're identifying the hiring managers at your target companies. The people who actually decide who gets interviewed, not generic HR inboxes.</div>
+        </div>
+        <div class="what-next-item">
+          <div class="what-next-dot"></div>
+          <div>We're writing a personalised note for each one. Not a template. A message that references their team, their company's work, and why you specifically are reaching out.</div>
+        </div>
+        <div class="what-next-item">
+          <div class="what-next-dot"></div>
+          <div>You'll review everything before it goes out. Nothing is sent without your sign-off.</div>
+        </div>
+      </div>
+
+      <p class="body-text">Students who complete the full flow typically see their first hiring manager reply within the first week. Not a form rejection. An actual reply from a person who read what you sent and wants to talk.</p>
+
+      <p class="body-text">If you haven't finished your setup yet, finish it now while the momentum's there.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach">Complete your setup &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

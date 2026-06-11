@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The job search has changed since you were last here</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .tools-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
+    .tools-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 14px; }
+    .tools-item { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #333; line-height: 1.6; }
+    .tools-item:last-child { margin-bottom: 0; }
+    .tools-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 7px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><div class="header-logo">Studojo</div></div>
+    <div class="body">
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">It has been a while since you were last on Studojo. No pressure and no guilt. Life gets busy and the job search gets put down. That happens to almost everyone.</p>
+
+      <p class="body-text">A lot has moved since you were last here. If you are still looking, or looking again, here is what is worth knowing:</p>
+
+      <div class="tools-box">
+        <div class="tools-title">What Studojo can do for you now</div>
+        <div class="tools-item">
+          <div class="tools-dot"></div>
+          <div>The Career Coach builds an honest picture of where you stand and what to fix first. Most students find out things they wish they had known months earlier.</div>
+        </div>
+        <div class="tools-item">
+          <div class="tools-dot"></div>
+          <div>Outreach Dojo reaches the actual hiring managers at your target companies with personalised notes, instead of applying into a portal void.</div>
+        </div>
+      </div>
+
+      <p class="body-text">Whatever stage you are at, picking back up is easier than starting over. Your account is still here.</p>
+
+      <a class="cta-button" href="https://studojo.com">Come back to Studojo &rarr;</a>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+  </div>
+</body>
+</html>

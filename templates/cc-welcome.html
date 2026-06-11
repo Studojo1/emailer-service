@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Welcome to Career Coach</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .what-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 28px 0; }
+    .what-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px; }
+    .what-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; font-size: 15px; color: #333; line-height: 1.6; }
+    .what-item:last-child { margin-bottom: 0; }
+    .what-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 8px; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="header-logo">Studojo</div>
+    </div>
+    <div class="body">
+
+      <div class="tag">Career Coach</div>
+
+      <h1 class="headline">You asked for an honest look.<br>That takes courage.</h1>
+
+      <p class="body-text">Hey {{.UserName}},</p>
+
+      <p class="body-text">Most students spend months applying and never stop to ask: am I actually ready? They assume the problem is the market, the competition, the economy. Sometimes that's true. But more often, the gap is something specific and fixable. They just don't know what it is.</p>
+
+      <p class="body-text">You signed up for Career Coach. That's you deciding to get an honest picture instead of a hopeful one. That matters.</p>
+
+      <div class="what-box">
+        <div class="what-title">Here is what the coach does</div>
+        <div class="what-item">
+          <div class="what-dot"></div>
+          <div>It has a conversation with you. Not a form, not a quiz. A real back-and-forth that builds a picture of who you are, what you want, and where you actually stand as a candidate.</div>
+        </div>
+        <div class="what-item">
+          <div class="what-dot"></div>
+          <div>At the end, it generates your career analysis. A specific breakdown of your gaps, your strengths, and the actions that will move your readiness score the most.</div>
+        </div>
+        <div class="what-item">
+          <div class="what-dot"></div>
+          <div>Then it gives you a roadmap. Not generic advice. Steps built around your specific situation, your target role, and the gap between where you are and where you want to be.</div>
+        </div>
+      </div>
+
+      <p class="body-text">The conversation usually takes 10 to 15 minutes. Start whenever you are ready.</p>
+
+      <a class="cta-button" href="https://studojo.pro/career-coach">Start your career analysis &rarr;</a>
+
+      <p class="body-text">Reply to this email any time if you have questions. I read everything.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you signed up for Career Coach.</p>
+    </div>
+  </div>
+</body>
+</html>
