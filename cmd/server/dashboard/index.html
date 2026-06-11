@@ -1,1462 +1,1168 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="app()">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Studojo Email Flow Dashboard</title>
-  <!-- Studojo frontend fonts (Fontshare), preconnected like the main site -->
-  <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
-  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700,900&display=swap" />
+  <title>Studojo Mail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
-    /* Exact Studojo frontend font stack: Clash Display (headings) + Satoshi (body). */
-    @import url('https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700,900&display=swap');
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: 'Satoshi', sans-serif;
-      font-weight: 500;
-      background-color: #f5f4f0;
-      color: #19191a;
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .clash { font-family: 'Clash Display', sans-serif; }
-
-    /* ── SIDEBAR ── */
-    #sidebar {
-      width: 260px;
-      flex-shrink: 0;
-      height: 100vh;
-      background: #fff;
-      border-right: 2px solid #19191a;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    .sidebar-logo {
-      padding: 20px 20px 16px;
-      border-bottom: 2px solid #19191a;
-      flex-shrink: 0;
-    }
-    .sidebar-logo-name {
-      font-family: 'Clash Display', sans-serif;
-      font-size: 20px; font-weight: 800; letter-spacing: -0.5px;
-    }
-    .sidebar-logo-sub { font-size: 11px; color: #999; margin-top: 3px; font-weight: 500; letter-spacing: 0.2px; }
-
-    .sidebar-scroll { flex: 1; overflow-y: auto; padding-bottom: 12px; }
-    .sidebar-scroll::-webkit-scrollbar { width: 3px; }
-    .sidebar-scroll::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 2px; }
-
-    /* Accordion group button */
-    .nav-group-btn {
-      display: flex; align-items: center; gap: 10px;
-      padding: 11px 14px; margin: 6px 8px 2px;
-      border-radius: 12px; cursor: pointer;
-      font-family: 'Clash Display', sans-serif;
-      font-size: 13px; font-weight: 700; color: #19191a;
-      border: 2px solid #19191a;
-      background: #fff;
-      box-shadow: 3px 3px 0 rgba(25,26,35,1);
-      transition: transform 0.1s, box-shadow 0.1s;
-      user-select: none;
-    }
-    .nav-group-btn:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 rgba(25,26,35,1); }
-    .nav-group-btn.open { background: #19191a; color: #fff; }
-    .nav-group-btn.open:hover { transform: translate(1px,1px); box-shadow: 2px 2px 0 rgba(25,26,35,1); }
-    .nav-group-btn .group-label { flex: 1; }
-    .nav-group-btn .group-count {
-      font-size: 10px; font-weight: 700; padding: 2px 8px;
-      border-radius: 100px; background: #f5f4f0; color: #888;
-      border: 1.5px solid #ddd;
-    }
-    .nav-group-btn.open .group-count { background: rgba(255,255,255,0.15); color: #fff; border-color: rgba(255,255,255,0.3); }
-    .nav-group-btn .chevron { font-size: 10px; opacity: 0.6; transition: transform 0.2s; }
-    .nav-group-btn.open .chevron { transform: rotate(180deg); }
-
-    /* Accordion body */
-    .nav-group-body { overflow: hidden; max-height: 0; transition: max-height 0.25s ease; }
-    .nav-group-body.open { max-height: 2000px; }
-
-    /* Sub-section label inside accordion */
-    .nav-section {
-      font-family: 'Clash Display', sans-serif;
-      font-size: 9px; font-weight: 700; letter-spacing: 2px;
-      text-transform: uppercase; color: #bbb;
-      padding: 12px 16px 4px;
-    }
-
-    .nav-item {
-      display: flex; align-items: center; gap: 10px;
-      padding: 8px 12px; margin: 1px 8px;
-      border-radius: 10px; cursor: pointer;
-      font-size: 13px; font-weight: 500; color: #555;
-      border: 2px solid transparent;
-      transition: all 0.1s;
-    }
-    .nav-item:hover { background: #f3f0ff; color: #7c3aed; border-color: #7c3aed; }
-    .nav-item.active {
-      background: #7c3aed; color: #fff;
-      border-color: #19191a;
-      box-shadow: 2px 2px 0 rgba(25,26,35,1);
-      font-weight: 700;
-    }
-    .nav-item.active:hover { transform: translate(1px,1px); box-shadow: 1px 1px 0 rgba(25,26,35,1); }
-
-    .nav-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: #19191a; flex-shrink: 0;
-    }
-    .nav-dot.purple { background: #7c3aed; }
-    .nav-dot.amber  { background: #f59e0b; }
-    .nav-dot.green  { background: #10b981; }
-    .nav-item.active .nav-dot { background: #fff; }
-
-    .nav-num {
-      width: 18px; height: 18px; border-radius: 50%;
-      background: #e5e5e5; color: #555;
-      font-family: 'Clash Display', sans-serif;
-      font-size: 10px; font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .nav-item.active .nav-num { background: rgba(255,255,255,0.25); color: #fff; }
-
-    .nav-label { flex: 1; }
-    .nav-chip {
-      font-size: 9px; font-weight: 700; padding: 2px 7px;
-      border-radius: 100px; border: 1.5px solid currentColor;
-      white-space: nowrap; opacity: 0.85;
-    }
-
-    .sidebar-foot {
-      border-top: 2px solid #19191a; padding: 14px 16px;
-      font-size: 11px; color: #999; flex-shrink: 0;
-    }
-    .sidebar-foot strong { display: block; color: #19191a; font-size: 12px; margin-bottom: 2px; font-weight: 700; }
-
-    /* ── MAIN ── */
-    #main { flex: 1; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-
-    /* ── FLOW MAP ── */
-    #flow-pane-outreach, #flow-pane-cc { flex: 1; overflow: auto; padding: 40px 48px 60px; background: #f5f4f0; }
-
-    .flow-header { margin-bottom: 36px; }
-    .flow-tag {
-      display: inline-flex; align-items: center;
-      font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-      padding: 4px 12px; border-radius: 100px;
-      border: 2px solid #19191a; background: #fff; color: #19191a;
-      margin-bottom: 14px;
-    }
-    .flow-title { font-family: 'Clash Display', sans-serif; font-size: 34px; font-weight: 800; line-height: 1.1; margin-bottom: 8px; }
-    .flow-sub { font-size: 13px; color: #888; }
-
-    /* ── WORKFLOW (vertical, top-to-bottom) ── */
-    .wf { max-width: 1000px; margin: 0 auto; }
-    .wf.wide { max-width: 1320px; }
-
-    /* A single node, centered, with optional delay chip below */
-    .wf-node {
-      display: inline-flex; flex-direction: column; align-items: stretch;
-      cursor: pointer; vertical-align: top;
-    }
-    .wf-node-box {
-      background: #fff; border: 2px solid #19191a; border-radius: 12px;
-      padding: 12px 16px; box-shadow: 3px 3px 0 rgba(25,26,35,1);
-      min-width: 150px; text-align: left;
-      transition: transform 0.1s, box-shadow 0.1s;
-      display: flex; align-items: center; gap: 11px;
-    }
-    .wf-node:hover .wf-node-box {
-      transform: translate(1px,1px); box-shadow: 2px 2px 0 rgba(25,26,35,1);
-      border-color: #7c3aed;
-    }
-    .wf-node-box.start     { background: #19191a; color: #fff; border-color: #19191a; }
-    .wf-node-box.universal { background: #7c3aed; color: #fff; border-color: #19191a; }
-    .wf-node-box.soft-purple { background: #f3f0ff; border-color: #7c3aed; }
-    .wf-node-box.amber   { background: #fffbeb; border-color: #f59e0b; }
-    .wf-node-box.green   { background: #f0fdf4; border-color: #10b981; }
-    .wf-node-box.ghost   { background: #fff; border: 2px dashed #ccc; box-shadow: none; cursor: default; }
-    .wf-node-box.ghost:hover { transform: none; box-shadow: none; border-color: #ccc; }
-
-    /* node index badge */
-    .wf-badge {
-      flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Clash Display', sans-serif; font-size: 11px; font-weight: 700;
-      background: #19191a; color: #fff;
-    }
-    .wf-node-box.universal .wf-badge { background: #fff; color: #7c3aed; }
-    .wf-node-box.soft-purple .wf-badge { background: #7c3aed; color: #fff; }
-    .wf-node-box.amber .wf-badge { background: #f59e0b; color: #fff; }
-    .wf-node-box.green .wf-badge { background: #10b981; color: #fff; }
-    .wf-badge.outline { background: #fff; color: #19191a; border: 2px solid #19191a; }
-
-    .wf-node-text { flex: 1; min-width: 0; }
-    .wf-node-title { font-family: 'Clash Display', sans-serif; font-size: 13px; font-weight: 700; line-height: 1.25; }
-    .wf-node-sub { font-size: 10px; color: #888; margin-top: 2px; line-height: 1.3; }
-    .wf-node-box.universal .wf-node-sub { color: #e0d4ff; }
-    .wf-node-box.start .wf-node-sub { color: #888; }
-    .wf-node-box.soft-purple .wf-node-sub { color: #7c3aed; }
-
-    .wf-delay {
-      font-size: 9px; font-weight: 700; white-space: nowrap;
-      padding: 2px 8px; border-radius: 100px; flex-shrink: 0;
-      border: 1.5px solid #ddd; background: #f5f4f0; color: #888;
-    }
-    .wf-delay.purple { background: #f3f0ff; border-color: #7c3aed; color: #7c3aed; }
-    .wf-delay.amber  { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
-    .wf-delay.green  { background: #f0fdf4; border-color: #10b981; color: #065f46; }
-
-    /* Vertical connector with a downward arrowhead, always centered */
-    .wf-down {
-      width: 0; height: 26px; margin: 0 auto;
-      border-left: 2px solid #19191a; position: relative;
-    }
-    .wf-down::after {
-      content: ''; position: absolute; bottom: -1px; left: 50%; transform: translateX(-50%);
-      border-left: 5px solid transparent; border-right: 5px solid transparent;
-      border-top: 7px solid #19191a;
-    }
-    .wf-down.purple { border-color: #7c3aed; }
-    .wf-down.purple::after { border-top-color: #7c3aed; }
-    .wf-down.amber { border-color: #f59e0b; }
-    .wf-down.amber::after { border-top-color: #f59e0b; }
-    .wf-down.green { border-color: #10b981; }
-    .wf-down.green::after { border-top-color: #10b981; }
-    .wf-down.dashed { border-left-style: dashed; }
-    .wf-down.tall { height: 34px; }
-    .wf-down.short { height: 16px; }
-
-    /* A centered single node row */
-    .wf-center { display: flex; justify-content: center; }
-
-    /* Decision diamond */
-    .wf-diamond {
-      width: 92px; height: 92px; margin: 0 auto; background: #19191a;
-      transform: rotate(45deg); border-radius: 8px;
-      border: 2px solid #19191a; box-shadow: 3px 3px 0 rgba(25,26,35,1);
-      display: flex; align-items: center; justify-content: center;
-    }
-    .wf-diamond-inner {
-      transform: rotate(-45deg); text-align: center;
-      font-family: 'Clash Display', sans-serif;
-      font-size: 10px; font-weight: 700; line-height: 1.3; color: #fff;
-    }
-
-    /* Two-column branch container */
-    .wf-branches { display: flex; gap: 28px; align-items: flex-start; }
-    .wf-branch { flex: 1; min-width: 0; }
-
-    /* Branch header pill with YES/NO label */
-    .wf-branch-head {
-      display: flex; flex-direction: column; align-items: center; margin-bottom: 6px;
-    }
-    .wf-branch-label {
-      font-family: 'Clash Display', sans-serif; font-size: 11px; font-weight: 700;
-      padding: 7px 16px; border-radius: 100px; border: 2px solid #19191a;
-      box-shadow: 2px 2px 0 rgba(25,26,35,1); white-space: nowrap; text-align: center;
-    }
-    .wf-edge-label {
-      font-size: 10px; font-weight: 700; color: #888; letter-spacing: 0.5px;
-      text-transform: uppercase; margin-bottom: 4px;
-    }
-
-    /* Router bar: one input fanning to many lanes (use instead of a diamond for 3+ way splits) */
-    .wf-router {
-      background: #19191a; color: #fff; border: 2px solid #19191a; border-radius: 100px;
-      box-shadow: 3px 3px 0 rgba(25,26,35,1);
-      padding: 10px 22px; margin: 0 auto; width: fit-content; text-align: center;
-      font-family: 'Clash Display', sans-serif; font-size: 12px; font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-    .wf-router-sub { font-size: 10px; font-weight: 500; color: #aaa; margin-top: 2px; letter-spacing: 0; }
-
-    /* Responsive segment grid (for multi-way routers like old-users) */
-    .wf-grid {
-      display: grid; gap: 16px; margin-top: 4px;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-    @media (max-width: 1280px) { .wf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-    @media (max-width: 860px)  { .wf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 600px)  { .wf-grid { grid-template-columns: 1fr; } }
-    .wf-lane { display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
-    /* tighten node boxes inside the grid so 5 fit across */
-    .wf-grid .wf-node-box { min-width: 0; padding: 11px 12px; gap: 8px; }
-    .wf-grid .wf-node-title { font-size: 12px; }
-    .wf-grid .wf-node-sub { font-size: 9px; }
-    .wf-grid .wf-badge { width: 22px; height: 22px; font-size: 10px; }
-    .wf-grid .wf-delay { font-size: 8px; padding: 2px 6px; }
-    .wf-grid .wf-branch-label { font-size: 10px; padding: 6px 12px; }
-
-    /* Phase / section pill inside a branch */
-    .wf-phase {
-      display: block; width: fit-content; margin: 0 auto;
-      font-family: 'Clash Display', sans-serif; font-size: 9px; font-weight: 700;
-      letter-spacing: 1.5px; text-transform: uppercase; padding: 4px 14px;
-      border-radius: 100px; white-space: nowrap; text-align: center;
-    }
-    .wf-phase.purple { background: #7c3aed; color: #fff; border: 1.5px solid #19191a; }
-    .wf-phase.amber  { background: #fffbeb; color: #92400e; border: 1.5px solid #f59e0b; }
-    .wf-phase.green  { background: #f0fdf4; color: #065f46; border: 1.5px solid #10b981; }
-    .wf-phase.gray   { background: #f5f4f0; color: #777; border: 1.5px solid #ccc; }
-
-    /* Stack: each child separated by a connector via margin */
-    .wf-stack > .wf-node, .wf-stack > .wf-center { display: flex; justify-content: center; }
-    .wf-stack > .wf-node { width: 100%; }
-    .wf-stack > .wf-node > .wf-node-box { width: 100%; }
-
-    /* ── PREVIEW ── */
-    #preview-pane { flex: 1; display: none; flex-direction: column; height: 100vh; overflow: hidden; }
-
-    .preview-bar {
-      background: #fff; border-bottom: 2px solid #19191a;
-      padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-shrink: 0;
-    }
-    .back-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      font-family: 'Clash Display', sans-serif; font-weight: 700; font-size: 12px;
-      padding: 7px 14px; border-radius: 10px;
-      border: 2px solid #19191a; background: #fff; color: #19191a;
-      box-shadow: 2px 2px 0 rgba(25,26,35,1); cursor: pointer;
-      transition: all 0.1s;
-    }
-    .back-btn:hover { transform: translate(1px,1px); box-shadow: 1px 1px 0 rgba(25,26,35,1); }
-
-    .preview-title { font-family: 'Clash Display', sans-serif; font-size: 15px; font-weight: 700; }
-    .preview-meta  { font-size: 11px; color: #999; margin-top: 2px; }
-
-    .ptag {
-      font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
-      padding: 3px 10px; border-radius: 100px; border: 1.5px solid currentColor;
-    }
-
-    /* Email client chrome */
-    .email-client-wrap {
-      flex: 1; overflow-y: auto; background: #f5f4f0;
-      padding: 32px; display: flex; justify-content: center;
-    }
-    .email-client {
-      width: 600px; flex-shrink: 0;
-      background: #fff; border: 2px solid #19191a; border-radius: 14px;
-      box-shadow: 4px 4px 0 rgba(25,26,35,1); overflow: hidden;
-    }
-    .email-chrome {
-      background: #fafafa; border-bottom: 1px solid #e5e5e5; padding: 14px 20px;
-    }
-    .email-chrome-row {
-      display: flex; gap: 10px; font-size: 12px; margin-bottom: 6px; color: #555;
-    }
-    .email-chrome-row:last-child { margin-bottom: 0; }
-    .email-chrome-label { font-weight: 700; color: #19191a; width: 52px; flex-shrink: 0; }
-    .email-subject-row {
-      border-top: 1px solid #e5e5e5; padding: 13px 20px;
-      font-size: 14px; font-weight: 700; color: #19191a; background: #fff;
-    }
-    #preview-frame {
-      width: 600px; display: block; border: none; background: #fff; min-height: 400px;
-    }
-
-    /* Plain text */
-    .txt-client-wrap {
-      flex: 1; overflow-y: auto; background: #f5f4f0;
-      padding: 32px; display: flex; justify-content: center;
-    }
-    .txt-client {
-      width: 600px; flex-shrink: 0;
-      background: #fff; border: 2px solid #19191a; border-radius: 14px;
-      box-shadow: 4px 4px 0 rgba(25,26,35,1); overflow: hidden;
-    }
-    .txt-body {
-      font-family: 'Courier New', monospace; font-size: 13px;
-      line-height: 1.9; color: #333; padding: 28px 32px; white-space: pre-wrap;
-    }
+    [x-cloak] { display: none !important; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .sidebar-link { @apply flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer w-full; }
+    .sidebar-link.active { @apply text-white bg-violet-600; }
+    .stat-card { @apply bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-1; }
+    .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-medium; }
+    .btn { @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer; }
+    .btn-primary { @apply btn bg-violet-600 text-white hover:bg-violet-700; }
+    .btn-secondary { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
+    .btn-sm { @apply px-3 py-1.5 text-xs; }
+    .input { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent; }
+    .select { @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-violet-500 bg-white; }
+    .table-row { @apply border-b border-slate-100 hover:bg-slate-50 transition-colors; }
+    .spinner { @apply animate-spin h-5 w-5 text-violet-600; }
+    .bar-track { @apply h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden; }
+    .bar-fill { @apply h-1.5 rounded-full; }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 text-slate-900">
 
-<!-- ══════════════ SIDEBAR ══════════════ -->
-<div id="sidebar">
-  <div class="sidebar-logo">
-    <div class="sidebar-logo-name clash">Studojo</div>
-    <div class="sidebar-logo-sub">Email Flows · Blueprint</div>
-  </div>
-
-  <div class="sidebar-scroll">
-
-    <!-- ── OUTREACH DOJO GROUP ── -->
-    <div class="nav-group-btn open" id="btn-outreach" onclick="toggleGroup('outreach')">
-      <div class="nav-dot purple" style="background:#7c3aed;"></div>
-      <span class="group-label">Outreach Dojo</span>
-      <span class="group-count">13</span>
-      <span class="chevron">▼</span>
+<!-- Auth gate -->
+<div x-show="!authed" x-cloak class="min-h-screen flex items-center justify-center bg-slate-900">
+  <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-sm">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-9 h-9 rounded-xl bg-violet-600 flex items-center justify-center">
+        <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <div>
+        <div class="font-semibold text-slate-900">Studojo Mail</div>
+        <div class="text-xs text-slate-500">Admin Dashboard</div>
+      </div>
     </div>
-    <div class="nav-group-body open" id="body-outreach">
-
-      <div class="nav-item" id="nav-outreach-flow" onclick="showFlow('outreach', this)">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">Flow Map</span>
-      </div>
-
-      <div class="nav-section">Universal</div>
-      <div class="nav-item" onclick="load(this,'templates/welcome-new-user.html','Welcome: New User','welcome','Within 1 min of signup','Pranav','You\'re in the top 3%. Here\'s how we know.')">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">Welcome</span>
-        <span class="nav-chip" style="color:#7c3aed;">HTML</span>
-      </div>
-
-      <div class="nav-section">Not Used</div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/not-used/outreach-nudge-d1.html','Nudge D1: Did you try it?','not-used','7 hrs after welcome','Pranav','Did you get a chance to try Outreach Dojo?')">
-        <div class="nav-num">1</div>
-        <span class="nav-label">Nudge D1</span>
-        <span class="nav-chip" style="color:#888;">7 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/not-used/outreach-nudge-d2.html','Nudge D2: Testimonial','not-used','+24 hrs after D1','Pranav','What one student got after using Outreach Dojo')">
-        <div class="nav-num">2</div>
-        <span class="nav-label">Nudge D2</span>
-        <span class="nav-chip" style="color:#888;">+24 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/not-used/outreach-nudge-d3.html','Nudge D3: How to start','not-used','+32 hrs after D2','Pranav','Here\'s exactly how to get started')">
-        <div class="nav-num">3</div>
-        <span class="nav-label">Nudge D3</span>
-        <span class="nav-chip" style="color:#888;">+32 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/not-used/outreach-nudge-d4.html','Nudge D4: End metric','not-used','Day 4','Pranav','The number that changes everything')">
-        <div class="nav-num">4</div>
-        <span class="nav-label">Nudge D4</span>
-        <span class="nav-chip" style="color:#888;">Day 4</span>
-      </div>
-
-      <div class="nav-section">High Intent</div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-push1.html','Push 1: Momentum','used','~4 hrs after tool use','Jeremy','You started. Here\'s what happens next')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">1</div>
-        <span class="nav-label">Push 1</span>
-        <span class="nav-chip" style="color:#7c3aed;">~4 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-push2.html','Push 2: Social Proof','used','~24 hrs','Jeremy','Students who finished this got real replies')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">2</div>
-        <span class="nav-label">Push 2</span>
-        <span class="nav-chip" style="color:#7c3aed;">~24 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-push3.html','Push 3: Final','used','~50 hrs','Jeremy','You are one step from being on the right side of that')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">3</div>
-        <span class="nav-label">Push 3</span>
-        <span class="nav-chip" style="color:#7c3aed;">~50 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-convert1.html','Convert 1: Objection Handling','used','~60 hrs','Jeremy','Here\'s what you actually get')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">4</div>
-        <span class="nav-label">Convert 1</span>
-        <span class="nav-chip" style="color:#7c3aed;">~60 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-convert2.html','Convert 2: Post-purchase','used','~75 hrs','Jeremy','After you sign up. Here\'s exactly what happens')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">5</div>
-        <span class="nav-label">Convert 2</span>
-        <span class="nav-chip" style="color:#7c3aed;">~75 hrs</span>
-      </div>
-
-      <div class="nav-section">Payment</div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-payment-page.html','Payment Page: Abandoned checkout','payment','On payment_page_viewed event','Jeremy','You were right there')">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Payment Page</span>
-        <span class="nav-chip" style="color:#f59e0b;">Trigger</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/outreach/used/outreach-used-coupon.txt','Coupon: Founder Note','payment','A few hrs after payment page','Jeremy','Something from me, Jeremy',true)">
-        <div class="nav-dot green"></div>
-        <span class="nav-label">Coupon Code</span>
-        <span class="nav-chip" style="color:#10b981;">Plain text</span>
-      </div>
-
+    <a href="https://studojo.com/api/admin/email-dashboard-sso"
+       class="btn-primary w-full justify-center mb-4 no-underline text-center block">
+      <svg class="w-4 h-4 inline-block mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+      Continue with Studojo
+    </a>
+    <div class="relative my-4">
+      <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-slate-200"></div></div>
+      <div class="relative flex justify-center text-xs text-slate-400 bg-white px-2">or use a token</div>
     </div>
-
-    <!-- ── CAREER COACH GROUP ── -->
-    <div class="nav-group-btn" id="btn-cc" onclick="toggleGroup('cc')">
-      <div class="nav-dot" style="background:#10b981;"></div>
-      <span class="group-label">Career Coach</span>
-      <span class="group-count">19</span>
-      <span class="chevron">▼</span>
+    <div class="mb-4">
+      <input type="password" x-model="authToken" @keydown.enter="login()"
+        placeholder="Paste JWT or ADMIN_SECRET" class="input" />
     </div>
-    <div class="nav-group-body" id="body-cc">
-
-      <div class="nav-item" id="nav-cc-flow" onclick="showFlow('cc', this)">
-        <div class="nav-dot" style="background:#10b981;"></div>
-        <span class="nav-label">Flow Map</span>
-      </div>
-
-      <div class="nav-section">Welcome</div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/cc-welcome.html','CC: Welcome','cc-welcome','Within 1 min of CC signup','Pranav','You asked for an honest look. Good.')">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">CC Welcome</span>
-        <span class="nav-chip" style="color:#7c3aed;">HTML</span>
-      </div>
-
-      <div class="nav-section">Not Started</div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/not-started/cc-nudge-1.html','CC Nudge 1: First conversation','cc-not-started','8 hrs after welcome','Pranav','Did you get started?')">
-        <div class="nav-num">1</div>
-        <span class="nav-label">Nudge 1</span>
-        <span class="nav-chip" style="color:#888;">8 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/not-started/cc-nudge-2.html','CC Nudge 2: What the coach tells you','cc-not-started','+24 hrs','Pranav','What the coach actually tells you')">
-        <div class="nav-num">2</div>
-        <span class="nav-label">Nudge 2</span>
-        <span class="nav-chip" style="color:#888;">+24 hrs</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/not-started/cc-nudge-3.html','CC Nudge 3: Testimonial','cc-not-started','+48 hrs','Pranav','What changed when she finally started')">
-        <div class="nav-num">3</div>
-        <span class="nav-label">Nudge 3</span>
-        <span class="nav-chip" style="color:#888;">+48 hrs</span>
-      </div>
-
-      <div class="nav-section">In Progress</div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/in-progress/cc-profiling-idle-1.html','CC Profiling Idle 1','cc-in-progress','3 days idle in profiling','Pranav','You started. Pick up where you left off.')">
-        <div class="nav-num">1</div>
-        <span class="nav-label">Profiling Idle 1</span>
-        <span class="nav-chip" style="color:#888;">3 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/in-progress/cc-profiling-idle-2.html','CC Profiling Idle 2','cc-in-progress','+3 days','Pranav','You\'re closer than you think')">
-        <div class="nav-num">2</div>
-        <span class="nav-label">Profiling Idle 2</span>
-        <span class="nav-chip" style="color:#888;">+3 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/in-progress/cc-profiling-idle-3.html','CC Profiling Idle 3: Testimonial','cc-in-progress','+4 days','Pranav','What Vikram found when he finished')">
-        <div class="nav-num">3</div>
-        <span class="nav-label">Profiling Idle 3</span>
-        <span class="nav-chip" style="color:#888;">+4 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/in-progress/cc-dna-ready.html','CC: Career Analysis Ready','cc-in-progress','On DNA generation','Pranav','Your career analysis is ready')">
-        <div class="nav-dot green"></div>
-        <span class="nav-label">DNA Ready</span>
-        <span class="nav-chip" style="color:#10b981;">Trigger</span>
-      </div>
-
-      <div class="nav-section">Post DNA</div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-dna-confirm-nudge.html','CC: Confirm Your Analysis','cc-post-dna','2 days after DNA, no confirm','Pranav','Your analysis needs your confirmation')">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Confirm Nudge</span>
-        <span class="nav-chip" style="color:#f59e0b;">2 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-roadmap-delivered.html','CC: Roadmap Delivered','cc-post-dna','On ROADMAP state','Jeremy','You have your roadmap. Here is how to use it.')">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">Roadmap Delivered</span>
-        <span class="nav-chip" style="color:#7c3aed;">Trigger</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-checkin-1.html','CC Check-in 1: One action','cc-post-dna','Day 3','Pranav','One action. This week.')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">1</div>
-        <span class="nav-label">Check-in 1</span>
-        <span class="nav-chip" style="color:#7c3aed;">Day 3</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-checkin-2.html','CC Check-in 2: Behavioural insight','cc-post-dna','Day 7','Pranav','What students who act do differently')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">2</div>
-        <span class="nav-label">Check-in 2</span>
-        <span class="nav-chip" style="color:#7c3aed;">Day 7</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-checkin-3.html','CC Check-in 3: Log progress','cc-post-dna','Day 10','Pranav','Have you marked anything complete yet?')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">3</div>
-        <span class="nav-label">Check-in 3</span>
-        <span class="nav-chip" style="color:#7c3aed;">Day 10</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-upskill-nudge.html','CC: Upskill Nudge','cc-post-dna','Day 7 after roadmap','Pranav','The coach gets sharper every time you use it')">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">Upskill Nudge</span>
-        <span class="nav-chip" style="color:#7c3aed;">Day 7</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-coupon-unlock.html','CC: Coupon Unlock','cc-post-dna','Day 9 after roadmap','Jeremy','Log your progress and unlock something')">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Coupon Unlock</span>
-        <span class="nav-chip" style="color:#f59e0b;">Gated</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/post-dna/cc-dormant.html','CC: Dormant','cc-post-dna','7+ days no activity','Jeremy','Most students stop here')">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Dormant</span>
-        <span class="nav-chip" style="color:#f59e0b;">7 days</span>
-      </div>
-
-      <div class="nav-section">Handoff</div>
-      <div class="nav-item" onclick="load(this,'templates/career-coach/handoff/cc-to-outreach.html','CC: Handoff to Outreach','cc-handoff','After dormant or nudge-3','Jeremy','You know where you stand. Here is what to do with it.')">
-        <div class="nav-dot green"></div>
-        <span class="nav-label">Handoff to Outreach</span>
-        <span class="nav-chip" style="color:#10b981;">Final</span>
-      </div>
-
-    <div class="nav-section">Career Coach: Returning</div>
-    <div class="nav-item" onclick="load(this,'templates/career-coach/returning/cc-returning-1.html','CC Returning 1: Nothing lost','cc-returning','14 days cold','Jeremy','Your analysis is still there')">
-      <div class="nav-num">1</div>
-      <span class="nav-label">Returning 1</span>
-      <span class="nav-chip" style="color:#888;">14 days</span>
-    </div>
-    <div class="nav-item" onclick="load(this,'templates/career-coach/returning/cc-returning-2.html','CC Returning 2: The gap closes fast','cc-returning','+5 days','Jeremy','The gap closes fast when you focus')">
-      <div class="nav-num">2</div>
-      <span class="nav-label">Returning 2</span>
-      <span class="nav-chip" style="color:#888;">+5 days</span>
-    </div>
-    <div class="nav-item" onclick="load(this,'templates/career-coach/returning/cc-returning-3.html','CC Returning 3: Two paths','cc-returning','+5 days','Jeremy','The most direct path from here')">
-      <div class="nav-num">3</div>
-      <span class="nav-label">Returning 3</span>
-      <span class="nav-chip" style="color:#888;">+5 days</span>
-    </div>
-
-    </div><!-- end body-cc -->
-
-    <!-- ── RESUME MAKER GROUP ── -->
-    <div class="nav-group-btn" id="btn-resume" onclick="toggleGroup('resume')">
-      <div class="nav-dot" style="background:#10b981;"></div>
-      <span class="group-label">Resume Maker</span>
-      <span class="group-count">6</span>
-      <span class="chevron">▼</span>
-    </div>
-    <div class="nav-group-body" id="body-resume">
-
-      <div class="nav-item" id="nav-resume-flow" onclick="showFlow('resume', this)">
-        <div class="nav-dot" style="background:#10b981;"></div>
-        <span class="nav-label">Flow Map</span>
-      </div>
-
-      <div class="nav-section">Strong Resume → Outreach</div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/strong/rm-strong-1.html','RM Strong 1: Next move','rm-strong','1 hr after resume ready','Jeremy','Your resume is strong. Here is the next move.')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">1</div>
-        <span class="nav-label">Strong 1</span>
-        <span class="nav-chip" style="color:#7c3aed;">1 hr</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/strong/rm-strong-2.html','RM Strong 2: Reply rate + proof','rm-strong','+2 days','Jeremy','What students with strong resumes do next')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">2</div>
-        <span class="nav-label">Strong 2</span>
-        <span class="nav-chip" style="color:#7c3aed;">+2 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/strong/rm-strong-3.html','RM Strong 3: How outreach uses it','rm-strong','+3 days','Jeremy','Your resume is ready. Are you using it?')">
-        <div class="nav-num" style="background:#f3f0ff; color:#7c3aed;">3</div>
-        <span class="nav-label">Strong 3</span>
-        <span class="nav-chip" style="color:#7c3aed;">+3 days</span>
-      </div>
-
-      <div class="nav-section">Weak Resume → Coach</div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/weak/rm-weak-1.html','RM Weak 1: Know where you stand','rm-weak','1 hr after resume ready','Pranav','Your resume is a start. Here is what to do next.')">
-        <div class="nav-num">1</div>
-        <span class="nav-label">Weak 1</span>
-        <span class="nav-chip" style="color:#888;">1 hr</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/weak/rm-weak-2.html','RM Weak 2: Wrong roles','rm-weak','+2 days','Pranav','What was actually holding her back')">
-        <div class="nav-num">2</div>
-        <span class="nav-label">Weak 2</span>
-        <span class="nav-chip" style="color:#888;">+2 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/resume-maker/weak/rm-weak-3.html','RM Weak 3: Before you apply','rm-weak','+3 days','Pranav','Before you apply, know where you stand')">
-        <div class="nav-num">3</div>
-        <span class="nav-label">Weak 3</span>
-        <span class="nav-chip" style="color:#888;">+3 days</span>
-      </div>
-
-    </div><!-- end body-resume -->
-
-    <!-- ── INTERNSHIP DOJO GROUP ── -->
-    <div class="nav-group-btn" id="btn-internship" onclick="toggleGroup('internship')">
-      <div class="nav-dot amber"></div>
-      <span class="group-label">Internship Dojo</span>
-      <span class="group-count">3</span>
-      <span class="chevron">▼</span>
-    </div>
-    <div class="nav-group-body" id="body-internship">
-
-      <div class="nav-item" id="nav-internship-flow" onclick="showFlow('internship', this)">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Flow Map</span>
-      </div>
-
-      <div class="nav-section">Two-Tool Offer</div>
-      <div class="nav-item" onclick="load(this,'templates/internship-dojo/id-two-tools.html','ID: Two-Tool Offer','id-offer','15+ apps, no results','Jeremy','You have been applying. Here are two tools that change the results.')">
-        <div class="nav-dot purple"></div>
-        <span class="nav-label">Two Tools</span>
-        <span class="nav-chip" style="color:#7c3aed;">Trigger</span>
-      </div>
-
-      <div class="nav-section">Re-engagement (no open)</div>
-      <div class="nav-item" onclick="load(this,'templates/internship-dojo/id-reengage-1.html','ID Re-engage 1: The 2% stat','id-reengage','+3 days, no engagement','Jeremy','The reason your applications are not landing')">
-        <div class="nav-num">1</div>
-        <span class="nav-label">Re-engage 1</span>
-        <span class="nav-chip" style="color:#888;">+3 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/internship-dojo/id-reengage-2.html','ID Re-engage 2: Rohan story','id-reengage','+4 days','Jeremy','How Rohan went from silence to three interviews')">
-        <div class="nav-num">2</div>
-        <span class="nav-label">Re-engage 2</span>
-        <span class="nav-chip" style="color:#888;">+4 days</span>
-      </div>
-
-    </div><!-- end body-internship -->
-
-    <!-- ── OLD USERS GROUP ── -->
-    <div class="nav-group-btn" id="btn-oldusers" onclick="toggleGroup('oldusers')">
-      <div class="nav-dot amber"></div>
-      <span class="group-label">Old Users</span>
-      <span class="group-count">12</span>
-      <span class="chevron">▼</span>
-    </div>
-    <div class="nav-group-body" id="body-oldusers">
-
-      <div class="nav-item" id="nav-oldusers-flow" onclick="showFlow('oldusers', this)">
-        <div class="nav-dot amber"></div>
-        <span class="nav-label">Flow Map</span>
-      </div>
-
-      <div class="nav-section">S1 · Nearly converted</div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s1-nearly/old-s1-1.html','S1-1: You were nearly there','old-s1','Day 0','Jeremy','You were nearly there')">
-        <div class="nav-num" style="background:#f0fdf4; color:#065f46;">1</div><span class="nav-label">Nearly there</span><span class="nav-chip" style="color:#888;">Day 0</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s1-nearly/old-s1-2.html','S1-2: What finishing looks like','old-s1','+5 days','Jeremy','What finishing actually looks like')">
-        <div class="nav-num" style="background:#f0fdf4; color:#065f46;">2</div><span class="nav-label">Finishing it</span><span class="nav-chip" style="color:#888;">+5 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s1-nearly/old-s1-3.html','S1-3: The close','old-s1','+9 days','Jeremy','The last step is the easy one')">
-        <div class="nav-num" style="background:#f0fdf4; color:#065f46;">3</div><span class="nav-label">The close</span><span class="nav-chip" style="color:#10b981;">CTA swap</span>
-      </div>
-
-      <div class="nav-section">S2 · Engaged</div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s2-engaged/old-s2-1.html','S2-1: Real work, then stalled','old-s2','Day 0','Pranav','You got real work done, then it stalled')">
-        <div class="nav-num">1</div><span class="nav-label">Stalled</span><span class="nav-chip" style="color:#888;">Day 0</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s2-engaged/old-s2-2.html','S2-2: What restarting takes','old-s2','+6 days','Pranav','What picking back up actually takes')">
-        <div class="nav-num">2</div><span class="nav-label">Restarting</span><span class="nav-chip" style="color:#888;">+6 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s2-engaged/old-s2-3.html','S2-3: One step','old-s2','+9 days','Jeremy','The one step to restart')">
-        <div class="nav-num">3</div><span class="nav-label">One step</span><span class="nav-chip" style="color:#10b981;">CTA swap</span>
-      </div>
-
-      <div class="nav-section">S3 · Barely started</div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s3-barely/old-s3-1.html','S3-1: What Studojo does now','old-s3','Day 0','Pranav','What Studojo can do for you now')">
-        <div class="nav-num">1</div><span class="nav-label">No guilt</span><span class="nav-chip" style="color:#888;">Day 0</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s3-barely/old-s3-2.html','S3-2: Came back','old-s3','+7 days','Pranav','A student who came back and started fresh')">
-        <div class="nav-num">2</div><span class="nav-label">Came back</span><span class="nav-chip" style="color:#888;">+7 days</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/s3-barely/old-s3-3.html','S3-3: One step','old-s3','+7 days','Pranav','One step, whenever you are ready')">
-        <div class="nav-num">3</div><span class="nav-label">One step</span><span class="nav-chip" style="color:#888;">+7 days</span>
-      </div>
-
-      <div class="nav-section">CTA variants (routing)</div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/cta-variants/cta-outreach.html','CTA: Outreach','old-cta','Deepest = Outreach / strong resume','','Reach hiring managers now')">
-        <div class="nav-dot green"></div><span class="nav-label">CTA: Outreach</span><span class="nav-chip" style="color:#10b981;">Block</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/cta-variants/cta-coach.html','CTA: Coach','old-cta','Deepest = weak resume / coach','','Talk to your career coach')">
-        <div class="nav-dot purple"></div><span class="nav-label">CTA: Coach</span><span class="nav-chip" style="color:#7c3aed;">Block</span>
-      </div>
-      <div class="nav-item" onclick="load(this,'templates/old-users/cta-variants/cta-two-tool.html','CTA: Two-tool','old-cta','Deepest = internship / none','','Pick the move that fits')">
-        <div class="nav-dot amber"></div><span class="nav-label">CTA: Two-tool</span><span class="nav-chip" style="color:#f59e0b;">Block</span>
-      </div>
-
-    </div><!-- end body-oldusers -->
-
-  </div><!-- end sidebar-scroll -->
-
-  <div class="sidebar-foot">
-    <strong>53 templates</strong>
-    5 flows · wired &amp; scale-safe · new-user priority, old-user spread
+    <div x-show="authError" class="text-red-600 text-sm mb-3" x-text="authError"></div>
+    <button @click="login()" class="btn-secondary w-full justify-center">
+      <span x-show="!authLoading">Sign in with token</span>
+      <svg x-show="authLoading" class="spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+    </button>
   </div>
 </div>
 
-<!-- ══════════════ MAIN ══════════════ -->
-<div id="main">
+<!-- Main dashboard -->
+<div x-show="authed" x-cloak class="flex min-h-screen">
 
-  <!-- OUTREACH FLOW MAP -->
-  <div id="flow-pane-outreach" style="display:block;">
-    <div class="flow-header">
-      <div class="flow-tag">Wired · Ready to Deploy</div>
-      <div class="flow-title clash">Outreach Dojo Email Flow</div>
-      <div class="flow-sub">Reads top to bottom. Click any node to preview the email.</div>
+  <!-- Sidebar -->
+  <div class="w-56 bg-slate-900 flex flex-col fixed inset-y-0 left-0">
+    <div class="flex items-center gap-2.5 px-5 py-5 border-b border-slate-800">
+      <div class="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center flex-shrink-0">
+        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <span class="font-semibold text-white text-sm">Studojo Mail</span>
     </div>
 
-    <div class="wf">
-
-      <!-- Trigger -->
-      <div class="wf-center">
-        <div class="wf-node" style="cursor:default;">
-          <div class="wf-node-box start" style="min-width:200px;">
-            <div class="wf-badge">›</div>
-            <div class="wf-node-text"><div class="wf-node-title">User signs up</div><div class="wf-node-sub">studojo.com</div></div>
-          </div>
-        </div>
+    <nav class="flex-1 px-3 py-4 space-y-0.5">
+      <div @click="nav('overview')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='overview' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Overview
       </div>
-      <div class="wf-down"></div>
-
-      <!-- Welcome -->
-      <div class="wf-center">
-        <div class="wf-node" onclick="preview('templates/welcome-new-user.html','Welcome: New User','welcome','Within 1 min of signup','Pranav','You are in the top 3%. Here is how we know.')">
-          <div class="wf-node-box universal" style="min-width:280px;">
-            <div class="wf-badge">★</div>
-            <div class="wf-node-text"><div class="wf-node-title">Welcome email</div><div class="wf-node-sub">Universal · signed by Pranav</div></div>
-            <div class="wf-delay" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">t = 0</div>
-          </div>
-        </div>
+      <div @click="nav('segments')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='segments' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+        Segments
       </div>
-      <div class="wf-down"></div>
-
-      <!-- Decision -->
-      <div class="wf-diamond"><div class="wf-diamond-inner">Used the<br>outreach<br>tool?</div></div>
-      <div class="wf-down tall"></div>
-
-      <!-- Branches -->
-      <div class="wf-branches">
-
-        <!-- Branch A: not used -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">No</div>
-            <div class="wf-branch-label" style="background:#f5f4f0;">Branch A · did not use</div>
-          </div>
-          <div class="wf-down short"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/outreach/not-used/outreach-nudge-d1.html','Nudge D1','not-used','7 hrs after welcome','Pranav','Did you get a chance to try Outreach Dojo?')">
-              <div class="wf-node-box"><div class="wf-badge outline">1</div><div class="wf-node-text"><div class="wf-node-title">Nudge D1</div><div class="wf-node-sub">Did you try it?</div></div><div class="wf-delay">7 hrs</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/not-used/outreach-nudge-d2.html','Nudge D2','not-used','+24 hrs','Pranav','What one student got after using Outreach Dojo')">
-              <div class="wf-node-box"><div class="wf-badge outline">2</div><div class="wf-node-text"><div class="wf-node-title">Nudge D2</div><div class="wf-node-sub">Student testimonial</div></div><div class="wf-delay">+24 hrs</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/not-used/outreach-nudge-d3.html','Nudge D3','not-used','+32 hrs','Pranav','Here is exactly how to get started')">
-              <div class="wf-node-box"><div class="wf-badge outline">3</div><div class="wf-node-text"><div class="wf-node-title">Nudge D3</div><div class="wf-node-sub">3-step walkthrough</div></div><div class="wf-delay">+32 hrs</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/not-used/outreach-nudge-d4.html','Nudge D4','not-used','Day 4','Pranav','The number that changes everything')">
-              <div class="wf-node-box"><div class="wf-badge outline">4</div><div class="wf-node-text"><div class="wf-node-title">Nudge D4</div><div class="wf-node-sub">Reply rate comparison</div></div><div class="wf-delay">Day 4</div></div>
-            </div>
-            <div class="wf-down dashed"></div>
-            <div class="wf-node" style="cursor:default;">
-              <div class="wf-node-box ghost"><div class="wf-node-text"><div class="wf-node-title" style="color:#999;">→ Career Coach flow</div><div class="wf-node-sub">If still no use after week 1</div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Branch B: used -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">Yes</div>
-            <div class="wf-branch-label" style="background:#7c3aed;color:#fff;">Branch B · used the tool</div>
-          </div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-phase purple">Phase 1 · push (0 to 50 hrs)</div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-push1.html','Push 1','used','~4 hrs after tool use','Jeremy','You started. Here is what happens next')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Push 1</div><div class="wf-node-sub">Momentum</div></div><div class="wf-delay purple">~4 hrs</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-push2.html','Push 2','used','~24 hrs','Jeremy','Students who finished this got real replies')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Push 2</div><div class="wf-node-sub">Social proof</div></div><div class="wf-delay purple">~24 hrs</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-push3.html','Push 3','used','~50 hrs','Jeremy','You are one step away')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">Push 3</div><div class="wf-node-sub">Final nudge</div></div><div class="wf-delay purple">~50 hrs</div></div>
-            </div>
-          </div>
-          <div class="wf-down purple"></div>
-          <div class="wf-phase purple">Phase 2 · convert (50 to 100 hrs)</div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-convert1.html','Convert 1','used','~60 hrs','Jeremy','Here is what you actually get')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">4</div><div class="wf-node-text"><div class="wf-node-title">Convert 1</div><div class="wf-node-sub">Objection handling</div></div><div class="wf-delay purple">~60 hrs</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-convert2.html','Convert 2','used','~75 hrs','Jeremy','After you sign up. Here is exactly what happens')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">5</div><div class="wf-node-text"><div class="wf-node-title">Convert 2</div><div class="wf-node-sub">Post-purchase walkthrough</div></div><div class="wf-delay purple">~75 hrs</div></div>
-            </div>
-          </div>
-          <div class="wf-down amber"></div>
-          <div class="wf-phase amber">Payment page trigger · fires any time</div>
-          <div class="wf-down short amber"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-payment-page.html','Payment Page','payment','On payment_page_viewed','Jeremy','You were right there')">
-              <div class="wf-node-box amber"><div class="wf-badge">$</div><div class="wf-node-text"><div class="wf-node-title">Payment page</div><div class="wf-node-sub">Abandoned checkout</div></div><div class="wf-delay amber">Instant</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/outreach/used/outreach-used-coupon.txt','Coupon Code','payment','A few hrs later','Jeremy','Something from me, Jeremy',true)">
-              <div class="wf-node-box green"><div class="wf-badge">%</div><div class="wf-node-text"><div class="wf-node-title">Coupon code</div><div class="wf-node-sub">Plain text · from Jeremy</div></div><div class="wf-delay green">+few hrs</div></div>
-            </div>
-          </div>
-        </div>
-
+      <div @click="nav('scheduled')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='scheduled' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="flex-1">Scheduled</span>
+        <span x-show="scheduledTotal > 0" class="flex-shrink-0 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
       </div>
+      <div @click="nav('users')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='users' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        Users
+      </div>
+      <div @click="nav('logs')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='logs' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Email Logs
+      </div>
+      <div @click="nav('templates')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='templates' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+        Templates
+      </div>
+      <div class="border-t border-slate-800 my-2"></div>
+      <div @click="nav('trigger')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='trigger' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Fire Email
+      </div>
+    </nav>
+
+    <div class="px-4 py-4 border-t border-slate-800">
+      <button @click="logout()" class="text-xs text-slate-500 hover:text-slate-300 transition-colors">Sign out</button>
     </div>
   </div>
 
-  <!-- CAREER COACH FLOW MAP -->
-  <div id="flow-pane-cc" style="display:none;">
-    <div class="flow-header">
-      <div class="flow-tag">Wired · Ready to Deploy</div>
-      <div class="flow-title clash">Career Coach Email Flow</div>
-      <div class="flow-sub">Reads top to bottom. Branches on user behaviour at each stage.</div>
+  <!-- Main content -->
+  <div class="ml-56 flex-1 flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <div class="bg-white border-b border-slate-200 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+      <div>
+        <h1 class="text-lg font-semibold text-slate-900" x-text="pageTitle()"></h1>
+        <p class="text-xs text-slate-500" x-text="pageSubtitle()"></p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span x-show="lastUpdated" class="text-xs text-slate-400" x-text="'Updated '+relTime(lastUpdated)"></span>
+        <button @click="page==='overview' ? loadStats() : (page==='scheduled' ? loadScheduled() : (page==='logs' ? loadLogs() : (page==='users' ? loadUsers() : null)))"
+          class="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded px-2 py-1 transition-colors">↻ Refresh</button>
+        <div class="w-2 h-2 rounded-full bg-emerald-400"></div>
+        <span class="text-xs text-slate-500">Live</span>
+      </div>
     </div>
 
-    <div class="wf">
+    <!-- Page content -->
+    <div class="flex-1 p-8">
 
-      <div class="wf-center">
-        <div class="wf-node" style="cursor:default;">
-          <div class="wf-node-box start" style="min-width:220px;">
-            <div class="wf-badge">›</div>
-            <div class="wf-node-text"><div class="wf-node-title">Signs up for Career Coach</div><div class="wf-node-sub">studojo.pro/career-coach</div></div>
+      <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
+      <div x-show="page==='overview'">
+        <div x-show="statsLoading" class="flex justify-center py-20">
+          <svg class="spinner w-8 h-8" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+        </div>
+        <div x-show="!statsLoading">
+          <!-- Stat cards -->
+          <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Sent</div>
+              <div class="text-3xl font-bold text-slate-900" x-text="(stats.total_sent||0).toLocaleString()"></div>
+              <div class="text-xs text-slate-400">all time</div>
+            </div>
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Open Rate</div>
+              <div class="text-3xl font-bold text-violet-600" x-text="(stats.open_rate||0).toFixed(1)+'%'"></div>
+              <div class="text-xs text-slate-400" x-text="(stats.total_opened||0).toLocaleString()+' opened'"></div>
+            </div>
+            <div class="stat-card">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Sent Today</div>
+              <div class="text-3xl font-bold text-slate-900" x-text="(stats.sent_today||0).toLocaleString()"></div>
+              <div class="text-xs text-slate-400" x-text="(stats.sent_this_week||0).toLocaleString()+' this week'"></div>
+            </div>
+            <div class="stat-card cursor-pointer hover:border-violet-300 transition-colors" @click="nav('scheduled')">
+              <div class="text-xs font-medium text-slate-500 uppercase tracking-wide">Scheduled</div>
+              <div class="text-3xl font-bold text-amber-500" x-text="scheduledTotal.toLocaleString()"></div>
+              <div class="text-xs text-slate-400">pending sends</div>
+            </div>
+          </div>
+
+          <!-- Chart + Top Segments -->
+          <div class="grid grid-cols-3 gap-4 mb-6">
+            <div class="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+              <div class="font-medium text-sm text-slate-700 mb-4">Email volume (last 14 days)</div>
+              <canvas id="volumeChart" height="120"></canvas>
+            </div>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="font-medium text-sm text-slate-700 mb-1">Top segments</div>
+              <div class="text-xs text-slate-400 mb-4">by send volume</div>
+              <div class="space-y-3">
+                <template x-for="t in (stats.top_templates||[]).slice(0,8)" :key="t.template_name">
+                  <div class="flex items-center gap-2 cursor-pointer" @click="nav('segments')">
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-medium text-slate-700 truncate" x-text="t.template_name"></div>
+                      <div class="bar-track">
+                        <div class="bar-fill bg-violet-400" :style="`width:${maxSendPct(t.send_count)}%`"></div>
+                      </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                      <div class="text-xs font-semibold text-slate-900" x-text="t.send_count"></div>
+                      <div class="text-xs text-slate-400" x-text="t.open_rate.toFixed(0)+'%'"></div>
+                    </div>
+                  </div>
+                </template>
+                <div x-show="!(stats.top_templates||[]).length" class="text-xs text-slate-400 text-center py-4">No sends yet</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Recent sends -->
+          <div class="bg-white rounded-xl border border-slate-200">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="font-medium text-sm text-slate-700">Recent sends</div>
+              <button @click="nav('logs')" class="text-xs text-violet-600 hover:text-violet-700">View all →</button>
+            </div>
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">To</th>
+                  <th class="px-5 py-3 font-medium">Template</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
+                  <th class="px-5 py-3 font-medium">Opened</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="log in recentLogs" :key="log.id">
+                  <tr class="table-row">
+                    <td class="px-5 py-3">
+                      <div class="text-slate-700 font-medium" x-text="log.email_to"></div>
+                      <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
+                    </td>
+                    <td class="px-5 py-3"><span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span></td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                    <td class="px-5 py-3">
+                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!recentLogs.length">
+                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No emails yet.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-      <div class="wf-down"></div>
 
-      <div class="wf-center">
-        <div class="wf-node" onclick="preview('templates/career-coach/cc-welcome.html','CC Welcome','cc-welcome','Within 1 min','Pranav','You asked for an honest look. Good.')">
-          <div class="wf-node-box universal" style="min-width:280px;">
-            <div class="wf-badge">★</div>
-            <div class="wf-node-text"><div class="wf-node-title">CC Welcome</div><div class="wf-node-sub">Signed by Pranav</div></div>
-            <div class="wf-delay" style="background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3);color:#fff;">t = 0</div>
+      <!-- ═══════════════════════════════════ SEGMENTS ═══════════════════════════════════ -->
+      <div x-show="page==='segments'">
+
+        <!-- Drill-down view -->
+        <div x-show="segmentDrillType">
+          <div class="flex items-center gap-3 mb-5">
+            <button @click="segmentDrillType=null; segmentDrillLogs=[]; segmentDrillTotal=0; segmentDrillPage=0" class="btn-secondary btn-sm">← All segments</button>
+            <span class="font-semibold text-slate-800" x-text="segmentDrillType"></span>
+            <span class="text-sm text-slate-500 ml-auto" x-text="segmentDrillTotal.toLocaleString()+' sends'"></span>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">Recipient</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
+                  <th class="px-5 py-3 font-medium">Opened</th>
+                  <th class="px-5 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="log in segmentDrillLogs" :key="log.id">
+                  <tr class="table-row cursor-pointer" @click="openRecipientDetail(log)">
+                    <td class="px-5 py-3">
+                      <div class="font-medium text-slate-800" x-text="log.user_name||log.email_to||'—'"></div>
+                      <div class="text-xs text-slate-400" x-text="log.email_to"></div>
+                    </td>
+                    <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                    <td class="px-5 py-3">
+                      <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                      <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                    </td>
+                    <td class="px-5 py-3 text-violet-600 text-xs font-medium">View →</td>
+                  </tr>
+                </template>
+                <tr x-show="!segmentDrillLogs.length">
+                  <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No sends found.</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+              <button @click="segmentDrillPage > 0 && (segmentDrillPage--, loadSegmentDrill())" :disabled="segmentDrillPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+              <span class="text-xs text-slate-500" x-text="`Page ${segmentDrillPage+1} of ${Math.max(1,Math.ceil(segmentDrillTotal/50))}`"></span>
+              <button @click="(segmentDrillPage+1)*50 < segmentDrillTotal && (segmentDrillPage++, loadSegmentDrill())" :disabled="(segmentDrillPage+1)*50 >= segmentDrillTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Segment overview + bulk send -->
+        <div x-show="!segmentDrillType">
+          <div class="flex items-center justify-between mb-5">
+            <p class="text-sm text-slate-500">Every email type — sorted by volume. Click a row to see individual sends.</p>
+            <button @click="showNewCampaign=!showNewCampaign" class="btn-primary">+ New Bulk Send</button>
+          </div>
+
+          <!-- New bulk send form -->
+          <div x-show="showNewCampaign" class="bg-white rounded-xl border border-slate-200 p-6 mb-5">
+            <h3 class="font-semibold text-slate-800 mb-4">New Bulk Send</h3>
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Campaign name</label>
+                <input x-model="newCampaign.name" class="input" placeholder="e.g. Outreach re-engage blast" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+                <select x-model="newCampaign.template_name" class="select">
+                  <option value="">Select template…</option>
+                  <template x-for="t in templates" :key="t">
+                    <option :value="t" x-text="t"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Audience</label>
+                <select x-model="newCampaign.filter_days" class="select">
+                  <option value="0">All users</option>
+                  <option value="7">Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button @click="previewCampaignCount()" class="btn-secondary">Preview audience</button>
+              </div>
+            </div>
+            <div x-show="campaignPreviewCount !== null" class="bg-violet-50 text-violet-800 text-sm rounded-lg px-4 py-2.5 mb-4 font-medium">
+              This will send to <span class="font-bold" x-text="campaignPreviewCount"></span> users.
+            </div>
+            <div class="flex gap-2">
+              <button @click="createAndSendCampaign()" :disabled="!newCampaign.name||!newCampaign.template_name" class="btn-primary disabled:opacity-50">Send campaign</button>
+              <button @click="showNewCampaign=false; campaignPreviewCount=null" class="btn-secondary">Cancel</button>
+            </div>
+          </div>
+
+          <!-- Segment table -->
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium w-2/5">Segment</th>
+                  <th class="px-5 py-3 font-medium">Sent</th>
+                  <th class="px-5 py-3 font-medium">Opens</th>
+                  <th class="px-5 py-3 font-medium">Open rate</th>
+                  <th class="px-5 py-3 font-medium">Last sent</th>
+                  <th class="px-5 py-3 font-medium"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="g in campaignGroups" :key="g.email_type">
+                  <tr class="table-row cursor-pointer" @click="drillIntoSegment(g.email_type)">
+                    <td class="px-5 py-3">
+                      <div class="flex items-center gap-2">
+                        <span class="badge" :class="segmentCategoryBadge(g.email_type)" x-text="segmentCategory(g.email_type)"></span>
+                        <span class="text-slate-700 font-medium text-xs" x-text="g.email_type"></span>
+                      </div>
+                      <div class="bar-track mt-1.5 max-w-xs">
+                        <div class="bar-fill bg-violet-300" :style="`width:${segmentBarPct(g.total_sent)}%`"></div>
+                      </div>
+                    </td>
+                    <td class="px-5 py-3 font-semibold text-slate-800" x-text="g.total_sent.toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="g.total_opened.toLocaleString()"></td>
+                    <td class="px-5 py-3">
+                      <span :class="g.open_rate >= 25 ? 'bg-emerald-50 text-emerald-700' : g.open_rate >= 10 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500'" class="badge" x-text="g.open_rate.toFixed(1)+'%'"></span>
+                    </td>
+                    <td class="px-5 py-3 text-slate-400 text-xs" x-text="g.last_sent ? relTime(g.last_sent) : '—'"></td>
+                    <td class="px-5 py-3 text-violet-600 text-xs font-medium">View →</td>
+                  </tr>
+                </template>
+                <tr x-show="!campaignGroups.length">
+                  <td colspan="6" class="px-5 py-8 text-center text-sm text-slate-400">No sends recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
-      <div class="wf-down"></div>
 
-      <div class="wf-diamond"><div class="wf-diamond-inner">Started<br>the<br>coach?</div></div>
-      <div class="wf-down tall"></div>
-
-      <div class="wf-branches">
-
-        <!-- Branch A: not started -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">No</div>
-            <div class="wf-branch-label" style="background:#f5f4f0;">A · did not start</div>
+      <!-- ═══════════════════════════════════ SCHEDULED ═══════════════════════════════════ -->
+      <div x-show="page==='scheduled'">
+        <div class="flex items-center gap-3 mb-5">
+          <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-sm text-amber-800 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span><strong x-text="scheduledTotal"></strong> emails queued — the scheduler sends these automatically every minute.</span>
           </div>
-          <div class="wf-down short"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/not-started/cc-nudge-1.html','CC Nudge 1','cc-not-started','8 hrs after welcome','Pranav','Did you get started?')">
-              <div class="wf-node-box"><div class="wf-badge outline">1</div><div class="wf-node-text"><div class="wf-node-title">Nudge 1</div><div class="wf-node-sub">What it feels like</div></div><div class="wf-delay">8 hrs</div></div>
+          <button @click="loadScheduled()" class="btn-secondary ml-auto">Refresh</button>
+        </div>
+
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">Recipient</th>
+                <th class="px-5 py-3 font-medium">Email type</th>
+                <th class="px-5 py-3 font-medium">Scheduled for</th>
+                <th class="px-5 py-3 font-medium">Due in</th>
+                <th class="px-5 py-3 font-medium">Queued</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="s in scheduled" :key="s.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-slate-800" x-text="s.user_name || '(unknown)'"></div>
+                    <div class="text-xs text-slate-400" x-text="s.user_email || s.user_id"></div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span class="badge" :class="segmentCategoryBadge(s.email_type)" x-text="s.email_type"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-700 text-xs" x-text="fmtDate(s.scheduled_at)"></td>
+                  <td class="px-5 py-3">
+                    <span :class="isPast(s.scheduled_at) ? 'badge bg-red-50 text-red-700' : 'badge bg-amber-50 text-amber-700'" x-text="dueIn(s.scheduled_at)"></span>
+                  </td>
+                  <td class="px-5 py-3 text-slate-400 text-xs" x-text="relTime(s.created_at)"></td>
+                </tr>
+              </template>
+              <tr x-show="!scheduled.length && !scheduledLoading">
+                <td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No emails scheduled.</td>
+              </tr>
+              <tr x-show="scheduledLoading">
+                <td colspan="5" class="px-5 py-8 text-center"><svg class="spinner mx-auto" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="scheduledPage > 0 && (scheduledPage--, loadScheduled())" :disabled="scheduledPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${scheduledPage+1} of ${Math.max(1,Math.ceil(scheduledTotal/scheduledLimit))}`"></span>
+            <button @click="(scheduledPage+1)*scheduledLimit < scheduledTotal && (scheduledPage++, loadScheduled())" :disabled="(scheduledPage+1)*scheduledLimit >= scheduledTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ USERS ═══════════════════════════════════ -->
+      <div x-show="page==='users'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="usersSearch" @input.debounce.400ms="loadUsers()" type="text" placeholder="Search by name or email…" class="input max-w-xs" />
+          <select x-model="usersSort" @change="loadUsers()" class="select max-w-[180px]">
+            <option value="emails_sent">Most emails sent</option>
+            <option value="joined">Recently joined</option>
+            <option value="opens">Most opens</option>
+          </select>
+          <span class="text-sm text-slate-500 ml-auto" x-text="usersTotal.toLocaleString()+' users'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">User</th>
+                <th class="px-5 py-3 font-medium">Joined</th>
+                <th class="px-5 py-3 font-medium">Emails sent</th>
+                <th class="px-5 py-3 font-medium">Opens</th>
+                <th class="px-5 py-3 font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="user in usersSorted" :key="user.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="font-medium text-slate-800" x-text="user.name||'(no name)'"></div>
+                    <div class="text-xs text-slate-400" x-text="user.email"></div>
+                  </td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(user.created_at)"></td>
+                  <td class="px-5 py-3">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-slate-800" x-text="user.emails_sent"></span>
+                      <div class="w-16 bar-track">
+                        <div class="bar-fill" :class="user.emails_sent > 5 ? 'bg-red-400' : user.emails_sent > 2 ? 'bg-amber-400' : 'bg-violet-300'" :style="`width:${Math.min(user.emails_sent/maxUserEmails*100,100)}%`"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span x-show="user.emails_opened > 0" class="badge bg-emerald-50 text-emerald-700" x-text="user.emails_opened+' opens'"></span>
+                    <span x-show="user.emails_opened === 0" class="text-slate-400 text-xs">—</span>
+                  </td>
+                  <td class="px-5 py-3 flex gap-3">
+                    <button @click="openUserHistory(user)" class="text-xs text-violet-600 hover:text-violet-800 font-medium">History</button>
+                    <button @click="openSendModal(user)" class="text-xs text-slate-500 hover:text-slate-700 font-medium">Send</button>
+                    <button @click="cancelPending(user)" class="text-xs text-red-500 hover:text-red-700 font-medium">Stop</button>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="usersPage > 0 && (usersPage--, loadUsers())" :disabled="usersPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${usersPage+1} of ${Math.max(1,Math.ceil(usersTotal/usersLimit))}`"></span>
+            <button @click="(usersPage+1)*usersLimit < usersTotal && (usersPage++, loadUsers())" :disabled="(usersPage+1)*usersLimit >= usersTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ LOGS ═══════════════════════════════════ -->
+      <div x-show="page==='logs'">
+        <div class="flex items-center gap-3 mb-5">
+          <input x-model="logsSearch" @input.debounce.400ms="loadLogs()" type="text" placeholder="Search by email, template…" class="input max-w-xs" />
+          <button @click="loadLogs()" class="btn-secondary">Refresh</button>
+          <span class="text-sm text-slate-500 ml-auto" x-text="logsTotal.toLocaleString()+' total'"></span>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-xs text-slate-500 text-left">
+                <th class="px-5 py-3 font-medium">To</th>
+                <th class="px-5 py-3 font-medium">Template</th>
+                <th class="px-5 py-3 font-medium">Sent</th>
+                <th class="px-5 py-3 font-medium">Opened</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="log in logs" :key="log.id">
+                <tr class="table-row">
+                  <td class="px-5 py-3">
+                    <div class="text-slate-800 font-medium" x-text="log.email_to"></div>
+                    <div x-show="log.user_name" class="text-xs text-slate-400" x-text="log.user_name"></div>
+                  </td>
+                  <td class="px-5 py-3"><span class="badge bg-violet-50 text-violet-700" x-text="log.template_name"></span></td>
+                  <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(log.sent_at)"></td>
+                  <td class="px-5 py-3">
+                    <span x-show="log.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+                    <span x-show="!log.opened_at" class="badge bg-slate-100 text-slate-400">–</span>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="!logs.length && !logsLoading">
+                <td colspan="4" class="px-5 py-8 text-center text-sm text-slate-400">No logs yet.</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
+            <button @click="logsPage > 0 && (logsPage--, loadLogs())" :disabled="logsPage===0" class="btn-secondary btn-sm disabled:opacity-40">← Prev</button>
+            <span class="text-xs text-slate-500" x-text="`Page ${logsPage+1} of ${Math.max(1,Math.ceil(logsTotal/logsLimit))}`"></span>
+            <button @click="(logsPage+1)*logsLimit < logsTotal && (logsPage++, loadLogs())" :disabled="(logsPage+1)*logsLimit >= logsTotal" class="btn-secondary btn-sm disabled:opacity-40">Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ TEMPLATES ═══════════════════════════════════ -->
+      <div x-show="page==='templates'">
+        <div class="mb-5 flex items-center gap-3">
+          <input x-model="templateSearch" type="text" placeholder="Filter templates…" class="input max-w-xs" />
+          <span class="text-sm text-slate-500 ml-auto" x-text="filteredTemplates.length+' templates'"></span>
+        </div>
+
+        <!-- Category groups -->
+        <template x-for="cat in templateCategories" :key="cat">
+          <div x-show="filteredTemplates.some(t => templateCategory(t) === cat)" class="mb-8">
+            <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3" x-text="cat"></div>
+            <div class="grid grid-cols-3 gap-3">
+              <template x-for="t in filteredTemplates.filter(t => templateCategory(t) === cat)" :key="t">
+                <div class="bg-white rounded-xl border border-slate-200 hover:border-violet-300 transition-colors group overflow-hidden cursor-pointer"
+                     @click="openPreview(t)">
+                  <!-- Static thumbnail — no iframe load on page render -->
+                  <div class="h-28 overflow-hidden relative border-b border-slate-100 flex items-center justify-center"
+                       :class="templateCategoryBg(t)">
+                    <div class="text-center px-4">
+                      <div class="text-2xl mb-1" x-text="templateIcon(t)"></div>
+                      <div class="text-xs font-medium text-slate-600 truncate max-w-[140px]" x-text="t"></div>
+                    </div>
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-white/80">
+                      <span class="text-violet-700 text-xs font-semibold">Click to preview →</span>
+                    </div>
+                  </div>
+                  <div class="p-3 flex items-start justify-between">
+                    <div>
+                      <div class="font-medium text-sm text-slate-800" x-text="t"></div>
+                      <div class="text-xs text-slate-400 mt-0.5" x-text="templateCategory(t)"></div>
+                    </div>
+                    <button @click.stop="fireTriggerForTemplate(t)" class="text-xs text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity hover:text-violet-800 font-medium whitespace-nowrap ml-2">
+                      Test
+                    </button>
+                  </div>
+                </div>
+              </template>
             </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/not-started/cc-nudge-2.html','CC Nudge 2','cc-not-started','+24 hrs','Pranav','What the coach actually tells you')">
-              <div class="wf-node-box"><div class="wf-badge outline">2</div><div class="wf-node-text"><div class="wf-node-title">Nudge 2</div><div class="wf-node-sub">What the coach tells you</div></div><div class="wf-delay">+24 hrs</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/not-started/cc-nudge-3.html','CC Nudge 3','cc-not-started','+48 hrs','Pranav','What changed when she finally started')">
-              <div class="wf-node-box"><div class="wf-badge outline">3</div><div class="wf-node-text"><div class="wf-node-title">Nudge 3</div><div class="wf-node-sub">Testimonial</div></div><div class="wf-delay">+48 hrs</div></div>
-            </div>
-            <div class="wf-down dashed"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/handoff/cc-to-outreach.html','CC Handoff','cc-handoff','After no-use','Jeremy','You know where you stand. Here is what to do with it.')">
-              <div class="wf-node-box green"><div class="wf-badge">→</div><div class="wf-node-text"><div class="wf-node-title">Handoff to Outreach</div><div class="wf-node-sub">Soft version</div></div></div>
+          </div>
+        </template>
+      </div>
+
+      <!-- ═══════════════════════════════════ FIRE EMAIL ═══════════════════════════════════ -->
+      <div x-show="page==='trigger'">
+        <div class="max-w-lg">
+          <div class="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 class="font-semibold text-slate-800 mb-1">Fire a single email</h3>
+            <p class="text-sm text-slate-500 mb-5">Send any template to any address for testing or one-off sends.</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Recipient email</label>
+                <input x-model="triggerEmail" class="input" placeholder="user@example.com" />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+                <select x-model="triggerTemplate" class="select">
+                  <option value="">Select template…</option>
+                  <template x-for="t in templates" :key="t">
+                    <option :value="t" x-text="t"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Name (optional)</label>
+                <input x-model="triggerName" class="input" placeholder="Jeremy" />
+              </div>
+              <button @click="fireTrigger()" :disabled="!triggerEmail||!triggerTemplate" class="btn-primary disabled:opacity-50 w-full justify-center">
+                Send now
+              </button>
+              <div x-show="triggerResult" :class="triggerOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
+                class="text-sm rounded-lg px-4 py-2.5" x-text="triggerResult"></div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Branch B: started -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">Yes</div>
-            <div class="wf-branch-label" style="background:#10b981;color:#fff;border-color:#19191a;">B · started the coach</div>
-          </div>
-          <div class="wf-down short"></div>
-          <div class="wf-phase gray">Idle in profiling</div>
-          <div class="wf-down short"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/in-progress/cc-profiling-idle-1.html','CC Profiling Idle 1','cc-in-progress','3 days idle','Pranav','You started. Pick up where you left off.')">
-              <div class="wf-node-box"><div class="wf-badge outline">1</div><div class="wf-node-text"><div class="wf-node-title">Profiling idle 1</div><div class="wf-node-sub">Pick up where you left off</div></div><div class="wf-delay">3 days</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/in-progress/cc-profiling-idle-2.html','CC Profiling Idle 2','cc-in-progress','+3 days','Pranav','You are closer than you think')">
-              <div class="wf-node-box"><div class="wf-badge outline">2</div><div class="wf-node-text"><div class="wf-node-title">Profiling idle 2</div><div class="wf-node-sub">You are partway there</div></div><div class="wf-delay">+3 days</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/in-progress/cc-profiling-idle-3.html','CC Profiling Idle 3','cc-in-progress','+4 days','Pranav','What Vikram found when he finished')">
-              <div class="wf-node-box"><div class="wf-badge outline">3</div><div class="wf-node-text"><div class="wf-node-title">Profiling idle 3</div><div class="wf-node-sub">Testimonial</div></div><div class="wf-delay">+4 days</div></div>
-            </div>
-          </div>
-          <div class="wf-down green"></div>
-          <div class="wf-phase green">DNA generated · always triggers</div>
-          <div class="wf-down short green"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/in-progress/cc-dna-ready.html','CC DNA Ready','cc-in-progress','On DNA generation','Pranav','Your career analysis is ready')">
-              <div class="wf-node-box green"><div class="wf-badge">✓</div><div class="wf-node-text"><div class="wf-node-title">DNA ready</div><div class="wf-node-sub">Analysis generated</div></div><div class="wf-delay green">Instant</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-dna-confirm-nudge.html','CC Confirm Nudge','cc-post-dna','2 days, no confirm','Pranav','Your analysis needs your confirmation')">
-              <div class="wf-node-box amber"><div class="wf-badge">!</div><div class="wf-node-text"><div class="wf-node-title">Confirm nudge</div><div class="wf-node-sub">If not confirmed</div></div><div class="wf-delay amber">2 days</div></div>
-            </div>
-          </div>
-          <div class="wf-down purple"></div>
-          <div class="wf-phase purple">Roadmap delivered</div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-roadmap-delivered.html','CC Roadmap Delivered','cc-post-dna','On ROADMAP state','Jeremy','You have your roadmap. Here is how to use it.')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">★</div><div class="wf-node-text"><div class="wf-node-title">Roadmap delivered</div><div class="wf-node-sub">How to use it</div></div><div class="wf-delay purple">Trigger</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-checkin-1.html','CC Check-in 1','cc-post-dna','Day 3','Pranav','One action. This week.')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Check-in 1</div><div class="wf-node-sub">One action this week</div></div><div class="wf-delay purple">Day 3</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-checkin-2.html','CC Check-in 2','cc-post-dna','Day 7','Pranav','What students who act do differently')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Check-in 2</div><div class="wf-node-sub">Behavioural insight</div></div><div class="wf-delay purple">Day 7</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-checkin-3.html','CC Check-in 3','cc-post-dna','Day 10','Pranav','Have you marked anything complete yet?')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">Check-in 3</div><div class="wf-node-sub">Log a completed action</div></div><div class="wf-delay purple">Day 10</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-upskill-nudge.html','CC Upskill Nudge','cc-post-dna','Day 7 after roadmap','Pranav','The coach gets sharper every time you use it')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">+</div><div class="wf-node-text"><div class="wf-node-title">Upskill nudge</div><div class="wf-node-sub">Use the coach more</div></div><div class="wf-delay purple">Day 7</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-coupon-unlock.html','CC Coupon Unlock','cc-post-dna','Day 9 after roadmap','Jeremy','Log your progress and unlock something')">
-              <div class="wf-node-box amber"><div class="wf-badge">%</div><div class="wf-node-text"><div class="wf-node-title">Coupon unlock</div><div class="wf-node-sub">Log progress to unlock</div></div><div class="wf-delay amber">Day 9</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/post-dna/cc-dormant.html','CC Dormant','cc-post-dna','7+ days idle','Jeremy','Most students stop here')">
-              <div class="wf-node-box amber"><div class="wf-badge">z</div><div class="wf-node-text"><div class="wf-node-title">Dormant</div><div class="wf-node-sub">Quiet urgency</div></div><div class="wf-delay amber">7 days</div></div>
-            </div>
-          </div>
-          <div class="wf-down green"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/handoff/cc-to-outreach.html','CC Handoff to Outreach','cc-handoff','After dormant','Jeremy','You know where you stand. Here is what to do with it.')">
-              <div class="wf-node-box green"><div class="wf-badge">→</div><div class="wf-node-text"><div class="wf-node-title">Handoff to Outreach</div><div class="wf-node-sub">Coach built the map. Outreach opens it.</div></div></div>
-            </div>
-          </div>
-          <div class="wf-down dashed amber"></div>
-          <div class="wf-phase amber">Returning · 14+ days cold</div>
-          <div class="wf-down short amber"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/career-coach/returning/cc-returning-1.html','CC Returning 1','cc-returning','14 days cold','Jeremy','Your analysis is still there')">
-              <div class="wf-node-box amber"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Returning 1</div><div class="wf-node-sub">Nothing lost</div></div><div class="wf-delay amber">14 days</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/returning/cc-returning-2.html','CC Returning 2','cc-returning','+5 days','Jeremy','The gap closes fast when you focus')">
-              <div class="wf-node-box amber"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Returning 2</div><div class="wf-node-sub">Gap closes fast</div></div><div class="wf-delay amber">+5 days</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/career-coach/returning/cc-returning-3.html','CC Returning 3','cc-returning','+5 days','Jeremy','The most direct path from here')">
-              <div class="wf-node-box amber"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">Returning 3</div><div class="wf-node-sub">Two paths</div></div><div class="wf-delay amber">+5 days</div></div>
-            </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ TEMPLATE PREVIEW MODAL ═══════════════════════════ -->
+<div x-show="previewModal" x-cloak class="fixed inset-0 bg-black/60 flex items-center justify-center p-6" style="z-index:400">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style="height:85vh">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0">
+      <div>
+        <h3 class="font-semibold text-slate-800" x-text="previewTemplate"></h3>
+        <p class="text-xs text-slate-500">Rendered with sample data</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button @click="fireTriggerForTemplate(previewTemplate)" class="btn-secondary btn-sm">Test send</button>
+        <button @click="previewModal=false" class="btn-secondary btn-sm">✕ Close</button>
+      </div>
+    </div>
+    <div class="flex-1 overflow-hidden rounded-b-2xl">
+      <iframe x-show="previewModal" :src="previewTemplate ? '/v1/admin/templates/'+encodeURIComponent(previewTemplate)+'/preview?token='+encodeURIComponent(authToken) : ''"
+        class="w-full h-full border-none" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SEND TO USER MODAL ═══════════════════════════ -->
+<div x-show="sendModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center" style="z-index:400">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md" @click.outside="sendModal=false">
+    <h3 class="font-semibold text-slate-800 mb-1">Send to <span x-text="sendModalUser?.name||sendModalUser?.email"></span></h3>
+    <p class="text-sm text-slate-500 mb-4" x-text="sendModalUser?.email"></p>
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-slate-700 mb-1">Template</label>
+      <select x-model="sendModalTemplate" class="select">
+        <option value="">Select template…</option>
+        <template x-for="t in templates" :key="t">
+          <option :value="t" x-text="t"></option>
+        </template>
+      </select>
+    </div>
+    <div class="flex gap-2">
+      <button @click="sendToUser()" :disabled="!sendModalTemplate" class="btn-primary disabled:opacity-50">Send</button>
+      <button @click="sendModal=false" class="btn-secondary">Cancel</button>
+    </div>
+    <div x-show="sendModalResult" class="text-sm text-emerald-700 bg-emerald-50 rounded-lg px-4 py-2.5 mt-3" x-text="sendModalResult"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ RECIPIENT DETAIL MODAL ═══════════════════════════ -->
+<div x-show="recipientModal" x-cloak class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" style="z-index:200">
+  <div class="bg-white rounded-2xl shadow-2xl flex flex-col" style="width:min(1120px,95vw);height:88vh">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 flex-shrink-0 rounded-t-2xl bg-white" style="z-index:10;position:relative">
+      <div class="min-w-0 flex-1 pr-4">
+        <div class="font-semibold text-slate-900 truncate" x-text="recipientLog?.user_name || recipientLog?.email_to || '(unknown)'"></div>
+        <div class="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-0.5">
+          <span class="truncate" x-text="recipientLog?.email_to"></span>
+          <span class="badge" :class="segmentCategoryBadge(recipientLog?.template_name||'')" x-text="recipientLog?.template_name"></span>
+          <span class="text-slate-400" x-text="'sent '+relTime(recipientLog?.sent_at)"></span>
+          <span x-show="recipientLog?.opened_at" class="badge bg-emerald-50 text-emerald-700">✓ opened</span>
+        </div>
+      </div>
+      <button @click="recipientModal=false" class="btn-secondary btn-sm flex-shrink-0">✕ Close</button>
+    </div>
+    <!-- Body: preview left, history right -->
+    <div class="flex flex-1 min-h-0">
+      <!-- Email preview -->
+      <div class="flex-1 flex flex-col min-w-0 border-r border-slate-200">
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <span class="text-xs font-medium text-slate-600" x-text="'Previewing: '+(recipientLog?.template_name||'')"></span>
+          <div class="flex items-center gap-2">
+            <button @click="openSendModal({id: recipientLog.user_id, name: recipientLog.user_name, email: recipientLog.email_to})" class="btn-primary btn-sm">Send email</button>
+            <button @click="openPreview(recipientLog?.template_name)" class="btn-secondary btn-sm">Open full ↗</button>
           </div>
         </div>
-
+        <div class="flex-1 min-h-0 overflow-hidden">
+          <iframe
+            :key="recipientLog?.template_name"
+            :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview?token='+encodeURIComponent(authToken) : 'about:blank'"
+            class="w-full border-none" style="height:100%" referrerpolicy="no-referrer"></iframe>
+        </div>
+      </div>
+      <!-- History sidebar -->
+      <div class="flex flex-col flex-shrink-0" style="width:280px">
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex-shrink-0">
+          <span class="text-xs font-semibold text-slate-600 uppercase tracking-wide">Send history</span>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <div x-show="recipientHistoryLoading" class="flex justify-center py-10">
+            <svg class="spinner" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+          </div>
+          <div x-show="!recipientHistoryLoading">
+            <template x-for="h in recipientHistory" :key="h.id">
+              <div class="px-4 py-3 border-b border-slate-100 cursor-pointer transition-colors"
+                   :class="h.template_name === recipientLog?.template_name ? 'bg-violet-50 border-l-2 border-l-violet-500' : 'hover:bg-slate-50'"
+                   @click="recipientLog = {...recipientLog, template_name: h.template_name, sent_at: h.sent_at, opened_at: h.opened_at}">
+                <div class="flex items-start justify-between gap-1">
+                  <span class="text-xs font-medium text-slate-700 leading-tight" x-text="h.template_name"></span>
+                  <span x-show="h.opened_at" class="badge bg-emerald-50 text-emerald-700 flex-shrink-0">✓</span>
+                </div>
+                <div class="text-xs text-slate-400 mt-1" x-text="relTime(h.sent_at)"></div>
+              </div>
+            </template>
+            <div x-show="!recipientHistoryLoading && !recipientHistory.length" class="px-4 py-10 text-center text-xs text-slate-400">No history found.</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- RESUME MAKER FLOW MAP -->
-  <div id="flow-pane-resume" style="display:none;">
-    <div class="flow-header">
-      <div class="flow-tag">Wired · Ready to Deploy</div>
-      <div class="flow-title clash">Resume Maker Email Flow</div>
-      <div class="flow-sub">Reads top to bottom. The coach scores the resume, then branches.</div>
-    </div>
-
-    <div class="wf">
-
-      <div class="wf-center">
-        <div class="wf-node" style="cursor:default;">
-          <div class="wf-node-box start" style="min-width:240px;">
-            <div class="wf-badge">›</div>
-            <div class="wf-node-text"><div class="wf-node-title">Resume completed</div><div class="wf-node-sub">mark-resume-ready fires</div></div>
-          </div>
-        </div>
+<!-- ═══════════════════════════ USER HISTORY MODAL ═══════════════════════════ -->
+<div x-show="historyModal" x-cloak class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" @click.outside="historyModal=false">
+    <div class="flex items-center justify-between mb-4">
+      <div>
+        <h3 class="font-semibold text-slate-800" x-text="historyUser?.name||historyUser?.email"></h3>
+        <p class="text-xs text-slate-500" x-text="historyUser?.email + ' · ' + (historyUser?.emails_sent||0) + ' emails sent'"></p>
       </div>
-      <div class="wf-down"></div>
-
-      <div class="wf-diamond"><div class="wf-diamond-inner">Resume<br>strength?</div></div>
-      <div class="wf-down tall"></div>
-
-      <div class="wf-branches">
-
-        <!-- Strong -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">Score 55+</div>
-            <div class="wf-branch-label" style="background:#f0fdf4;color:#065f46;border-color:#10b981;">Strong · to Outreach</div>
-          </div>
-          <div class="wf-down short green"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/resume-maker/strong/rm-strong-1.html','RM Strong 1','rm-strong','1 hr after ready','Jeremy','Your resume is strong. Here is the next move.')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Strong 1</div><div class="wf-node-sub">Here is the next move</div></div><div class="wf-delay purple">1 hr</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/resume-maker/strong/rm-strong-2.html','RM Strong 2','rm-strong','+2 days','Jeremy','What students with strong resumes do next')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Strong 2</div><div class="wf-node-sub">Reply rate + proof</div></div><div class="wf-delay purple">+2 days</div></div>
-            </div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/resume-maker/strong/rm-strong-3.html','RM Strong 3','rm-strong','+3 days','Jeremy','Your resume is ready. Are you using it?')">
-              <div class="wf-node-box soft-purple"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">Strong 3</div><div class="wf-node-sub">How outreach uses it</div></div><div class="wf-delay purple">+3 days</div></div>
-            </div>
-            <div class="wf-down dashed"></div>
-            <div class="wf-node" style="cursor:default;">
-              <div class="wf-node-box ghost"><div class="wf-node-text"><div class="wf-node-title" style="color:#999;">→ Outreach Dojo flow</div><div class="wf-node-sub">If they start the tool</div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Weak -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">Below 55</div>
-            <div class="wf-branch-label" style="background:#f3f0ff;color:#7c3aed;">Weak · to Coach</div>
-          </div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/resume-maker/weak/rm-weak-1.html','RM Weak 1','rm-weak','1 hr after ready','Pranav','Your resume is a start. Here is what to do next.')">
-              <div class="wf-node-box"><div class="wf-badge outline">1</div><div class="wf-node-text"><div class="wf-node-title">Weak 1</div><div class="wf-node-sub">Know where you stand</div></div><div class="wf-delay">1 hr</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/resume-maker/weak/rm-weak-2.html','RM Weak 2','rm-weak','+2 days','Pranav','What was actually holding her back')">
-              <div class="wf-node-box"><div class="wf-badge outline">2</div><div class="wf-node-text"><div class="wf-node-title">Weak 2</div><div class="wf-node-sub">Wrong roles story</div></div><div class="wf-delay">+2 days</div></div>
-            </div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/resume-maker/weak/rm-weak-3.html','RM Weak 3','rm-weak','+3 days','Pranav','Before you apply, know where you stand')">
-              <div class="wf-node-box"><div class="wf-badge outline">3</div><div class="wf-node-text"><div class="wf-node-title">Weak 3</div><div class="wf-node-sub">What the coach gives you</div></div><div class="wf-delay">+3 days</div></div>
-            </div>
-            <div class="wf-down dashed"></div>
-            <div class="wf-node" style="cursor:default;">
-              <div class="wf-node-box ghost"><div class="wf-node-text"><div class="wf-node-title" style="color:#999;">→ Career Coach flow</div><div class="wf-node-sub">If they start the coach</div></div></div>
-            </div>
-          </div>
-        </div>
-
-      </div>
+      <button @click="historyModal=false" class="text-slate-400 hover:text-slate-600">✕</button>
     </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50">
+        <tr class="text-xs text-slate-500 text-left">
+          <th class="px-3 py-2 font-medium">Template</th>
+          <th class="px-3 py-2 font-medium">Sent</th>
+          <th class="px-3 py-2 font-medium">Opened</th>
+        </tr>
+      </thead>
+      <tbody>
+        <template x-for="h in userHistory" :key="h.id">
+          <tr class="border-b border-slate-100">
+            <td class="px-3 py-2">
+              <div class="flex items-center gap-2">
+                <span class="badge bg-violet-50 text-violet-700" x-text="h.template_name"></span>
+                <button @click="openPreview(h.template_name)" class="text-xs text-slate-400 hover:text-violet-600">preview</button>
+              </div>
+            </td>
+            <td class="px-3 py-2 text-slate-500 text-xs" x-text="relTime(h.sent_at)"></td>
+            <td class="px-3 py-2">
+              <span x-show="h.opened_at" class="badge bg-emerald-50 text-emerald-700">✓</span>
+              <span x-show="!h.opened_at" class="text-slate-300">–</span>
+            </td>
+          </tr>
+        </template>
+        <tr x-show="!userHistory.length">
+          <td colspan="3" class="px-3 py-6 text-center text-sm text-slate-400">No emails sent yet.</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
-
-  <!-- INTERNSHIP DOJO FLOW MAP -->
-  <div id="flow-pane-internship" style="display:none;">
-    <div class="flow-header">
-      <div class="flow-tag">Wired · Ready to Deploy</div>
-      <div class="flow-title clash">Internship Dojo Email Flow</div>
-      <div class="flow-sub">Reads top to bottom. Triggered by heavy applying with no results.</div>
-    </div>
-
-    <div class="wf">
-
-      <div class="wf-center">
-        <div class="wf-node" style="cursor:default;">
-          <div class="wf-node-box start" style="min-width:280px;">
-            <div class="wf-badge">›</div>
-            <div class="wf-node-text"><div class="wf-node-title">15+ applications, no replies</div><div class="wf-node-sub">over a 2 week window</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="wf-down"></div>
-
-      <div class="wf-center">
-        <div class="wf-node" onclick="preview('templates/internship-dojo/id-two-tools.html','ID Two-Tool Offer','id-offer','On threshold hit','Jeremy','You have been applying. Here are two tools that change the results.')">
-          <div class="wf-node-box universal" style="min-width:300px;">
-            <div class="wf-badge">★</div>
-            <div class="wf-node-text"><div class="wf-node-title">Two-tool offer</div><div class="wf-node-sub">Outreach or Career Coach</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="wf-down tall"></div>
-
-      <div class="wf-diamond"><div class="wf-diamond-inner">Clicked<br>a tool?</div></div>
-      <div class="wf-down tall"></div>
-
-      <div class="wf-branches">
-
-        <!-- Clicked -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">Yes</div>
-            <div class="wf-branch-label" style="background:#f0fdf4;color:#065f46;border-color:#10b981;">Clicked a tool</div>
-          </div>
-          <div class="wf-down short green"></div>
-          <div class="wf-stack">
-            <div class="wf-node" style="cursor:default;">
-              <div class="wf-node-box ghost"><div class="wf-node-text"><div class="wf-node-title" style="color:#999;">→ Outreach Dojo flow</div><div class="wf-node-sub">If they pick Outreach</div></div></div>
-            </div>
-            <div class="wf-down dashed"></div>
-            <div class="wf-node" style="cursor:default;">
-              <div class="wf-node-box ghost"><div class="wf-node-text"><div class="wf-node-title" style="color:#999;">→ Career Coach flow</div><div class="wf-node-sub">If they pick the Coach</div></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- No engagement -->
-        <div class="wf-branch">
-          <div class="wf-branch-head">
-            <div class="wf-edge-label">No open / no click</div>
-            <div class="wf-branch-label" style="background:#fffbeb;color:#92400e;border-color:#f59e0b;">Re-engagement</div>
-          </div>
-          <div class="wf-down short amber"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/internship-dojo/id-reengage-1.html','ID Re-engage 1','id-reengage','+3 days','Jeremy','The reason your applications are not landing')">
-              <div class="wf-node-box amber"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Re-engage 1</div><div class="wf-node-sub">The 2% stat</div></div><div class="wf-delay amber">+3 days</div></div>
-            </div>
-            <div class="wf-down amber"></div>
-            <div class="wf-node" onclick="preview('templates/internship-dojo/id-reengage-2.html','ID Re-engage 2','id-reengage','+4 days','Jeremy','How Rohan went from silence to three interviews')">
-              <div class="wf-node-box amber"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Re-engage 2</div><div class="wf-node-sub">Rohan story</div></div><div class="wf-delay amber">+4 days</div></div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- OLD USERS FLOW MAP -->
-  <div id="flow-pane-oldusers" style="display:none;">
-    <div class="flow-header" style="max-width:1100px; margin-left:auto; margin-right:auto;">
-      <div class="flow-tag">Wired · Ready to Deploy</div>
-      <div class="flow-title clash">Old / Dormant User Flow</div>
-      <div class="flow-sub">Reads top to bottom. Tool-neutral: routed by intent stage, with the CTA pointed at whichever tool the user went deepest on. Sent at low priority: new-user emails always go first; these cascade over days under a per-day cap (s1 before s2 before s3) so they only use leftover sending quota.</div>
-    </div>
-
-    <div class="wf wide">
-
-      <div class="wf-center">
-        <div class="wf-node" style="cursor:default;">
-          <div class="wf-node-box start" style="min-width:260px;">
-            <div class="wf-badge">z</div>
-            <div class="wf-node-text"><div class="wf-node-title">Dormant 21+ days</div><div class="wf-node-sub">last_seen and created_at both older than 21d · paying customers suppressed</div></div>
-          </div>
-        </div>
-      </div>
-      <div class="wf-down"></div>
-
-      <div class="wf-router">
-        Route by intent stage
-        <div class="wf-router-sub">how close they got to an outcome on ANY tool, weighted equally. No tool checked first.</div>
-      </div>
-      <div class="wf-down tall"></div>
-
-      <!-- 3 stage lanes -->
-      <div class="wf-grid" style="grid-template-columns:repeat(3, minmax(0,1fr)); max-width:980px; margin:4px auto 0;">
-
-        <!-- S1 -->
-        <div class="wf-lane">
-          <div class="wf-branch-head"><div class="wf-edge-label">Hit an outcome edge</div><div class="wf-branch-label" style="background:#f0fdf4;color:#065f46;border-color:#10b981;">S1 · nearly converted</div></div>
-          <div class="wf-down short green"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/old-users/s1-nearly/old-s1-1.html','S1-1','old-s1','Day 0','Jeremy','You were nearly there')"><div class="wf-node-box green"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Nearly there</div><div class="wf-node-sub">Hard part is done</div></div><div class="wf-delay green">Day 0</div></div></div>
-            <div class="wf-down green"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s1-nearly/old-s1-2.html','S1-2','old-s1','+5 days','Jeremy','What finishing actually looks like')"><div class="wf-node-box green"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Finishing it</div><div class="wf-node-sub">Testimonial</div></div><div class="wf-delay green">+5 days</div></div></div>
-            <div class="wf-down green"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s1-nearly/old-s1-3.html','S1-3','old-s1','+9 days','Jeremy','The last step is the easy one')"><div class="wf-node-box green"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">The close</div><div class="wf-node-sub">CTA swaps by deepest tool</div></div><div class="wf-delay green">+9 days</div></div></div>
-          </div>
-        </div>
-
-        <!-- S2 -->
-        <div class="wf-lane">
-          <div class="wf-branch-head"><div class="wf-edge-label">Real work, no outcome</div><div class="wf-branch-label" style="background:#f3f0ff;color:#7c3aed;">S2 · engaged</div></div>
-          <div class="wf-down short purple"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/old-users/s2-engaged/old-s2-1.html','S2-1','old-s2','Day 0','Pranav','You got real work done, then it stalled')"><div class="wf-node-box soft-purple"><div class="wf-badge">1</div><div class="wf-node-text"><div class="wf-node-title">Stalled</div><div class="wf-node-sub">All still saved</div></div><div class="wf-delay purple">Day 0</div></div></div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s2-engaged/old-s2-2.html','S2-2','old-s2','+6 days','Pranav','What picking back up actually takes')"><div class="wf-node-box soft-purple"><div class="wf-badge">2</div><div class="wf-node-text"><div class="wf-node-title">Restarting</div><div class="wf-node-sub">Testimonial</div></div><div class="wf-delay purple">+6 days</div></div></div>
-            <div class="wf-down purple"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s2-engaged/old-s2-3.html','S2-3','old-s2','+9 days','Jeremy','The one step to restart')"><div class="wf-node-box soft-purple"><div class="wf-badge">3</div><div class="wf-node-text"><div class="wf-node-title">One step</div><div class="wf-node-sub">CTA swaps by deepest tool</div></div><div class="wf-delay purple">+9 days</div></div></div>
-          </div>
-        </div>
-
-        <!-- S3 -->
-        <div class="wf-lane">
-          <div class="wf-branch-head"><div class="wf-edge-label">Barely any signal</div><div class="wf-branch-label" style="background:#f5f4f0;">S3 · barely started</div></div>
-          <div class="wf-down short"></div>
-          <div class="wf-stack">
-            <div class="wf-node" onclick="preview('templates/old-users/s3-barely/old-s3-1.html','S3-1','old-s3','Day 0','Pranav','What Studojo can do for you now')"><div class="wf-node-box"><div class="wf-badge outline">1</div><div class="wf-node-text"><div class="wf-node-title">No guilt</div><div class="wf-node-sub">What we do now</div></div><div class="wf-delay">Day 0</div></div></div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s3-barely/old-s3-2.html','S3-2','old-s3','+7 days','Pranav','A student who came back and started fresh')"><div class="wf-node-box"><div class="wf-badge outline">2</div><div class="wf-node-text"><div class="wf-node-title">Came back</div><div class="wf-node-sub">Testimonial</div></div><div class="wf-delay">+7 days</div></div></div>
-            <div class="wf-down"></div>
-            <div class="wf-node" onclick="preview('templates/old-users/s3-barely/old-s3-3.html','S3-3','old-s3','+7 days','Pranav','One step, whenever you are ready')"><div class="wf-node-box"><div class="wf-badge outline">3</div><div class="wf-node-text"><div class="wf-node-title">One step</div><div class="wf-node-sub">Two-tool choice</div></div><div class="wf-delay">+7 days</div></div></div>
-          </div>
-        </div>
-
-      </div>
-
-      <!-- CTA routing note -->
-      <div style="max-width:980px; margin:34px auto 0; border:2px solid #19191a; border-radius:14px; background:#fff; box-shadow:3px 3px 0 rgba(25,26,35,1); padding:18px 22px;">
-        <div style="font-family:'Clash Display',sans-serif; font-size:12px; font-weight:700; letter-spacing:0.5px; margin-bottom:10px;">CTA swap (the tool-neutral routing) · applies to S1 and S2 closing emails</div>
-        <div style="display:flex; flex-wrap:wrap; gap:8px;">
-          <div class="wf-node" onclick="preview('templates/old-users/cta-variants/cta-outreach.html','CTA: Outreach','old-cta','Deepest = Outreach / strong resume','','Reach hiring managers now')" style="flex:1; min-width:220px;"><div class="wf-node-box green" style="width:100%;"><div class="wf-badge">&rarr;</div><div class="wf-node-text"><div class="wf-node-title">Outreach</div><div class="wf-node-sub">Deepest = Outreach or strong resume</div></div></div></div>
-          <div class="wf-node" onclick="preview('templates/old-users/cta-variants/cta-coach.html','CTA: Coach','old-cta','Deepest = weak resume / coach','','Talk to your career coach')" style="flex:1; min-width:220px;"><div class="wf-node-box soft-purple" style="width:100%;"><div class="wf-badge">&rarr;</div><div class="wf-node-text"><div class="wf-node-title">Career Coach</div><div class="wf-node-sub">Deepest = weak resume or coach</div></div></div></div>
-          <div class="wf-node" onclick="preview('templates/old-users/cta-variants/cta-two-tool.html','CTA: Two-tool','old-cta','Deepest = internship / none','','Pick the move that fits')" style="flex:1; min-width:220px;"><div class="wf-node-box amber" style="width:100%;"><div class="wf-badge">&rarr;</div><div class="wf-node-text"><div class="wf-node-title">Two-tool choice</div><div class="wf-node-sub">Deepest = internship or none</div></div></div></div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-
-  <!-- PREVIEW -->
-  <div id="preview-pane">
-    <div class="preview-bar">
-      <button class="back-btn" onclick="showFlow(null, null)">&#8592; Flow Map</button>
-      <div style="flex:1; min-width:0;">
-        <div id="p-title" class="preview-title clash"></div>
-        <div id="p-meta" class="preview-meta"></div>
-      </div>
-      <div id="p-tags" style="display:flex; gap:6px; flex-shrink:0;"></div>
-    </div>
-
-    <div id="p-email" class="email-client-wrap">
-      <div style="display:flex; flex-direction:column;">
-        <div class="email-client">
-          <div class="email-chrome">
-            <div class="email-chrome-row">
-              <span class="email-chrome-label">From</span>
-              <span class="email-chrome-val" id="p-from"></span>
-            </div>
-            <div class="email-chrome-row">
-              <span class="email-chrome-label">To</span>
-              <span class="email-chrome-val">&#123;&#123;first_name&#125;&#125; &lt;student@email.com&gt;</span>
-            </div>
-          </div>
-          <div class="email-subject-row" id="p-subject"></div>
-          <iframe id="preview-frame" src="" onload="resizeIframe(this)" scrolling="no"></iframe>
-        </div>
-      </div>
-    </div>
-
-    <div id="p-txt" class="txt-client-wrap" style="display:none;">
-      <div class="txt-client">
-        <div class="email-chrome">
-          <div class="email-chrome-row">
-            <span class="email-chrome-label">From</span>
-            <span class="email-chrome-val" id="p-from-txt"></span>
-          </div>
-          <div class="email-chrome-row">
-            <span class="email-chrome-label">To</span>
-            <span class="email-chrome-val">&#123;&#123;first_name&#125;&#125; &lt;student@email.com&gt;</span>
-          </div>
-        </div>
-        <div class="email-subject-row" id="p-subject-txt"></div>
-        <div class="txt-body" id="p-txt-body"></div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <script>
-  const navItems = document.querySelectorAll('.nav-item');
+function app() {
+  return {
+    // Auth
+    authed: false, authToken: '', authError: '', authLoading: false,
 
-  function resizeIframe(f) {
-    try {
-      const d = f.contentDocument || f.contentWindow.document;
-      f.style.height = d.documentElement.scrollHeight + 'px';
-    } catch(e) { f.style.height = '800px'; }
+    // Nav
+    page: 'overview',
+
+    // Overview
+    stats: {}, statsLoading: false, recentLogs: [],
+
+    // Segments (campaign groups)
+    campaignGroups: [],
+    segmentDrillType: null, segmentDrillLogs: [], segmentDrillTotal: 0, segmentDrillPage: 0,
+    showNewCampaign: false,
+    newCampaign: { name: '', template_name: '', filter_days: 0 },
+    campaignPreviewCount: null,
+
+    // Scheduled
+    scheduled: [], scheduledTotal: 0, scheduledPage: 0, scheduledLimit: 50, scheduledLoading: false,
+
+    // Users
+    users: [], usersTotal: 0, usersSearch: '', usersPage: 0, usersLimit: 50, usersSort: 'emails_sent',
+
+    // Logs
+    logs: [], logsTotal: 0, logsLoading: false, logsSearch: '', logsPage: 0, logsLimit: 50,
+
+    // Templates
+    templates: [], templateSearch: '',
+    templateCategories: ['Transactional', 'Outreach', 'Career Coach', 'Resume', 'Internship', 'Old Users', 'Other'],
+
+    // Trigger
+    triggerEmail: '', triggerTemplate: '', triggerName: 'Jeremy', triggerResult: '', triggerOk: false,
+
+    // Modals
+    sendModal: false, sendModalUser: null, sendModalTemplate: '', sendModalResult: '',
+    historyModal: false, historyUser: null, userHistory: [],
+    previewModal: false, previewTemplate: '',
+    recipientModal: false, recipientLog: null, recipientHistory: [], recipientHistoryLoading: false,
+
+    _chart: null, lastUpdated: null,
+
+    async init() {
+      const hash = window.location.hash
+      if (hash.startsWith('#token=')) {
+        const tok = hash.slice(7)
+        if (tok) { this.authToken = tok; localStorage.setItem('adminToken', tok); history.replaceState(null, '', window.location.pathname); await this.login(true); return }
+      }
+      const token = localStorage.getItem('adminToken')
+      if (token) { this.authToken = token; await this.login(true) }
+
+      // Auto-refresh: stats + chart every 30s, scheduled count every 15s
+      setInterval(() => { if (this.authed && this.page === 'overview') this.loadStats() }, 30000)
+      setInterval(() => { if (this.authed) this.loadScheduledCount() }, 15000)
+    },
+
+    async login(silent = false) {
+      if (!this.authToken) return
+      this.authLoading = true; this.authError = ''
+      try {
+        const r = await this.api('GET', '/v1/admin/stats')
+        if (r.ok) {
+          this.authed = true
+          localStorage.setItem('adminToken', this.authToken)
+          await this.loadAll()
+        } else {
+          if (!silent) this.authError = 'Invalid token.'
+          localStorage.removeItem('adminToken')
+        }
+      } catch { if (!silent) this.authError = 'Could not connect.' }
+      this.authLoading = false
+    },
+
+    logout() { localStorage.removeItem('adminToken'); this.authed = false; this.authToken = '' },
+
+    async loadAll() {
+      await Promise.all([this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
+    },
+
+    async nav(p) {
+      this.page = p
+      if (p === 'overview') { await this.loadStats() }
+      if (p === 'segments') await this.loadCampaignGroups()
+      if (p === 'scheduled') await this.loadScheduled()
+      if (p === 'users') await this.loadUsers()
+      if (p === 'logs') await this.loadLogs()
+      if (p === 'templates') await this.loadTemplates()
+    },
+
+    async loadStats() {
+      this.statsLoading = true
+      const [r, r2] = await Promise.all([
+        this.api('GET', '/v1/admin/stats'),
+        this.api('GET', '/v1/admin/logs?limit=10'),
+      ])
+      if (r.ok) this.stats = await r.json()
+      if (r2.ok) { const d = await r2.json(); this.recentLogs = d.logs || [] }
+      this.statsLoading = false
+      this.lastUpdated = new Date().toISOString()
+      setTimeout(() => this.drawChart(), 150)
+    },
+
+    async loadLogs() {
+      this.logsLoading = true
+      const r = await this.api('GET', `/v1/admin/logs?limit=${this.logsLimit}&offset=${this.logsPage*this.logsLimit}&q=${encodeURIComponent(this.logsSearch)}`)
+      if (r.ok) { const d = await r.json(); this.logs = d.logs || []; this.logsTotal = d.total || 0 }
+      this.logsLoading = false
+    },
+
+    async loadUsers() {
+      const r = await this.api('GET', `/v1/admin/users?limit=${this.usersLimit}&offset=${this.usersPage*this.usersLimit}&q=${encodeURIComponent(this.usersSearch)}`)
+      if (r.ok) { const d = await r.json(); this.users = d.users || []; this.usersTotal = d.total || 0 }
+    },
+
+    async cancelPending(user) {
+      if (!confirm(`Cancel all pending scheduled emails for ${user.name || user.email}?`)) return
+      const r = await this.api('POST', `/v1/admin/users/${user.id}/cancel-scheduled`)
+      if (r.ok) {
+        const d = await r.json()
+        alert(`Cancelled ${d.cancelled} pending email(s) for ${user.name || user.email}.`)
+        this.loadScheduledCount()
+      } else {
+        alert('Failed to cancel pending emails.')
+      }
+    },
+
+    async loadCampaignGroups() {
+      const r = await this.api('GET', '/v1/admin/campaign-groups')
+      if (r.ok) { const d = await r.json(); this.campaignGroups = (d.groups || []).sort((a,b) => b.total_sent - a.total_sent) }
+    },
+
+    async loadScheduledCount() {
+      const r = await this.api('GET', '/v1/admin/scheduled?limit=1&offset=0')
+      if (r.ok) { const d = await r.json(); this.scheduledTotal = d.total || 0 }
+    },
+
+    async loadScheduled() {
+      this.scheduledLoading = true
+      const r = await this.api('GET', `/v1/admin/scheduled?limit=${this.scheduledLimit}&offset=${this.scheduledPage*this.scheduledLimit}`)
+      if (r.ok) { const d = await r.json(); this.scheduled = d.scheduled || []; this.scheduledTotal = d.total || 0 }
+      this.scheduledLoading = false
+    },
+
+    async loadTemplates() {
+      const r = await this.api('GET', '/v1/admin/templates')
+      if (r.ok) { const d = await r.json(); this.templates = d.templates || [] }
+    },
+
+    async drillIntoSegment(emailType) {
+      this.segmentDrillType = emailType; this.segmentDrillPage = 0; this.segmentDrillLogs = []; this.segmentDrillTotal = 0
+      await this.loadSegmentDrill()
+    },
+
+    async loadSegmentDrill() {
+      const r = await this.api('GET', `/v1/admin/campaign-groups/${encodeURIComponent(this.segmentDrillType)}/logs?limit=50&offset=${this.segmentDrillPage*50}`)
+      if (r.ok) { const d = await r.json(); this.segmentDrillLogs = d.logs || []; this.segmentDrillTotal = d.total || 0 }
+    },
+
+    async previewCampaignCount() {
+      const r = await this.api('GET', `/v1/admin/campaigns/preview?filter_days=${this.newCampaign.filter_days}`)
+      if (r.ok) { const d = await r.json(); this.campaignPreviewCount = d.count }
+    },
+
+    async createAndSendCampaign() {
+      const r = await this.api('POST', '/v1/admin/campaigns', { name: this.newCampaign.name, template_name: this.newCampaign.template_name, filter_days: parseInt(this.newCampaign.filter_days) })
+      if (!r.ok) return alert('Failed to create campaign')
+      const c = await r.json()
+      const r2 = await this.api('POST', `/v1/admin/campaigns/${c.id}/send`)
+      if (r2.ok) { this.showNewCampaign = false; this.newCampaign = { name:'', template_name:'', filter_days:0 }; this.campaignPreviewCount = null; await this.loadCampaignGroups() }
+    },
+
+    async openRecipientDetail(log) {
+      this.recipientLog = log
+      this.recipientHistory = []
+      this.recipientHistoryLoading = true
+      this.recipientModal = true
+      if (log.user_id) {
+        const r = await this.api('GET', `/v1/admin/users/${log.user_id}`)
+        if (r.ok) { const d = await r.json(); this.recipientHistory = d.history || [] }
+      }
+      this.recipientHistoryLoading = false
+    },
+
+    openPreview(template) {
+      this.previewTemplate = template; this.previewModal = true
+    },
+
+    async fireTrigger() {
+      this.triggerResult = ''
+      const routingKey = this.templateToRoutingKey(this.triggerTemplate)
+      const r = await this.api('POST', '/v1/admin/trigger', { routing_key: routingKey, event: { email: this.triggerEmail, name: this.triggerName || 'there', user_id: '' } })
+      if (r.ok) { this.triggerOk = true; this.triggerResult = `Sent "${this.triggerTemplate}" to ${this.triggerEmail}` }
+      else { this.triggerOk = false; this.triggerResult = 'Failed. Check logs.' }
+    },
+
+    async fireTriggerForTemplate(template) {
+      const email = prompt('Send test to:', 'studojo@gmail.com')
+      if (!email) return
+      await this.api('POST', '/v1/admin/trigger', { routing_key: this.templateToRoutingKey(template), event: { email, name: 'Jeremy', user_id: '' } })
+      alert(`Sent "${template}" to ${email}`)
+    },
+
+    openSendModal(user) { this.sendModalUser = user; this.sendModalTemplate = ''; this.sendModalResult = ''; this.sendModal = true },
+
+    async sendToUser() {
+      const r = await this.api('POST', `/v1/admin/users/${this.sendModalUser.id}/send`, { template_name: this.sendModalTemplate })
+      if (r.ok) this.sendModalResult = `Sent "${this.sendModalTemplate}" to ${this.sendModalUser.email}`
+    },
+
+    async openUserHistory(user) {
+      this.historyUser = user; this.userHistory = []; this.historyModal = true
+      const r = await this.api('GET', `/v1/admin/users/${user.id}`)
+      if (r.ok) { const d = await r.json(); this.userHistory = d.history || [] }
+    },
+
+    drawChart() {
+      const volume = this.stats.daily_volume || []
+      const canvas = document.getElementById('volumeChart')
+      if (!canvas) return
+      if (this._chart) { this._chart.destroy(); this._chart = null }
+
+      // Build a full 14-day series with zeros for any missing days
+      const today = new Date(); today.setHours(0,0,0,0)
+      const byDate = {}
+      volume.forEach(v => { byDate[v.date] = v.count })
+      const labels = [], data = []
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i)
+        const key = d.toISOString().slice(0,10)
+        labels.push(d.toLocaleDateString('en-GB', { day:'numeric', month:'short' }))
+        data.push(byDate[key] || 0)
+      }
+
+      this._chart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            backgroundColor: 'rgba(124,58,237,0.15)',
+            borderColor: 'rgba(124,58,237,0.8)',
+            borderWidth: 1.5,
+            borderRadius: 4,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} emails` } } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
+            y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#94a3b8', precision: 0 } }
+          }
+        }
+      })
+    },
+
+    // ── Computed helpers ──
+
+    get usersSorted() {
+      const arr = [...this.users]
+      if (this.usersSort === 'emails_sent') arr.sort((a,b) => b.emails_sent - a.emails_sent)
+      else if (this.usersSort === 'opens') arr.sort((a,b) => b.emails_opened - a.emails_opened)
+      return arr
+    },
+
+    get maxUserEmails() {
+      return Math.max(1, ...this.users.map(u => u.emails_sent))
+    },
+
+    get filteredTemplates() {
+      const q = this.templateSearch.toLowerCase()
+      return this.templates.filter(t => !q || t.includes(q))
+    },
+
+    maxSendPct(count) {
+      const max = Math.max(1, ...(this.stats.top_templates||[]).map(t=>t.send_count))
+      return Math.min(count/max*100, 100)
+    },
+
+    segmentBarPct(count) {
+      const max = Math.max(1, ...(this.campaignGroups||[]).map(g=>g.total_sent))
+      return Math.min(count/max*100, 100)
+    },
+
+    // The new flow is entirely cc-* templates across five sequences plus a
+    // small set of transactional emails. Categories map to those five flows.
+    ccFlow(t) {
+      if (t.startsWith('cc-outreach')) return 'Outreach'
+      if (t.startsWith('cc-rm-')) return 'Resume'
+      if (t.startsWith('cc-id-')) return 'Internship'
+      if (t.startsWith('cc-old')) return 'Old Users'
+      if (t.startsWith('cc-')) return 'Career Coach'
+      return null
+    },
+
+    segmentCategory(t) {
+      const f = this.ccFlow(t)
+      if (f) return f
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready','checkin-reminder','service-update'].includes(t)) return 'Transact.'
+      return 'Other'
+    },
+
+    segmentCategoryBadge(t) {
+      const m = { 'Outreach':'bg-violet-50 text-violet-700', 'Career Coach':'bg-indigo-50 text-indigo-700', 'Resume':'bg-blue-50 text-blue-700', 'Internship':'bg-emerald-50 text-emerald-700', 'Old Users':'bg-rose-50 text-rose-700', 'Transact.':'bg-amber-50 text-amber-700', 'Other':'bg-slate-100 text-slate-500' }
+      return m[this.segmentCategory(t)] || 'bg-slate-100 text-slate-500'
+    },
+
+    templateCategoryBg(t) {
+      const c = this.templateCategory(t)
+      return { 'Outreach':'bg-violet-50', 'Career Coach':'bg-indigo-50', 'Resume':'bg-blue-50', 'Internship':'bg-emerald-50', 'Old Users':'bg-rose-50', 'Transactional':'bg-amber-50', 'Other':'bg-slate-50' }[c] || 'bg-slate-50'
+    },
+
+    templateIcon(t) {
+      if (t.startsWith('cc-outreach')) return '🚀'
+      if (t.startsWith('cc-rm-')) return '📄'
+      if (t.startsWith('cc-id-')) return '🎯'
+      if (t.startsWith('cc-old')) return '🔄'
+      if (t.startsWith('cc-')) return '🧭'
+      if (t === 'welcome') return '👋'
+      if (t === 'payment-thankyou') return '💳'
+      if (t === 'forgot-password' || t === 'password-changed') return '🔑'
+      if (t === 'resume-optimized') return '📄'
+      if (t === 'internship-applied') return '🎯'
+      if (t === 'leads-ready') return '🚀'
+      if (t === 'checkin-reminder') return '⏰'
+      if (t === 'contact-form') return '✉️'
+      return '📧'
+    },
+
+    templateCategory(t) {
+      const f = this.ccFlow(t)
+      if (f) return f
+      if (['welcome','forgot-password','password-changed','resume-optimized','internship-applied','contact-form','payment-thankyou','leads-ready','checkin-reminder','service-update'].includes(t)) return 'Transactional'
+      return 'Other'
+    },
+
+    isPast(ts) { return new Date(ts) < new Date() },
+
+    dueIn(ts) {
+      const diff = (new Date(ts) - Date.now()) / 1000
+      if (diff < 0) return 'overdue'
+      if (diff < 60) return 'now'
+      if (diff < 3600) return 'in ' + Math.floor(diff/60) + 'm'
+      if (diff < 86400) return 'in ' + Math.floor(diff/3600) + 'h'
+      return 'in ' + Math.floor(diff/86400) + 'd'
+    },
+
+    fmtDate(ts) {
+      if (!ts) return '—'
+      return new Date(ts).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+    },
+
+    relTime(ts) {
+      if (!ts) return '—'
+      const diff = (Date.now() - new Date(ts)) / 1000
+      if (diff < 60) return 'just now'
+      if (diff < 3600) return Math.floor(diff/60)+'m ago'
+      if (diff < 86400) return Math.floor(diff/3600)+'h ago'
+      if (diff < 604800) return Math.floor(diff/86400)+'d ago'
+      return new Date(ts).toLocaleDateString()
+    },
+
+    templateToRoutingKey(t) {
+      // Transactional emails fire off platform events; cc-* templates each
+      // map to an event.cc.* key. Sequence followups (e.g. cc-outreach-push2)
+      // are scheduled off their starter, so the starter key is shown.
+      const map = {
+        'welcome':'event.user.signup', 'payment-thankyou':'event.payment.success', 'forgot-password':'event.user.signup',
+        'cc-welcome':'event.cc.welcome', 'cc-welcome-new-user':'event.cc.welcome_new_user',
+        'cc-dna-ready':'event.cc.dna_ready', 'cc-roadmap-delivered':'event.cc.roadmap_delivered',
+        'cc-outreach-push1':'event.cc.outreach_used', 'cc-outreach-payment-page':'event.cc.outreach_payment_page',
+        'cc-outreach-coupon':'event.cc.outreach_coupon', 'cc-coupon-unlock':'event.cc.coupon_unlock',
+        'cc-rm-strong-1':'event.cc.resume_strong', 'cc-rm-weak-1':'event.cc.resume_weak',
+        'cc-id-two-tools':'event.cc.id_two_tools',
+        'cc-old-s1-1':'event.cc.old_s1', 'cc-old-s2-1':'event.cc.old_s2', 'cc-old-s3-1':'event.cc.old_s3'
+      }
+      if (map[t]) return map[t]
+      if (t.startsWith('cc-')) return 'event.cc.' + t.slice(3).replace(/-/g,'_')
+      return 'event.user.signup'
+    },
+
+    pageTitle() {
+      return { overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
+    },
+    pageSubtitle() {
+      return { overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
+    },
+
+    api(method, path, body) {
+      return fetch(window.location.origin + path, { method, headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+this.authToken }, body: body ? JSON.stringify(body) : undefined })
+    },
   }
-
-  const allGroups = ['outreach','cc','resume','internship','oldusers'];
-  function toggleGroup(which) {
-    const body = document.getElementById('body-' + which);
-    const willOpen = !body.classList.contains('open');
-    // accordion: close every group, then open the clicked one if it was closed
-    allGroups.forEach(g => {
-      const b = document.getElementById('btn-' + g);
-      const bd = document.getElementById('body-' + g);
-      if (!b || !bd) return;
-      b.classList.remove('open');
-      bd.classList.remove('open');
-    });
-    if (willOpen) {
-      document.getElementById('btn-' + which).classList.add('open');
-      body.classList.add('open');
-      // bring the opened group's button to the top of the scroll area
-      document.getElementById('btn-' + which).scrollIntoView({ block: 'start', behavior: 'smooth' });
-    }
-  }
-
-  let lastFlow = 'outreach';
-  const flowNavId = {
-    outreach: 'nav-outreach-flow',
-    cc: 'nav-cc-flow',
-    resume: 'nav-resume-flow',
-    internship: 'nav-internship-flow',
-    oldusers: 'nav-oldusers-flow',
-  };
-
-  function showFlow(which, el) {
-    navItems.forEach(n => n.classList.remove('active'));
-    if (which) lastFlow = which;
-    const navEl = el || document.getElementById(flowNavId[lastFlow]);
-    if (navEl) navEl.classList.add('active');
-    hideAllFlowPanes();
-    const pane = document.getElementById('flow-pane-' + lastFlow);
-    if (pane) pane.style.display = 'block';
-    document.getElementById('preview-pane').style.display = 'none';
-  }
-
-  const senderMap = {
-    'Pranav': 'Pranav &lt;pranav@studojo.com&gt;',
-    'Jeremy': 'Jeremy &lt;jeremy@studojo.com&gt;',
-  };
-
-  const flowColors = {
-    'welcome':       { label: 'Universal',        color: '#7c3aed', bg: '#f3f0ff' },
-    'not-used':      { label: 'Not Used',          color: '#555',    bg: '#f5f4f0' },
-    'used':          { label: 'High Intent',       color: '#7c3aed', bg: '#f3f0ff' },
-    'payment':       { label: 'Payment',           color: '#92400e', bg: '#fffbeb' },
-    'cc-welcome':    { label: 'CC Welcome',        color: '#7c3aed', bg: '#f3f0ff' },
-    'cc-not-started':{ label: 'CC: Not Started',   color: '#555',    bg: '#f5f4f0' },
-    'cc-in-progress':{ label: 'CC: In Progress',   color: '#7c3aed', bg: '#f3f0ff' },
-    'cc-post-dna':   { label: 'CC: Post DNA',      color: '#7c3aed', bg: '#f3f0ff' },
-    'cc-handoff':    { label: 'CC: Handoff',       color: '#10b981', bg: '#f0fdf4' },
-    'cc-returning':  { label: 'CC: Returning',     color: '#92400e', bg: '#fffbeb' },
-    'rm-strong':     { label: 'Resume: Strong',    color: '#10b981', bg: '#f0fdf4' },
-    'rm-weak':       { label: 'Resume: Weak',      color: '#7c3aed', bg: '#f3f0ff' },
-    'id-offer':      { label: 'Internship: Offer', color: '#7c3aed', bg: '#f3f0ff' },
-    'id-reengage':   { label: 'Internship: Re-eng',color: '#92400e', bg: '#fffbeb' },
-    'old-s1':        { label: 'Old: Nearly',       color: '#10b981', bg: '#f0fdf4' },
-    'old-s2':        { label: 'Old: Engaged',      color: '#7c3aed', bg: '#f3f0ff' },
-    'old-s3':        { label: 'Old: Barely',       color: '#555',    bg: '#f5f4f0' },
-    'old-cta':       { label: 'Old: CTA Variant',  color: '#92400e', bg: '#fffbeb' },
-  };
-
-  function hideAllFlowPanes() {
-    ['flow-pane-outreach','flow-pane-cc','flow-pane-resume','flow-pane-internship','flow-pane-oldusers'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-  }
-
-  // Called from sidebar items (has an element to highlight)
-  function load(el, path, title, flow, delay, sender, subject, isText = false) {
-    navItems.forEach(n => n.classList.remove('active'));
-    if (el) el.classList.add('active');
-    preview(path, title, flow, delay, sender, subject, isText);
-  }
-
-  // Called from flow-map nodes (no element) and by load()
-  function preview(path, title, flow, delay, sender, subject, isText = false) {
-    hideAllFlowPanes();
-    document.getElementById('preview-pane').style.display = 'flex';
-
-    document.getElementById('p-title').textContent = title;
-    document.getElementById('p-meta').textContent =
-      (delay ? 'Delay: ' + delay : '') + (sender ? '   Sender: ' + sender : '');
-
-    const fc = flowColors[flow] || {};
-    document.getElementById('p-tags').innerHTML = `
-      <span class="ptag" style="color:${fc.color};border-color:${fc.color};background:${fc.bg};">${fc.label || flow}</span>
-      <span class="ptag" style="color:#777;border-color:#ccc;background:#f5f4f0;">${isText ? 'Plain Text' : 'HTML'}</span>
-    `;
-
-    const fromStr = senderMap[sender] || (sender + ' &lt;hello@studojo.com&gt;');
-    const subjectStr = subject || title;
-
-    if (isText) {
-      document.getElementById('p-email').style.display = 'none';
-      document.getElementById('p-txt').style.display = 'flex';
-      document.getElementById('p-from-txt').innerHTML = fromStr;
-      document.getElementById('p-subject-txt').textContent = subjectStr;
-      fetch(path).then(r => r.text()).then(t => {
-        const lines = t.split('\n');
-        const body = lines[0].startsWith('Subject:') ? lines.slice(2).join('\n') : t;
-        document.getElementById('p-txt-body').textContent = body;
-      }).catch(() => {
-        document.getElementById('p-txt-body').textContent = 'Could not load file.';
-      });
-    } else {
-      document.getElementById('p-txt').style.display = 'none';
-      document.getElementById('p-email').style.display = 'flex';
-      document.getElementById('p-from').innerHTML = fromStr;
-      document.getElementById('p-subject').textContent = subjectStr;
-      const f = document.getElementById('preview-frame');
-      f.style.height = '400px';
-      f.src = path;
-    }
-  }
+}
 </script>
-
 </body>
 </html>
