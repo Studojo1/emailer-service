@@ -437,10 +437,19 @@ func (h *Handler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"message": "Password changed successfully"}, http.StatusOK)
 }
 
-// HandlePublishEvent handles POST /v1/email/events - accepts events from frontend/other services
+// HandlePublishEvent handles POST /v1/email/events - accepts events from other
+// services (coach backend, main platform server-side). Internal-only: gated by
+// the X-Internal-Secret header matching INTERNAL_SECRET. Browser/client callers
+// must go through a server-side proxy that holds the secret, never call this
+// endpoint directly.
 func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 

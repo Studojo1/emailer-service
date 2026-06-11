@@ -68,10 +68,9 @@ type PaymentEvent struct {
 // of these may also START a scheduled sequence; see ccSequenceStarters below.
 var ccRoutingKeyToTemplate = map[string]string{
 	// Outreach Dojo
-	"event.cc.welcome_new_user":      "cc-welcome-new-user",
-	"event.cc.outreach_used":         "cc-outreach-push1",
-	"event.cc.outreach_payment_page": "cc-outreach-payment-page",
-	"event.cc.outreach_coupon":       "cc-outreach-coupon",
+	"event.cc.welcome_new_user": "cc-welcome-new-user",
+	"event.cc.outreach_used":    "cc-outreach-push1",
+	"event.cc.outreach_coupon":  "cc-outreach-coupon",
 	// Career Coach
 	"event.cc.welcome":           "cc-welcome",
 	"event.cc.dna_ready":         "cc-dna-ready",
@@ -185,9 +184,33 @@ var ccSequenceStarters = map[string][]ccSequence{
 	},
 }
 
-// HandleCCEmail handles all event.cc.* events: sends the instant email and, if the
-// key starts a sequence, schedules the follow-up steps.
+// ccDeferredStarters maps routing keys that send NOTHING instantly and instead
+// schedule their whole sequence (including the first email) with a delay. Used
+// for abandoned-checkout: the student reached the payment page, but we wait so a
+// student who pays within the window never gets the "you were right there"
+// email. Payment success cancels all pending cc_ rows, which drains these.
+var ccDeferredStarters = map[string][]ccSequence{
+	// Reached the outreach payment page but did not pay yet.
+	"event.cc.outreach_payment_page": {
+		{"cc_outreach_payment_page", 2 * hour}, // abandoned-checkout nudge after a 2h buffer
+		{"cc_outreach_coupon", 6 * hour},        // founder coupon a few hours later
+	},
+}
+
+// HandleCCEmail handles all event.cc.* events. Instant-send keys send their email
+// now and schedule any follow-ups; deferred-start keys send nothing now and
+// schedule the whole sequence with a delay (so a conversion can cancel it first).
 func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	// Deferred starters: schedule the sequence, send nothing now.
+	if steps, ok := ccDeferredStarters[routingKey]; ok {
+		if event.UserID == "" {
+			slog.Warn("cc deferred email: missing user_id, cannot schedule", "routing_key", routingKey)
+			return nil
+		}
+		ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
+		slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
+		return nil
+	}
 	templateName, ok := ccRoutingKeyToTemplate[routingKey]
 	if !ok {
 		slog.Warn("unknown cc routing key", "routing_key", routingKey)

@@ -3,6 +3,7 @@ package scheduler
 import (
 	"context"
 	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -170,12 +171,20 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
 		if strings.HasPrefix(e.EmailType, "cc_") {
-			// All cc sequence emails are self-contained (links hardcoded in the
-			// template). Coupon-bearing emails are fired as instant events with the
-			// code on the payload, not scheduled, so an empty CouponCode here is fine.
+			// cc sequence emails are self-contained (links hardcoded). The two
+			// coupon-bearing types get a default code from env (DEFAULT_COUPON_CODE)
+			// when scheduled (e.g. the abandoned-checkout coupon); instant coupon
+			// events carry their own code on the payload instead.
 			templateData = map[string]interface{}{
 				"UserName":     user.Name,
 				"DashboardURL": sc.FrontendURL + "/",
+			}
+			if e.EmailType == "cc_outreach_coupon" || e.EmailType == "cc_coupon_unlock" {
+				code := os.Getenv("DEFAULT_COUPON_CODE")
+				if code == "" {
+					code = "STUDOJO20"
+				}
+				templateData["CouponCode"] = code
 			}
 		} else {
 			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)
