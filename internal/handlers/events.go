@@ -522,6 +522,25 @@ func (h *EventHandler) HandlePayment(ctx context.Context, event *PaymentEvent) e
 	return nil
 }
 
+// HandleCCPaid cancels all pending cc marketing sequences for a user who just
+// paid, without sending anything. Used by the Outreach checkout, which confirms
+// payment via its own backend (not event.payment.success), so this is the signal
+// that drains the abandoned-checkout and nudge sequences for converters.
+func (h *EventHandler) HandleCCPaid(ctx context.Context, event *CCEmailEvent) error {
+	if event.UserID == "" {
+		return nil
+	}
+	n, err := h.Store.CancelPendingCCMarketingEmails(ctx, event.UserID)
+	if err != nil {
+		slog.Error("cc paid: failed to cancel cc marketing emails", "user_id", event.UserID, "error", err)
+		return err
+	}
+	if n > 0 {
+		slog.Info("cc paid: cancelled pending cc marketing emails", "user_id", event.UserID, "count", n)
+	}
+	return nil
+}
+
 // ProcessEvent processes an event based on routing key
 func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body []byte) error {
 	switch routingKey {
@@ -559,6 +578,15 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 			return err
 		}
 		return h.HandlePayment(ctx, &event)
+
+	case "event.cc.paid":
+		// Cancel-only signal from a flow whose payment is confirmed out-of-band
+		// (e.g. the Outreach checkout). Drains pending cc marketing sequences.
+		var event CCEmailEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleCCPaid(ctx, &event)
 
 	default:
 		// Handle all event.cc.* routing keys generically (the new efficient flow)
