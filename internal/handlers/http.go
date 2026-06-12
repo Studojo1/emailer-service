@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
 	"os"
@@ -289,9 +290,17 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleGetEmailPreferences handles GET /v1/email/preferences/:user_id
+//
+// Internal-only: reading another user's preferences by id is an IDOR, so this is
+// gated by the X-Internal-Secret header matching INTERNAL_SECRET. The frontend
+// settings page must call this through a server-side proxy that holds the secret
+// and scopes the user_id to the authenticated session — never from the browser.
 func (h *Handler) HandleGetEmailPreferences(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
 		return
 	}
 
@@ -314,9 +323,17 @@ func (h *Handler) HandleGetEmailPreferences(w http.ResponseWriter, r *http.Reque
 }
 
 // HandleUpdateEmailPreferences handles PUT /v1/email/preferences/:user_id
+//
+// Internal-only: writing another user's preferences by id is an IDOR (it lets a
+// caller silently re-enable marketing mail for someone who opted out, or disable
+// everyone's), so this is gated by the X-Internal-Secret header. The frontend
+// settings page must proxy this server-side, scoping user_id to the session.
 func (h *Handler) HandleUpdateEmailPreferences(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
 		return
 	}
 
@@ -447,9 +464,7 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	secret := os.Getenv("INTERNAL_SECRET")
-	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
-		writeError(w, "unauthorized", http.StatusUnauthorized)
+	if !requireInternalSecret(w, r) {
 		return
 	}
 
@@ -723,8 +738,15 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	w.Write(pixel)
 }
 
-// HandleUnsubscribe handles GET /v1/unsubscribe?uid=<userID>&t=<hmac>
-// Public endpoint — verifies a signed token then opts the user out of all marketing emails.
+// HandleUnsubscribe handles GET and POST /v1/unsubscribe?uid=<userID>&t=<hmac>.
+//
+// Public endpoint, signed-token protected. RFC 8058 one-click unsubscribe:
+//   - POST performs the opt-out. Gmail/Yahoo's native button (driven by the
+//     List-Unsubscribe-Post header) POSTs here, as does the confirm button below.
+//   - GET only renders a confirmation page and mutates NOTHING. This is deliberate:
+//     mail scanners, SafeLinks, and image/link prefetchers issue GET requests to
+//     every URL in an email, so performing the opt-out on GET would unsubscribe
+//     users who never clicked. The page POSTs back to this same URL to confirm.
 func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	uid := r.URL.Query().Get("uid")
 	token := r.URL.Query().Get("t")
@@ -733,7 +755,7 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify HMAC
+	// Verify HMAC (constant-time) before doing anything else.
 	mac := hmac.New(sha256.New, []byte(h.UnsubscribeSecret))
 	mac.Write([]byte(uid))
 	expected := hex.EncodeToString(mac.Sum(nil))
@@ -742,6 +764,29 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// GET: show a confirmation page only — never mutate (prefetch/scanner safe).
+	if r.Method == http.MethodGet {
+		action := html.EscapeString(r.URL.RequestURI())
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Unsubscribe — Studojo</title>
+<style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
+.card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
+h1{font-size:24px;font-weight:700;margin:0 0 12px;}
+p{color:#525252;font-size:15px;line-height:1.7;margin:0 0 24px;}
+button{background:#171717;color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:600;cursor:pointer;}
+a{display:inline-block;margin-top:16px;color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
+</head><body><div class="card">
+<h1>Unsubscribe from marketing emails?</h1>
+<p>You'll stop receiving marketing emails from Studojo. Transactional emails (password resets, payment confirmations) will still come through.</p>
+<form method="POST" action="%s"><button type="submit">Confirm unsubscribe</button></form>
+<a href="https://studojo.com">No, keep me subscribed</a>
+</div></body></html>`, action)
+		return
+	}
+
+	// POST: perform the opt-out.
 	if err := h.Store.UnsubscribeUser(r.Context(), uid); err != nil {
 		slog.Error("unsubscribe: failed to update preferences", "user_id", uid, "error", err)
 		http.Error(w, "something went wrong, please try again", http.StatusInternalServerError)
@@ -764,6 +809,19 @@ a{color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
 <p>You won't receive marketing emails from Studojo anymore. Transactional emails (password resets, payment confirmations) will still come through.</p>
 <p><a href="https://studojo.com">Back to Studojo</a></p>
 </div></body></html>`)
+}
+
+// requireInternalSecret enforces that the request carries the shared internal
+// secret. Returns true if the caller is authorised; otherwise it writes a 401
+// and returns false. Used by every service-to-service route so browser/client
+// callers must go through a server-side proxy that holds the secret.
+func requireInternalSecret(w http.ResponseWriter, r *http.Request) bool {
+	secret := os.Getenv("INTERNAL_SECRET")
+	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	return true
 }
 
 // Helper functions
@@ -792,9 +850,7 @@ func (h *Handler) HandleCheckinReminder(w http.ResponseWriter, r *http.Request) 
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	secret := os.Getenv("INTERNAL_SECRET")
-	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
-		writeError(w, "unauthorized", http.StatusUnauthorized)
+	if !requireInternalSecret(w, r) {
 		return
 	}
 	var req CheckinReminderRequest
@@ -834,9 +890,7 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	secret := os.Getenv("INTERNAL_SECRET")
-	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
-		writeError(w, "unauthorized", http.StatusUnauthorized)
+	if !requireInternalSecret(w, r) {
 		return
 	}
 	var req SendTemplateRequest

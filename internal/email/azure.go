@@ -145,16 +145,22 @@ func (c *Client) SendEmail(ctx context.Context, to, subject, htmlContent string)
 
 // SendEmailFrom dispatches with an explicit from address (empty = use client default).
 func (c *Client) SendEmailFrom(ctx context.Context, from, to, subject, htmlContent string) error {
+	return c.SendEmailFromWithHeaders(ctx, from, to, subject, htmlContent, nil)
+}
+
+// SendEmailFromWithHeaders is SendEmailFrom plus custom RFC 5322 headers (used to
+// carry List-Unsubscribe / List-Unsubscribe-Post for one-click unsubscribe).
+func (c *Client) SendEmailFromWithHeaders(ctx context.Context, from, to, subject, htmlContent string, headers map[string]string) error {
 	if from == "" {
 		from = c.senderEmail
 	}
 	switch {
 	case c.mailhogAddr != "":
-		return c.sendViaMailHogFrom(from, to, subject, htmlContent)
+		return c.sendViaMailHogFrom(from, to, subject, htmlContent, headers)
 	case c.resendAPIKey != "":
-		return c.sendViaResend(ctx, from, to, subject, htmlContent)
+		return c.sendViaResend(ctx, from, to, subject, htmlContent, headers)
 	case len(c.acsPool) > 0:
-		return c.sendViaACSPool(ctx, from, to, subject, htmlContent)
+		return c.sendViaACSPool(ctx, from, to, subject, htmlContent, headers)
 	default:
 		return fmt.Errorf("no email provider configured")
 	}
@@ -162,13 +168,13 @@ func (c *Client) SendEmailFrom(ctx context.Context, from, to, subject, htmlConte
 
 // sendViaACSPool sends via the ACS pool, round-robining across resources.
 // On 429 from one resource it immediately tries the next.
-func (c *Client) sendViaACSPool(ctx context.Context, from, to, subject, htmlContent string) error {
+func (c *Client) sendViaACSPool(ctx context.Context, from, to, subject, htmlContent string, headers map[string]string) error {
 	n := uint64(len(c.acsPool))
 	start := atomic.AddUint64(&c.acsIndex, 1) - 1
 	var lastErr error
 	for i := uint64(0); i < n; i++ {
 		cfg := c.acsPool[(start+i)%n]
-		err := c.sendViaACSConfig(ctx, cfg, from, to, subject, htmlContent)
+		err := c.sendViaACSConfig(ctx, cfg, from, to, subject, htmlContent, headers)
 		if err == nil {
 			return nil
 		}
@@ -201,7 +207,7 @@ func parseSenderAddress(from string) (displayName, address string) {
 }
 
 // sendViaACSConfig sends email via a specific ACS resource config.
-func (c *Client) sendViaACSConfig(ctx context.Context, cfg acsConfig, from, to, subject, htmlContent string) error {
+func (c *Client) sendViaACSConfig(ctx context.Context, cfg acsConfig, from, to, subject, htmlContent string, headers map[string]string) error {
 	path := "/emails:send?api-version=2023-03-31"
 	fullURL := cfg.endpoint + path
 
@@ -224,6 +230,10 @@ func (c *Client) sendViaACSConfig(ctx context.Context, cfg acsConfig, from, to, 
 			"html":      htmlContent,
 			"plainText": htmlToPlainText(htmlContent),
 		},
+	}
+	// Custom headers (e.g. List-Unsubscribe). ACS expects a map of string→string.
+	if len(headers) > 0 {
+		payload["headers"] = headers
 	}
 
 	body, err := json.Marshal(payload)
@@ -304,13 +314,17 @@ func (c *Client) signACSRequest(req *http.Request, body []byte, accessKey string
 }
 
 // sendViaResend sends email using the Resend API.
-func (c *Client) sendViaResend(ctx context.Context, from, to, subject, htmlContent string) error {
+func (c *Client) sendViaResend(ctx context.Context, from, to, subject, htmlContent string, headers map[string]string) error {
 	payload := map[string]interface{}{
 		"from":    from,
 		"to":      []string{to},
 		"subject": subject,
 		"html":    htmlContent,
 		"text":    htmlToPlainText(htmlContent),
+	}
+	// Custom headers (e.g. List-Unsubscribe) for one-click unsubscribe support.
+	if len(headers) > 0 {
+		payload["headers"] = headers
 	}
 
 	body, err := json.Marshal(payload)
@@ -346,12 +360,17 @@ func (c *Client) sendViaResend(ctx context.Context, from, to, subject, htmlConte
 }
 
 // sendViaMailHogFrom sends email via MailHog SMTP (development only).
-func (c *Client) sendViaMailHogFrom(from, to, subject, htmlContent string) error {
+func (c *Client) sendViaMailHogFrom(from, to, subject, htmlContent string, headers map[string]string) error {
+	var extra strings.Builder
+	for k, v := range headers {
+		extra.WriteString(k + ": " + v + "\r\n")
+	}
 	msg := []byte("From: " + from + "\r\n" +
 		"To: " + to + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"MIME-Version: 1.0\r\n" +
 		"Content-Type: text/html; charset=UTF-8\r\n" +
+		extra.String() +
 		"\r\n" +
 		htmlContent + "\r\n")
 
