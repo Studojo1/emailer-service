@@ -73,6 +73,9 @@ var ccRoutingKeyToTemplate = map[string]string{
 	"event.cc.welcome_new_user": "cc-welcome-new-user",
 	"event.cc.outreach_used":    "cc-outreach-push1",
 	"event.cc.outreach_coupon":  "cc-outreach-coupon",
+	// One-shot abandoned-cart blast: GOAT10 (10% off). Dedicated template so the
+	// shared cc-outreach-coupon (automated flow, different code) is untouched.
+	"event.cc.cart_goat": "cc-cart-goat",
 	// Career Coach
 	"event.cc.welcome":           "cc-welcome",
 	"event.cc.dna_ready":         "cc-dna-ready",

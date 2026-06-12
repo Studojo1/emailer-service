@@ -135,6 +135,11 @@ func (s *Sender) SetSenderAddresses(support, welcome, promotions string) {
 // nextSender returns the next sender from the round-robin pool.
 // Falls back to the template-appropriate sender if the pool is empty.
 func (s *Sender) nextSender(templateName string) string {
+	// The founder coupon blast is framed as a personal note, so it always comes
+	// from Jeremy (welcome sender) rather than the round-robin pool.
+	if templateName == "cc-cart-goat" && s.welcomeSender != "" {
+		return s.welcomeSender
+	}
 	if len(s.senderPool) > 0 {
 		idx := atomic.AddUint64(&s.senderIndex, 1) - 1
 		return s.senderPool[int(idx)%len(s.senderPool)]
@@ -339,6 +344,8 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "You were right there", nil
 	case "cc-outreach-coupon":
 		return "Something from me, Jeremy", nil
+	case "cc-cart-goat":
+		return "A code from me, GOAT10", nil
 	case "cc-welcome":
 		return "You asked for an honest look. Good.", nil
 	case "cc-nudge-1":
