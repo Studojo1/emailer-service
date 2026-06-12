@@ -409,8 +409,10 @@ func main() {
 	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
 	// One-click unsubscribe (RFC 8058): GET shows a confirm page, POST performs
 	// the opt-out (Gmail/Yahoo native button and the confirm form both POST here).
-	mux.HandleFunc("GET /v1/unsubscribe", httpHandler.HandleUnsubscribe)
-	mux.HandleFunc("POST /v1/unsubscribe", httpHandler.HandleUnsubscribe)
+	// Must live under /v1/email/ — that's the only prefix the api.studojo.com
+	// gateway forwards to this service (same as /v1/email/track).
+	mux.HandleFunc("GET /v1/email/unsubscribe", httpHandler.HandleUnsubscribe)
+	mux.HandleFunc("POST /v1/email/unsubscribe", httpHandler.HandleUnsubscribe)
 
 	// Bulk send fans out to every matching user — admin-only. Path is unchanged
 	// so existing dashboard callers keep working; auth is now enforced via the
