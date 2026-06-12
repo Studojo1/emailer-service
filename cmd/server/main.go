@@ -414,11 +414,12 @@ func main() {
 	mux.HandleFunc("GET /v1/email/unsubscribe", httpHandler.HandleUnsubscribe)
 	mux.HandleFunc("POST /v1/email/unsubscribe", httpHandler.HandleUnsubscribe)
 
-	// Bulk send fans out to every matching user — admin-only. Path is unchanged
-	// so existing dashboard callers keep working; auth is now enforced via the
-	// admin JWT / ADMIN_SECRET (same as the rest of the admin API).
-	mux.Handle("GET /v1/email/bulk-send/preview", handlers.AdminMiddleware(adminSecret, http.HandlerFunc(httpHandler.HandleBulkSendPreview)))
-	mux.Handle("POST /v1/email/bulk-send", handlers.AdminMiddleware(adminSecret, http.HandlerFunc(httpHandler.HandleBulkSend)))
+	// Bulk send fans out to every matching user. Gated by X-Internal-Secret (same
+	// as the other service-to-service routes): reachable only via the control-plane
+	// admin proxy, which authenticates the admin and injects the secret. The public
+	// email.studojo.com ingress carries no secret, so it cannot trigger a send.
+	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
+	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
 
 	// Admin API routes (JWT or ADMIN_SECRET protected)
 	adminMux := http.NewServeMux()

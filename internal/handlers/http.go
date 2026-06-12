@@ -498,8 +498,12 @@ type BulkSendRequest struct {
 	WithinDays int    `json:"within_days"` // 0 = all users (ignored for order-stage types)
 }
 
-// HandleBulkSendPreview handles GET /v1/email/bulk-send/preview
+// HandleBulkSendPreview handles GET /v1/email/bulk-send/preview.
+// Internal-only (X-Internal-Secret) — reached via the control-plane admin proxy.
 func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) {
+	if !requireInternalSecret(w, r) {
+		return
+	}
 	emailType := r.URL.Query().Get("email_type")
 	withinDays := 0
 	if d := r.URL.Query().Get("within_days"); d != "" {
@@ -532,6 +536,9 @@ func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) 
 // Writes rows into scheduled_emails with staggered scheduled_at times so the
 // scheduler drains them. Restart-safe: rows survive pod restarts.
 func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
+	if !requireInternalSecret(w, r) {
+		return
+	}
 	var req BulkSendRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeError(w, "invalid request body", http.StatusBadRequest)
