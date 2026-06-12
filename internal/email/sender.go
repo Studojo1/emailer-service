@@ -195,7 +195,7 @@ func (s *Sender) unsubscribeURL(userID string) string {
 	mac := hmac.New(sha256.New, []byte(s.unsubscribeSecret))
 	mac.Write([]byte(userID))
 	token := hex.EncodeToString(mac.Sum(nil))
-	return s.unsubscribeBaseURL + "/v1/unsubscribe?uid=" + url.QueryEscape(userID) + "&t=" + token
+	return s.unsubscribeBaseURL + "/v1/email/unsubscribe?uid=" + url.QueryEscape(userID) + "&t=" + token
 }
 
 // SendTemplateEmail sends an email using a template

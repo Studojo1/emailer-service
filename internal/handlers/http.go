@@ -738,7 +738,7 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	w.Write(pixel)
 }
 
-// HandleUnsubscribe handles GET and POST /v1/unsubscribe?uid=<userID>&t=<hmac>.
+// HandleUnsubscribe handles GET and POST /v1/email/unsubscribe?uid=<userID>&t=<hmac>.
 //
 // Public endpoint, signed-token protected. RFC 8058 one-click unsubscribe:
 //   - POST performs the opt-out. Gmail/Yahoo's native button (driven by the
