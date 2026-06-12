@@ -102,6 +102,8 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"cc-old-s2-1", "cc-old-s2-2", "cc-old-s2-3",
 		"cc-old-s3-1", "cc-old-s3-2", "cc-old-s3-3",
 		"cc-old-cta-outreach", "cc-old-cta-coach", "cc-old-cta-two-tool",
+		// One-shot abandoned-cart coupon blast (GOAT10)
+		"cc-cart-goat",
 	}
 	for _, name := range templates {
 		if err := tr.LoadTemplate(name); err != nil {
