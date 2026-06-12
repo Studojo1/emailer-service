@@ -50,7 +50,23 @@ type Sender struct {
 	unsubscribeSecret  string
 	unsubscribeBaseURL string
 
+	limiter *rateLimiter // global ACS throttle shared by instant + scheduled sends
+
 	lastRetryAfter time.Duration // Retry-After parsed from the most recent 429, if any
+}
+
+// transactionalTemplates are user-triggered, low-volume, time-sensitive emails.
+// They draw down the shared rate budget but are never delayed by it — a depleted
+// bucket must not hold up a password reset or a payment receipt. Everything else
+// (onboarding, marketing, cc sequences) is paced through the limiter so a signup
+// or event burst can never exceed the provider quota.
+var transactionalTemplates = map[string]bool{
+	"forgot-password":    true,
+	"password-changed":   true,
+	"payment-thankyou":   true,
+	"resume-optimized":   true,
+	"internship-applied": true,
+	"contact-form":       true,
 }
 
 // LastRetryAfter returns the Retry-After duration the provider asked for on the
@@ -164,6 +180,13 @@ func (s *Sender) SetUnsubscribeSecret(secret, baseURL string) {
 	s.unsubscribeBaseURL = strings.TrimSuffix(baseURL, "/")
 }
 
+// SetRateLimit installs the global ACS send throttle, sized to perHour sends.
+// Both instant event sends and the scheduler pass through it, so combined volume
+// can never exceed the provider quota. Call once at startup.
+func (s *Sender) SetRateLimit(perHour int) {
+	s.limiter = newRateLimiter(perHour)
+}
+
 // unsubscribeURL returns a signed one-click unsubscribe URL for the given user ID.
 func (s *Sender) unsubscribeURL(userID string) string {
 	if userID == "" || s.unsubscribeSecret == "" {
@@ -190,7 +213,20 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	}
 
 	uid, _ := ctx.Value(UserIDKey).(string)
-	dataMap["UnsubscribeURL"] = s.unsubscribeURL(uid)
+	unsubURL := s.unsubscribeURL(uid)
+	dataMap["UnsubscribeURL"] = unsubURL
+
+	// RFC 8058 one-click unsubscribe headers. Only set when we have a signed URL
+	// (i.e. a marketing/sequence send with a known user) — transactional mail with
+	// no uid gets no header, which is correct. Gmail/Yahoo require these to show a
+	// native unsubscribe button and to keep bulk-sender reputation healthy.
+	var sendHeaders map[string]string
+	if unsubURL != "" {
+		sendHeaders = map[string]string{
+			"List-Unsubscribe":      "<" + unsubURL + ">",
+			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+		}
+	}
 
 	htmlContent, err := s.renderer.Render(templateName, dataMap)
 	if err != nil {
@@ -200,6 +236,16 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	subject, err := s.getSubject(templateName, dataMap)
 	if err != nil {
 		return fmt.Errorf("failed to get subject: %w", err)
+	}
+
+	// Global ACS throttle. Transactional mail draws down the budget but is never
+	// blocked; everything else waits for a token so a burst can't exceed quota.
+	if s.limiter != nil {
+		if transactionalTemplates[templateName] {
+			s.limiter.tryTake()
+		} else if err := s.limiter.wait(ctx); err != nil {
+			return fmt.Errorf("rate limiter wait cancelled: %w", err)
+		}
 	}
 
 	// Retry logic: 3 attempts with backoff.
@@ -217,7 +263,7 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		}
 
 		fromAddr := s.nextSender(templateName)
-		err := s.client.SendEmailFrom(ctx, fromAddr, to, subject, htmlContent)
+		err := s.client.SendEmailFromWithHeaders(ctx, fromAddr, to, subject, htmlContent, sendHeaders)
 		if err == nil {
 			if s.logger != nil {
 				uid, _ := ctx.Value(UserIDKey).(string)

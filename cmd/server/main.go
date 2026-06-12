@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -200,6 +201,19 @@ func main() {
 		unsubscribeSecret = adminSecret
 	}
 	sender.SetUnsubscribeSecret(unsubscribeSecret, trackingBaseURL)
+
+	// Global ACS throttle. Sized to the same EMAIL_RATE_PER_HOUR the scheduler
+	// uses (default 180, just under the Azure free-tier 200/hr) so instant event
+	// sends and scheduled sends share one budget and can never exceed quota
+	// together. With multiple ACS resources, set this to N x per-resource cap.
+	emailRatePerHour := 180
+	if v := os.Getenv("EMAIL_RATE_PER_HOUR"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			emailRatePerHour = n
+		}
+	}
+	sender.SetRateLimit(emailRatePerHour)
+	slog.Info("email rate limit configured", "per_hour", emailRatePerHour)
 
 	// Initialize stores
 	pgStore := store.NewPostgresStore(db)
@@ -393,9 +407,16 @@ func main() {
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
 	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
-	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
-	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
+	// One-click unsubscribe (RFC 8058): GET shows a confirm page, POST performs
+	// the opt-out (Gmail/Yahoo native button and the confirm form both POST here).
 	mux.HandleFunc("GET /v1/unsubscribe", httpHandler.HandleUnsubscribe)
+	mux.HandleFunc("POST /v1/unsubscribe", httpHandler.HandleUnsubscribe)
+
+	// Bulk send fans out to every matching user — admin-only. Path is unchanged
+	// so existing dashboard callers keep working; auth is now enforced via the
+	// admin JWT / ADMIN_SECRET (same as the rest of the admin API).
+	mux.Handle("GET /v1/email/bulk-send/preview", handlers.AdminMiddleware(adminSecret, http.HandlerFunc(httpHandler.HandleBulkSendPreview)))
+	mux.Handle("POST /v1/email/bulk-send", handlers.AdminMiddleware(adminSecret, http.HandlerFunc(httpHandler.HandleBulkSend)))
 
 	// Admin API routes (JWT or ADMIN_SECRET protected)
 	adminMux := http.NewServeMux()
