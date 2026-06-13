@@ -63,6 +63,7 @@ type UserWithStats struct {
 	CreatedAt    time.Time `json:"created_at"`
 	EmailsSent   int       `json:"emails_sent"`
 	EmailsOpened int       `json:"emails_opened"`
+	LastTemplate string    `json:"last_template"` // most recent template sent — drives the flow colour
 }
 
 // LogEmailSent inserts a row into email_send_log
@@ -484,7 +485,8 @@ func (s *PostgresStore) ListUsersWithStats(ctx context.Context, limit, offset in
 	q := fmt.Sprintf(`
 		SELECT u.id, COALESCE(u.name,''), u.email, u.created_at,
 		       COALESCE(sl.sent, 0)   AS emails_sent,
-		       COALESCE(ol.opened, 0) AS emails_opened
+		       COALESCE(ol.opened, 0) AS emails_opened,
+		       COALESCE(lt.template_name, '') AS last_template
 		FROM "user" u
 		LEFT JOIN (
 			SELECT user_id, COUNT(*) AS sent
@@ -498,6 +500,12 @@ func (s *PostgresStore) ListUsersWithStats(ctx context.Context, limit, offset in
 			WHERE opened_at IS NOT NULL
 			GROUP BY email_to
 		) ol ON ol.email_to = u.email
+		LEFT JOIN LATERAL (
+			SELECT template_name FROM email_send_log
+			WHERE email_to = u.email
+			ORDER BY sent_at DESC NULLS LAST
+			LIMIT 1
+		) lt ON true
 		%s
 		ORDER BY u.created_at DESC
 		LIMIT $%d OFFSET $%d
@@ -512,7 +520,7 @@ func (s *PostgresStore) ListUsersWithStats(ctx context.Context, limit, offset in
 	var users []UserWithStats
 	for rows.Next() {
 		var u UserWithStats
-		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.EmailsSent, &u.EmailsOpened); err == nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.EmailsSent, &u.EmailsOpened, &u.LastTemplate); err == nil {
 			users = append(users, u)
 		}
 	}
