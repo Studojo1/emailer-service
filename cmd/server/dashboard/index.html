@@ -235,9 +235,11 @@
                         <span x-show="i>0 && s.drop>0" class="text-[10px] font-bold" :class="s.choke?'text-rose-600':'text-neutral-400'" x-text="'−'+Math.round(s.drop)+'% drop'"></span>
                         <svg class="w-3 h-3" :class="s.choke?'text-rose-400':'text-neutral-300'" fill="currentColor" viewBox="0 0 12 12"><path d="M6 10L1 4h10z"/></svg>
                       </div>
-                      <!-- node card -->
-                      <div class="w-full rounded-2xl border-2 px-5 py-3.5 bg-white shadow-[3px_3px_0_0_rgba(23,23,23,0.9)]"
-                           :class="s.choke?'border-rose-500':'border-neutral-900'">
+                      <!-- node card (click to preview the template) -->
+                      <div @click="openPreview(s.template)"
+                           class="w-full rounded-2xl border-2 px-5 py-3.5 bg-white shadow-[3px_3px_0_0_rgba(23,23,23,0.9)] cursor-pointer hover:shadow-[5px_5px_0_0_rgba(23,23,23,0.9)] hover:-translate-y-0.5 transition-all"
+                           :class="s.choke?'border-rose-500':'border-neutral-900'"
+                           title="Click to preview this email">
                         <div class="flex items-center gap-3">
                           <span class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
                                 :class="s.choke?'bg-rose-500':'bg-violet-600'" x-text="i+1"></span>
@@ -472,11 +474,12 @@
                   <tr class="table-row cursor-pointer" @click="drillIntoSegment(g.email_type)">
                     <td class="px-5 py-3">
                       <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${flowColor(g.email_type)}`"></span>
                         <span class="badge" :class="segmentCategoryBadge(g.email_type)" x-text="segmentCategory(g.email_type)"></span>
                         <span class="text-slate-700 font-medium text-xs" x-text="g.email_type"></span>
                       </div>
                       <div class="bar-track mt-1.5 max-w-xs">
-                        <div class="bar-fill bg-violet-300" :style="`width:${segmentBarPct(g.total_sent)}%`"></div>
+                        <div class="bar-fill" :style="`width:${segmentBarPct(g.total_sent)}%;background:${flowColor(g.email_type)}`"></div>
                       </div>
                     </td>
                     <td class="px-5 py-3 font-semibold text-slate-800" x-text="g.total_sent.toLocaleString()"></td>
@@ -567,6 +570,7 @@
             <thead class="bg-slate-50">
               <tr class="text-xs text-slate-500 text-left">
                 <th class="px-5 py-3 font-medium">User</th>
+                <th class="px-5 py-3 font-medium">Current flow</th>
                 <th class="px-5 py-3 font-medium">Joined</th>
                 <th class="px-5 py-3 font-medium">Emails sent</th>
                 <th class="px-5 py-3 font-medium">Opens</th>
@@ -575,10 +579,17 @@
             </thead>
             <tbody>
               <template x-for="user in usersSorted" :key="user.id">
-                <tr class="table-row">
+                <tr class="table-row border-l-4" :style="`border-left-color:${user.last_template ? flowColor(user.last_template) : 'transparent'}`">
                   <td class="px-5 py-3">
                     <div class="font-medium text-slate-800" x-text="user.name||'(no name)'"></div>
                     <div class="text-xs text-slate-400" x-text="user.email"></div>
+                  </td>
+                  <td class="px-5 py-3">
+                    <span x-show="user.last_template" class="inline-flex items-center gap-1.5 badge" :class="segmentCategoryBadge(user.last_template)">
+                      <span class="w-2 h-2 rounded-full" :style="`background:${flowColor(user.last_template)}`"></span>
+                      <span x-text="segmentCategory(user.last_template)"></span>
+                    </span>
+                    <span x-show="!user.last_template" class="text-slate-300 text-xs">—</span>
                   </td>
                   <td class="px-5 py-3 text-slate-500 text-xs" x-text="relTime(user.created_at)"></td>
                   <td class="px-5 py-3">
@@ -726,6 +737,25 @@
               </button>
               <div x-show="triggerResult" :class="triggerOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
                 class="text-sm rounded-lg px-4 py-2.5" x-text="triggerResult"></div>
+            </div>
+          </div>
+
+          <!-- Send every template, one-shot, to a single inbox -->
+          <div class="bg-white rounded-xl border border-slate-200 p-6 mt-5">
+            <h3 class="font-semibold text-slate-800 mb-1">Send every template to one inbox</h3>
+            <p class="text-sm text-slate-500 mb-5">Sends each template <b>once</b> (no follow-up sequences, no drip), paced a few seconds apart, grouped by flow — so you can see how every email looks. <span x-text="templates.length"></span> templates total.</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Inbox</label>
+                <input x-model="bulkInboxEmail" class="input" placeholder="pranavshastry3@gmail.com" />
+              </div>
+              <button @click="sendAllToInbox()" :disabled="!bulkInboxEmail || bulkSending" class="btn-primary disabled:opacity-50 w-full justify-center">
+                <span x-show="!bulkSending">Send all <span x-text="templates.length"></span> to inbox</span>
+                <span x-show="bulkSending" x-text="`Sending ${bulkSentCount}/${templates.length}…`"></span>
+              </button>
+              <div x-show="bulkSending" class="bar-track"><div class="bar-fill bg-violet-500" :style="`width:${templates.length?Math.round(bulkSentCount/templates.length*100):0}%`"></div></div>
+              <div x-show="bulkResult" :class="bulkFailed>0 ? 'text-amber-700 bg-amber-50' : 'text-emerald-700 bg-emerald-50'"
+                class="text-sm rounded-lg px-4 py-2.5" x-text="bulkResult"></div>
             </div>
           </div>
         </div>
@@ -919,6 +949,7 @@ function app() {
 
     // Trigger
     triggerEmail: '', triggerTemplate: '', triggerName: 'Jeremy', triggerResult: '', triggerOk: false,
+    bulkInboxEmail: '', bulkSending: false, bulkSentCount: 0, bulkFailed: 0, bulkResult: '',
 
     // Modals
     sendModal: false, sendModalUser: null, sendModalTemplate: '', sendModalResult: '',
@@ -963,6 +994,18 @@ function app() {
 
     async loadAll() {
       await Promise.all([this.loadFlows(), this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
+    },
+
+    // Colour for the flow/product a template belongs to — shared by Segments,
+    // Users, and the Flows sidebar so a colour always means the same flow.
+    flowColor(t) {
+      if (!t) return '#94a3b8'
+      if (t.startsWith('cc-outreach') || t === 'cc-cart-goat') return '#7c3aed' // Outreach (violet)
+      if (t.startsWith('cc-rm-')) return '#2563eb'                                // Resume (blue)
+      if (t.startsWith('cc-id-')) return '#d97706'                                // Internship (amber)
+      if (t.startsWith('cc-old')) return '#e11d48'                                // Old users (rose)
+      if (t.startsWith('cc-')) return '#16a34a'                                   // Career Coach (green)
+      return '#94a3b8'                                                            // Transactional/other (slate)
     },
 
     // Group the flat flow list by product for the left sidebar.
@@ -1136,6 +1179,39 @@ function app() {
       const r = await this.api('POST', '/v1/admin/trigger', { routing_key: routingKey, event: { email: this.triggerEmail, name: this.triggerName || 'there', user_id: '' } })
       if (r.ok) { this.triggerOk = true; this.triggerResult = `Sent "${this.triggerTemplate}" to ${this.triggerEmail}` }
       else { this.triggerOk = false; this.triggerResult = 'Failed. Check logs.' }
+    },
+
+    // One-shot every template to a single inbox. Uses /v1/admin/send-oneoff so
+    // NO follow-up sequences are scheduled (no drip). Paced 2.5s apart, ordered
+    // by flow so the inbox reads flow-by-flow. Never fires the real triggers.
+    async sendAllToInbox() {
+      if (!this.bulkInboxEmail || this.bulkSending) return
+      const order = ['cc-welcome-new-user','cc-outreach-nudge-d1','cc-outreach-nudge-d2','cc-outreach-nudge-d3','cc-outreach-nudge-d4',
+        'cc-outreach-push1','cc-outreach-push2','cc-outreach-push3','cc-outreach-convert1','cc-outreach-convert2',
+        'cc-outreach-payment-page','cc-outreach-coupon','cc-cart-goat',
+        'cc-welcome','cc-nudge-1','cc-nudge-2','cc-nudge-3','cc-profiling-idle-1','cc-profiling-idle-2','cc-profiling-idle-3',
+        'cc-dna-ready','cc-dna-confirm-nudge','cc-checkin-1','cc-checkin-2','cc-checkin-3',
+        'cc-roadmap-delivered','cc-upskill-nudge','cc-coupon-unlock','cc-dormant','cc-to-outreach',
+        'cc-returning-1','cc-returning-2','cc-returning-3',
+        'cc-rm-strong-1','cc-rm-strong-2','cc-rm-strong-3','cc-rm-weak-1','cc-rm-weak-2','cc-rm-weak-3',
+        'cc-id-two-tools','cc-id-reengage-1','cc-id-reengage-2',
+        'cc-old-s1-1','cc-old-s1-2','cc-old-s1-3','cc-old-s2-1','cc-old-s2-2','cc-old-s2-3','cc-old-s3-1','cc-old-s3-2','cc-old-s3-3',
+        'cc-old-cta-outreach','cc-old-cta-coach','cc-old-cta-two-tool']
+      const set = new Set(this.templates)
+      const ordered = order.filter(t => set.has(t)).concat(this.templates.filter(t => !order.includes(t)))
+      this.bulkSending = true; this.bulkSentCount = 0; this.bulkFailed = 0; this.bulkResult = ''
+      for (const t of ordered) {
+        try {
+          const r = await this.api('POST', '/v1/admin/send-oneoff', { to: this.bulkInboxEmail, template: t, user_name: 'Pranav' })
+          if (!r.ok) this.bulkFailed++
+        } catch { this.bulkFailed++ }
+        this.bulkSentCount++
+        await new Promise(res => setTimeout(res, 2500))
+      }
+      this.bulkSending = false
+      this.bulkResult = this.bulkFailed > 0
+        ? `Done — sent ${this.bulkSentCount - this.bulkFailed}/${this.bulkSentCount}, ${this.bulkFailed} failed (check logs).`
+        : `Done — all ${this.bulkSentCount} templates sent to ${this.bulkInboxEmail}.`
     },
 
     async fireTriggerForTemplate(template) {
