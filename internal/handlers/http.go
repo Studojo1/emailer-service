@@ -11,6 +11,7 @@ import (
 	"html"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -743,6 +744,45 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(http.StatusOK)
 	w.Write(pixel)
+}
+
+// HandleTrackClick handles GET /v1/email/click/{track_id}?u=<dest>
+// Records a CTA click, then 302-redirects to the destination URL. This is the
+// "engaged" signal that gates the not-used chase (alongside opens).
+// track_id format matches the open pixel: {emailType}__{email}__{uuid}.
+func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
+	trackID := r.PathValue("track_id")
+	dest := r.URL.Query().Get("u")
+
+	// Only redirect to our own properties — never an arbitrary external URL
+	// (open-redirect guard). Fall back to the frontend root on anything odd.
+	fallback := h.EmailFrontendURL
+	if fallback == "" {
+		fallback = "https://studojo.com"
+	}
+	target := fallback
+	if dest != "" {
+		if u, err := url.Parse(dest); err == nil && (u.Scheme == "https" || u.Scheme == "http") &&
+			(strings.HasSuffix(u.Hostname(), "studojo.com") || strings.HasSuffix(u.Hostname(), "studojo.pro")) {
+			target = dest
+		}
+	}
+
+	if trackID != "" {
+		parts := strings.SplitN(trackID, "__", 3)
+		emailType, emailAddr := "", ""
+		if len(parts) >= 2 {
+			emailType = parts[0]
+			emailAddr = parts[1]
+		}
+		userAgent := r.Header.Get("User-Agent")
+		go func() {
+			ctx := context.Background()
+			h.Store.RecordEmailClick(ctx, trackID, emailAddr, emailType, userAgent)
+		}()
+	}
+
+	http.Redirect(w, r, target, http.StatusFound)
 }
 
 // HandleUnsubscribe handles GET and POST /v1/email/unsubscribe?uid=<userID>&t=<hmac>.

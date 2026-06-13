@@ -48,19 +48,19 @@
       <div class="tool-card">
         <div class="tool-name">Outreach Dojo</div>
         <div class="tool-desc">We find the hiring managers at companies you want to work at, and write a personalised note to each one on your behalf. Not a template blast. A message written specifically for that person and that team. The kind that gets a reply.</div>
-        <a class="tool-link" href="https://studojo.com/outreach">Start your outreach &rarr;</a>
+        <a class="tool-link" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Start your outreach &rarr;</a>
       </div>
 
       <div class="tool-card">
         <div class="tool-name">Career Coach</div>
         <div class="tool-desc">An AI coach that builds your career profile, identifies your exact gaps, and tells you what to fix first. No generic tips. A real map of where you stand and what moves you forward, specific to you.</div>
-        <a class="tool-link" href="https://studojo.com/career-coach">Talk to your coach &rarr;</a>
+        <a class="tool-link" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/career-coach"}}{{else}}https://studojo.com/career-coach{{end}}">Talk to your coach &rarr;</a>
       </div>
 
       <div class="tool-card">
         <div class="tool-name">Internship Dojo</div>
         <div class="tool-desc">Every internship listing that's actually worth your time, curated and updated. No sponsored posts. No ghost listings. Just roles you can realistically land.</div>
-        <a class="tool-link" href="https://studojo.com/dojos/internships">Browse internships &rarr;</a>
+        <a class="tool-link" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/dojos/internships"}}{{else}}https://studojo.com/dojos/internships{{end}}">Browse internships &rarr;</a>
       </div>
 
       <hr class="divider" />
