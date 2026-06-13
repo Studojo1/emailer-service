@@ -213,8 +213,13 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	if s.trackingURL != "" {
 		trackID := templateName + "__" + to + "__" + uuid.New().String()
 		dataMap["TrackingPixelURL"] = s.trackingURL + "/v1/email/track/" + trackID
+		// Click-tracking base for CTA links. Templates wrap a destination URL as
+		// {{.ClickBase}}?u=<urlencoded dest> so the click is recorded before the
+		// redirect. Shares the trackID with the open pixel (same email__address).
+		dataMap["ClickBase"] = s.trackingURL + "/v1/email/click/" + trackID
 	} else {
 		dataMap["TrackingPixelURL"] = ""
+		dataMap["ClickBase"] = ""
 	}
 
 	uid, _ := ctx.Value(UserIDKey).(string)

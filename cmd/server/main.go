@@ -292,6 +292,16 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_email_opens_email_type ON email_opens (email_type);
 		CREATE INDEX IF NOT EXISTS idx_email_opens_user_id ON email_opens (user_id);
+		CREATE TABLE IF NOT EXISTS email_clicks (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			track_id TEXT NOT NULL UNIQUE,
+			email TEXT NOT NULL DEFAULT '',
+			email_type TEXT NOT NULL DEFAULT '',
+			clicked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			user_agent TEXT NOT NULL DEFAULT ''
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_clicks_email_type ON email_clicks (email_type);
+		CREATE INDEX IF NOT EXISTS idx_email_clicks_email ON email_clicks (email);
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)
@@ -399,6 +409,7 @@ func main() {
 	// Public email routes
 	mux.HandleFunc("GET /health", httpHandler.HandleHealth)
 	mux.HandleFunc("GET /v1/email/track/{track_id}", httpHandler.HandleTrackOpen)
+	mux.HandleFunc("GET /v1/email/click/{track_id}", httpHandler.HandleTrackClick)
 	mux.HandleFunc("POST /v1/email/forgot-password", httpHandler.HandleForgotPassword)
 	mux.HandleFunc("POST /v1/email/reset-password", httpHandler.HandleResetPassword)
 	mux.HandleFunc("POST /v1/email/change-password", httpHandler.HandleChangePassword)

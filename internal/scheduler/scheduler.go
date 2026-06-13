@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
+	"github.com/studojo/emailer-service/internal/handlers"
 	"github.com/studojo/emailer-service/internal/store"
 )
 
@@ -164,6 +165,39 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		slog.Error("scheduler: user not found, discarding", "user_id", e.UserID, "email_type", e.EmailType)
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return false
+	}
+
+	// Engagement gate: this row sends no email. When it comes due, enrol the
+	// not-used chase ONLY if the user has neither opened/clicked the welcome nor
+	// used the tool. Engagers never enter the chase.
+	if e.EmailType == handlers.CCGateOutreachNotUsed {
+		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, handlers.OutreachWelcomeType)
+		if err != nil {
+			slog.Warn("scheduler: gate engagement check failed, skipping enrol", "user_id", e.UserID, "err", err)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
+		}
+		if engaged {
+			slog.Info("scheduler: user engaged with welcome, not enrolling chase", "user_id", e.UserID)
+		} else {
+			handlers.ScheduleCCSequence(ctx, sc.Store, e.UserID, time.Now().UTC(), handlers.OutreachNotUsedNudges)
+			slog.Info("scheduler: no engagement, enrolled not-used chase", "user_id", e.UserID)
+		}
+		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+		return false
+	}
+
+	// Per-step re-check: before sending any not-used nudge, drop the rest if the
+	// user has since opened/clicked the welcome (product use already cancels the
+	// chain in the event handler).
+	if strings.HasPrefix(e.EmailType, "cc_outreach_nudge") {
+		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, handlers.OutreachWelcomeType)
+		if err == nil && engaged {
+			slog.Info("scheduler: user engaged since enrol, cancelling remaining nudges", "user_id", e.UserID)
+			_, _ = sc.Store.CancelPendingEmailsByPrefix(ctx, e.UserID, "cc_outreach_nudge")
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
+		}
 	}
 
 	prefs, err := sc.Store.GetEmailPreferences(ctx, e.UserID)

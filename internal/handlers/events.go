@@ -117,16 +117,32 @@ func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID stri
 const hour = time.Hour
 const day = 24 * time.Hour
 
+// CCGateOutreachNotUsed is the email_type of the engagement-gate placeholder row
+// scheduled +7h after the Outreach welcome. It sends no email; when it comes due
+// the scheduler checks engagement and either enrols OutreachNotUsedNudges or drops.
+const CCGateOutreachNotUsed = "cc_gate_outreach_notused"
+
+// OutreachWelcomeType is the welcome template whose open/click counts as engagement.
+const OutreachWelcomeType = "cc-welcome-new-user"
+
+// OutreachNotUsedNudges is the chase chain enrolled by the engagement gate, with
+// delays measured from the gate firing (+7h after welcome), i.e. d1 sends right
+// when the gate resolves, the rest follow at the original cadence.
+var OutreachNotUsedNudges = []ccSequence{
+	{"cc_outreach_nudge_d1", 0},
+	{"cc_outreach_nudge_d2", 24 * hour},
+	{"cc_outreach_nudge_d3", 56 * hour},
+	{"cc_outreach_nudge_d4", 89 * hour},
+}
+
 // ccSequenceStarters maps a sequence-starting routing key to the follow-up steps
 // scheduled after its instant email is sent. Delays come straight from the flow spec.
 var ccSequenceStarters = map[string][]ccSequence{
-	// Outreach NOT used: scheduled off the welcome (the welcome itself is event.cc.welcome_new_user)
-	"event.cc.welcome_new_user": {
-		{"cc_outreach_nudge_d1", 7 * hour},
-		{"cc_outreach_nudge_d2", 31 * hour}, // 7h + 24h
-		{"cc_outreach_nudge_d3", 63 * hour}, // + 32h
-		{"cc_outreach_nudge_d4", 96 * hour}, // day 4
-	},
+	// Outreach NOT used is engagement-gated: event.cc.welcome_new_user schedules a
+	// +7h gate (cc_gate_outreach_notused) instead of the nudges directly. The gate
+	// enrols OutreachNotUsedNudges only if the user hasn't engaged. See HandleCCEmail
+	// and the scheduler's gate handling.
+
 	// Outreach USED (high intent): fires when the student uses the outreach tool.
 	// The instant email is push1 (cc-outreach-push1); these are the follow-ups.
 	// Entering this also cancels the not-used nudge chain (see HandleCCEmail).
@@ -306,16 +322,29 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
 			slog.Error("cc email: failed to record", "template", templateName, "error", err)
 		}
-		// Exit rule: using the outreach tool cancels the not-used nudge chain so
-		// a high-intent user never gets "did you try it?" emails.
+		// Exit rule: using the outreach tool cancels both the pending engagement
+		// gate AND any already-enrolled not-used nudges, so a high-intent user
+		// never gets "did you try it?" emails.
 		if routingKey == "event.cc.outreach_used" {
 			if n, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_outreach_nudge"); err != nil {
 				slog.Error("cc email: failed to cancel not-used chain", "user_id", event.UserID, "error", err)
 			} else if n > 0 {
 				slog.Info("cc email: cancelled not-used chain on tool use", "user_id", event.UserID, "count", n)
 			}
+			if _, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, CCGateOutreachNotUsed); err != nil {
+				slog.Error("cc email: failed to cancel engagement gate", "user_id", event.UserID, "error", err)
+			}
 		}
-		if steps, ok := ccSequenceStarters[routingKey]; ok {
+		// Engagement-gated chase: the welcome itself was just sent. Instead of
+		// scheduling the nudges now, schedule a single gate check (+7h). When the
+		// gate comes due the scheduler enrols the nudges only if the user has NOT
+		// opened/clicked the welcome and has NOT used the tool. Engagers never
+		// enter the chase. All other sequences schedule their steps as before.
+		if routingKey == "event.cc.welcome_new_user" {
+			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, CCGateOutreachNotUsed, time.Now().UTC().Add(7*hour)); err != nil {
+				slog.Error("cc email: failed to schedule engagement gate", "user_id", event.UserID, "error", err)
+			}
+		} else if steps, ok := ccSequenceStarters[routingKey]; ok {
 			ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
 		}
 	}
