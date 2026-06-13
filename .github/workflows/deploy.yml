@@ -89,7 +89,8 @@ jobs:
             EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>" \
             ADMIN_SECRET="${{ secrets.ADMIN_SECRET }}" \
             UNSUBSCRIBE_SECRET="${{ secrets.UNSUBSCRIBE_SECRET }}" \
-            INTERNAL_SECRET="${{ secrets.EMAILER_INTERNAL_SECRET }}"
+            INTERNAL_SECRET="${{ secrets.EMAILER_INTERNAL_SECRET }}" \
+            EMAIL_RATE_PER_HOUR="80"
 
       - name: Apply mail.studojo.com ingress
         run: |
