@@ -58,8 +58,7 @@ type DailyVolume struct {
 // SignupWindows holds signup counts over rolling windows.
 type SignupWindows struct {
 	Total   int `json:"total"`
-	Last2d  int `json:"last_2d"`
-	Last4d  int `json:"last_4d"`
+	Last24h int `json:"last_24h"`
 	Last7d  int `json:"last_7d"`
 	Last30d int `json:"last_30d"`
 }
@@ -69,7 +68,7 @@ type SignupWindows struct {
 type FlowEntryRow struct {
 	Template string `json:"template"` // first-step template (identifies the flow)
 	Total    int    `json:"total"`
-	Last2d   int    `json:"last_2d"`
+	Last24h  int    `json:"last_24h"`
 	Last7d   int    `json:"last_7d"`
 	Last30d  int    `json:"last_30d"`
 }
@@ -81,11 +80,10 @@ func (s *PostgresStore) GetSignupStats(ctx context.Context, firstStepTemplates [
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			COUNT(*),
-			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '2 days'),
-			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '4 days'),
+			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours'),
 			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days'),
 			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')
-		FROM "user"`).Scan(&w.Total, &w.Last2d, &w.Last4d, &w.Last7d, &w.Last30d)
+		FROM "user"`).Scan(&w.Total, &w.Last24h, &w.Last7d, &w.Last30d)
 	if err != nil {
 		return nil, nil, fmt.Errorf("signup windows: %w", err)
 	}
@@ -96,11 +94,11 @@ func (s *PostgresStore) GetSignupStats(ctx context.Context, firstStepTemplates [
 		_ = s.db.QueryRowContext(ctx, `
 			SELECT
 				COUNT(*),
-				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '2 days'),
+				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '24 hours'),
 				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days'),
 				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '30 days')
 			FROM email_send_log WHERE template_name = $1`, tpl).
-			Scan(&r.Total, &r.Last2d, &r.Last7d, &r.Last30d)
+			Scan(&r.Total, &r.Last24h, &r.Last7d, &r.Last30d)
 		rows = append(rows, r)
 	}
 	return w, rows, nil
