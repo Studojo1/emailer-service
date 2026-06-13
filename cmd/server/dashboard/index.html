@@ -167,67 +167,98 @@
     <div class="flex-1 p-8">
 
       <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
-      <!-- FLOWS — each live sequence as a funnel with choke points -->
+      <!-- FLOWS — flow-group sidebar + branching flowchart with live tracking -->
       <div x-show="page==='flows'">
         <div x-show="flowsLoading && flows.length===0" class="text-sm text-slate-500 py-10 text-center">Loading flows…</div>
-        <div class="flex items-center gap-4 mb-4 text-xs text-slate-500">
-          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>healthy</span>
-          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500"></span>choke — people dropping</span>
-          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-300"></span>idle — nobody entered yet</span>
-          <span class="ml-auto text-slate-400">Click a flow to expand its workflow</span>
-        </div>
 
-        <div class="space-y-2">
-          <template x-for="f in flows" :key="f.id">
-            <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
-              <!-- Collapsed row -->
-              <div @click="expandedFlow = (expandedFlow===f.id ? null : f.id)"
-                   class="flex items-center gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50 transition-colors">
-                <span class="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      :class="{'bg-emerald-500':f.health==='healthy','bg-rose-500':f.health==='choke','bg-slate-300':f.health==='idle'}"></span>
-                <span class="font-semibold text-slate-900 text-sm" x-text="f.title"></span>
-                <span class="text-[11px] font-mono bg-slate-900 text-emerald-300 px-2 py-0.5 rounded hidden sm:inline" x-text="f.trigger"></span>
-                <span x-show="f.health==='choke'" class="text-[10px] font-bold text-white bg-rose-500 px-2 py-0.5 rounded-full"
-                      x-text="'CHOKE · ' + (chokeStep(f) || '')"></span>
-                <span class="ml-auto text-xs text-slate-500"><span class="font-bold text-slate-900" x-text="(f.entered||0).toLocaleString()"></span> entered</span>
-                <svg class="w-4 h-4 text-slate-400 transition-transform flex-shrink-0" :class="expandedFlow===f.id ? 'rotate-90' : ''"
-                     fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        <div x-show="!flowsLoading || flows.length>0" class="flex gap-6 items-start">
+          <!-- LEFT: flow groups -->
+          <div class="w-64 flex-shrink-0 space-y-2.5">
+            <template x-for="g in flowGroups()" :key="g.name">
+              <div>
+                <div @click="selectGroup(g.name)"
+                     class="flex items-center gap-2.5 px-4 py-3 rounded-xl border-2 cursor-pointer transition-all bg-white"
+                     :class="activeGroup===g.name ? 'border-neutral-900 shadow-[3px_3px_0_0_rgba(23,23,23,1)]' : 'border-neutral-200 hover:border-neutral-400'">
+                  <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="`background:${g.color}`"></span>
+                  <span class="font-bold text-sm text-neutral-900" x-text="g.name"></span>
+                  <span class="ml-auto text-[11px] font-bold text-neutral-500 bg-neutral-100 rounded-md px-2 py-0.5" x-text="g.sent.toLocaleString()"></span>
+                  <svg class="w-3.5 h-3.5 text-neutral-400 transition-transform" :class="activeGroup===g.name?'rotate-90':''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </div>
+                <!-- sub-flows within a group -->
+                <div x-show="activeGroup===g.name" x-collapse class="pl-4 pt-1.5 space-y-1">
+                  <template x-for="f in g.flows" :key="f.id">
+                    <div @click="activeFlow=f.id"
+                         class="flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer text-xs transition-colors"
+                         :class="activeFlow===f.id ? 'bg-violet-50 text-violet-700 font-bold' : 'text-neutral-500 hover:bg-neutral-50'">
+                      <span class="w-1.5 h-1.5 rounded-full" :class="{'bg-emerald-500':f.health==='healthy','bg-rose-500':f.health==='choke','bg-neutral-300':f.health==='idle'}"></span>
+                      <span x-text="f.title"></span>
+                      <span class="ml-auto" x-text="(f.entered||0).toLocaleString()"></span>
+                    </div>
+                  </template>
+                </div>
               </div>
+            </template>
+          </div>
 
-              <!-- Expanded workflow -->
-              <div x-show="expandedFlow===f.id" x-collapse class="border-t border-slate-100 px-5 py-4 bg-slate-50/50">
-                <div x-show="f.entered===0" class="text-xs text-slate-400 italic">Nobody has triggered this flow yet. It is wired and waiting.</div>
-                <div x-show="f.entered>0" class="space-y-0">
-                  <template x-for="(s, i) in f.steps" :key="s.template">
-                    <div>
-                      <!-- connector + drop between steps -->
-                      <div x-show="i>0" class="flex items-center gap-2 pl-3 h-6">
-                        <div class="w-px h-full" :class="s.choke ? 'bg-rose-400' : 'bg-slate-200'"></div>
-                        <span x-show="s.drop>0" class="text-[10px] font-bold"
-                              :class="s.choke ? 'text-rose-600' : 'text-slate-400'"
-                              x-text="'−'+Math.round(s.drop)+'% drop'"></span>
+          <!-- RIGHT: flowchart canvas for the active flow -->
+          <div class="flex-1 min-w-0">
+            <template x-if="currentFlow()">
+              <div>
+                <!-- header -->
+                <div class="flex items-center gap-3 flex-wrap mb-1">
+                  <h2 class="text-2xl font-extrabold text-neutral-900" x-text="currentFlow().title"></h2>
+                  <span class="text-[11px] font-mono bg-neutral-900 text-emerald-300 px-2 py-1 rounded" x-text="currentFlow().trigger"></span>
+                  <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full"
+                        :class="{'bg-emerald-100 text-emerald-700':currentFlow().kind==='instant','bg-amber-100 text-amber-700':currentFlow().kind==='deferred','bg-blue-100 text-blue-700':currentFlow().kind==='spread','bg-violet-100 text-violet-700':currentFlow().kind==='coach'}"
+                        x-text="currentFlow().kind"></span>
+                </div>
+                <p class="text-sm text-neutral-500 mb-6">
+                  <span class="font-bold text-neutral-900" x-text="(currentFlow().entered||0).toLocaleString()"></span> entered ·
+                  fires when <span x-text="triggerWhere(currentFlow().id)"></span>
+                </p>
+
+                <!-- trigger node -->
+                <div class="flex justify-center mb-0">
+                  <div class="bg-neutral-900 text-white rounded-2xl px-6 py-3.5 text-center max-w-md">
+                    <div class="font-bold text-sm" x-text="currentFlow().trigger"></div>
+                    <div class="text-[11px] text-neutral-400 mt-0.5" x-text="triggerWhere(currentFlow().id)"></div>
+                  </div>
+                </div>
+
+                <!-- vertical node chain -->
+                <div class="flex flex-col items-center">
+                  <template x-for="(s,i) in currentFlow().steps" :key="s.template">
+                    <div class="flex flex-col items-center w-full max-w-md">
+                      <!-- connector -->
+                      <div class="flex flex-col items-center py-1.5">
+                        <div class="w-0.5 h-5" :class="s.choke?'bg-rose-400':'bg-neutral-300'"></div>
+                        <span x-show="i>0 && s.drop>0" class="text-[10px] font-bold" :class="s.choke?'text-rose-600':'text-neutral-400'" x-text="'−'+Math.round(s.drop)+'% drop'"></span>
+                        <svg class="w-3 h-3" :class="s.choke?'text-rose-400':'text-neutral-300'" fill="currentColor" viewBox="0 0 12 12"><path d="M6 10L1 4h10z"/></svg>
                       </div>
-                      <!-- step node -->
-                      <div class="flex items-center gap-3 rounded-lg border px-3 py-2.5"
-                           :class="s.choke ? 'border-rose-400 ring-1 ring-rose-200 bg-rose-50' : 'border-slate-200 bg-white'">
-                        <div class="w-16 flex-shrink-0">
-                          <div class="text-[10px] font-bold text-violet-600" x-text="s.delay"></div>
-                          <div class="text-xs text-slate-700 font-medium truncate" x-text="s.label" :title="s.template"></div>
+                      <!-- node card -->
+                      <div class="w-full rounded-2xl border-2 px-5 py-3.5 bg-white shadow-[3px_3px_0_0_rgba(23,23,23,0.9)]"
+                           :class="s.choke?'border-rose-500':'border-neutral-900'">
+                        <div class="flex items-center gap-3">
+                          <span class="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                                :class="s.choke?'bg-rose-500':'bg-violet-600'" x-text="i+1"></span>
+                          <span class="font-bold text-sm text-neutral-900 flex-1" x-text="s.label"></span>
+                          <span class="text-[11px] font-bold rounded-full px-2.5 py-1 border-2 border-neutral-900" x-text="s.delay"></span>
+                          <span x-show="s.choke" class="text-[9px] font-bold text-white bg-rose-500 px-2 py-1 rounded-full">CHOKE</span>
                         </div>
-                        <div class="flex items-center gap-5 flex-1 text-sm">
-                          <div><span class="font-bold text-slate-900" x-text="(s.sent||0).toLocaleString()"></span> <span class="text-[11px] text-slate-400">sent</span></div>
-                          <div><span class="font-bold text-slate-700" x-text="(s.opened||0).toLocaleString()"></span> <span class="text-[11px] text-slate-400" x-text="'opened ('+(s.open_rate||0).toFixed(0)+'%)'"></span></div>
-                          <div><span class="font-bold text-slate-700" x-text="(s.clicked||0).toLocaleString()"></span> <span class="text-[11px] text-slate-400" x-text="'clicked ('+(s.click_rate||0).toFixed(0)+'%)'"></span></div>
-                          <div x-show="s.pending>0" class="text-[11px] text-amber-600 font-medium" x-text="s.pending+' in flight'"></div>
+                        <div class="flex items-center gap-4 mt-2.5 pl-10 text-xs">
+                          <span><b class="text-neutral-900" x-text="(s.sent||0).toLocaleString()"></b> <span class="text-neutral-400">sent</span></span>
+                          <span><b class="text-neutral-700" x-text="(s.opened||0).toLocaleString()"></b> <span class="text-neutral-400" x-text="'opened '+(s.open_rate||0).toFixed(0)+'%'"></span></span>
+                          <span><b class="text-neutral-700" x-text="(s.clicked||0).toLocaleString()"></b> <span class="text-neutral-400" x-text="'clicked '+(s.click_rate||0).toFixed(0)+'%'"></span></span>
+                          <span x-show="s.pending>0" class="text-amber-600 font-semibold" x-text="s.pending+' in flight'"></span>
                         </div>
-                        <span x-show="s.choke" class="text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full">CHOKE</span>
                       </div>
                     </div>
                   </template>
                 </div>
               </div>
-            </div>
-          </template>
+            </template>
+            <div x-show="!currentFlow()" class="text-sm text-neutral-400 py-20 text-center">Select a flow on the left to view its workflow.</div>
+          </div>
         </div>
       </div>
 
@@ -861,7 +892,7 @@ function app() {
     page: 'flows',
 
     // Flows (funnel + choke points)
-    flows: [], flowsLoading: false, expandedFlow: null,
+    flows: [], flowsLoading: false, activeGroup: null, activeFlow: null,
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -934,17 +965,59 @@ function app() {
       await Promise.all([this.loadFlows(), this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
     },
 
-    // Label of the step flagged as the choke, for the collapsed-row badge.
-    chokeStep(f) {
-      const s = (f.steps||[]).find(s => s.choke)
-      return s ? s.label : ''
+    // Group the flat flow list by product for the left sidebar.
+    flowGroups() {
+      const defs = [
+        { name:'Outreach Dojo', color:'#7c3aed', ids:['outreach-not','outreach-used','abandoned'] },
+        { name:'Career Coach',  color:'#16a34a', ids:['cc-welcome','dna','roadmap','coach-returning'] },
+        { name:'Resume Maker',  color:'#16a34a', ids:['resume-strong','resume-weak'] },
+        { name:'Internship Dojo',color:'#d97706', ids:['internship'] },
+        { name:'Old Users',     color:'#d97706', ids:['old-s1','old-s2','old-s3'] },
+      ]
+      const byId = Object.fromEntries((this.flows||[]).map(f=>[f.id,f]))
+      return defs.map(d => {
+        const flows = d.ids.map(id=>byId[id]).filter(Boolean)
+        const sent = flows.reduce((a,f)=>a+(f.steps||[]).reduce((b,s)=>b+(s.sent||0),0),0)
+        return { name:d.name, color:d.color, flows, sent }
+      }).filter(g=>g.flows.length)
+    },
+
+    selectGroup(name) {
+      if (this.activeGroup === name) { this.activeGroup = null; return }
+      this.activeGroup = name
+      const g = this.flowGroups().find(g=>g.name===name)
+      if (g && g.flows.length) this.activeFlow = g.flows[0].id
+    },
+
+    currentFlow() { return (this.flows||[]).find(f=>f.id===this.activeFlow) || null },
+
+    triggerWhere(id) {
+      return {
+        'outreach-not':'a user signs up (chase only if they don’t engage)',
+        'outreach-used':'a user finishes the Outreach onboarding quiz',
+        'abandoned':'a user reaches the payment page (cancelled if they pay)',
+        'internship':'a user crosses 15 internship applications',
+        'cc-welcome':'a new Career Coach session is created',
+        'dna':'the coach generates a student’s Career DNA',
+        'roadmap':'the coach delivers the roadmap',
+        'resume-strong':'a resume is marked ready, DNA score ≥ 55',
+        'resume-weak':'a resume is marked ready, DNA score < 55',
+        'old-s1':'daily cron picks dormant users who nearly finished',
+        'old-s2':'daily cron picks dormant users who stalled',
+        'old-s3':'daily cron picks cold dormant users',
+        'coach-returning':'coach cron picks returning users',
+      }[id] || '—'
     },
 
     async loadFlows() {
       this.flowsLoading = true
       try {
         const r = await this.api('GET', '/v1/admin/flows')
-        if (r.ok) { const d = await r.json(); this.flows = d.flows || [] }
+        if (r.ok) {
+          const d = await r.json(); this.flows = d.flows || []
+          // Default-select the first group/flow so the canvas isn't empty.
+          if (!this.activeGroup) { const g = this.flowGroups()[0]; if (g) { this.activeGroup = g.name; this.activeFlow = g.flows[0]?.id } }
+        }
       } finally { this.flowsLoading = false }
     },
 
