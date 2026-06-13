@@ -278,6 +278,57 @@ func (s *PostgresStore) GetCampaignGroups(ctx context.Context) ([]CampaignGroup,
 	return groups, nil
 }
 
+// TemplateStat is per-template send + open counts from the authoritative send log.
+type TemplateStat struct {
+	Sent   int `json:"sent"`
+	Opened int `json:"opened"`
+}
+
+// GetSendCountsByTemplate returns sent + opened counts per template from
+// email_send_log — every actual send (instant or scheduled), keyed by the
+// hyphen template name. This is the accurate source for funnel volumes, unlike
+// scheduled_emails (which misses instant sends and uses underscore keys).
+func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string]TemplateStat, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT template_name, COUNT(*) AS sent, COUNT(opened_at) AS opened
+		FROM email_send_log GROUP BY template_name`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]TemplateStat{}
+	for rows.Next() {
+		var name string
+		var st TemplateStat
+		if err := rows.Scan(&name, &st.Sent, &st.Opened); err == nil {
+			out[name] = st
+		}
+	}
+	return out, nil
+}
+
+// GetPendingByType returns the count of not-yet-sent scheduled emails per
+// email_type (underscore form, e.g. cc_outreach_nudge_d1) — i.e. how many are
+// still in flight at each step.
+func (s *PostgresStore) GetPendingByType(ctx context.Context) (map[string]int, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT email_type, COUNT(*) FROM scheduled_emails
+		WHERE sent_at IS NULL GROUP BY email_type`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int{}
+	for rows.Next() {
+		var t string
+		var n int
+		if err := rows.Scan(&t, &n); err == nil {
+			out[t] = n
+		}
+	}
+	return out, nil
+}
+
 // ListLogsByEmailType returns paginated sends for a specific email_type
 func (s *PostgresStore) ListLogsByEmailType(ctx context.Context, emailType string, limit, offset int) ([]EmailLog, int, error) {
 	var total int

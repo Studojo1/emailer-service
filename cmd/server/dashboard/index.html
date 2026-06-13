@@ -74,6 +74,12 @@
     </div>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5">
+      <div @click="nav('flows')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='flows' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        Flows
+      </div>
       <div @click="nav('overview')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='overview' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
@@ -160,6 +166,56 @@
     <div class="flex-1 p-8">
 
       <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
+      <!-- FLOWS — each live sequence as a funnel with choke points -->
+      <div x-show="page==='flows'">
+        <div x-show="flowsLoading && flows.length===0" class="text-sm text-slate-500 py-10 text-center">Loading flows…</div>
+        <div class="flex items-center gap-4 mb-3 text-xs text-slate-500">
+          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-violet-500"></span>sent volume</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-rose-500"></span>biggest drop-off (choke)</span>
+          <span class="flex items-center gap-1.5"><span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500"></span>still in flight</span>
+        </div>
+        <div class="space-y-4">
+          <template x-for="f in flows" :key="f.id">
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="flex items-center gap-3 flex-wrap mb-4">
+                <h3 class="font-semibold text-slate-900" x-text="f.title"></h3>
+                <span class="text-[11px] font-mono bg-slate-900 text-emerald-300 px-2 py-0.5 rounded" x-text="f.trigger"></span>
+                <span class="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
+                      :class="{'bg-emerald-100 text-emerald-700':f.kind==='instant','bg-amber-100 text-amber-700':f.kind==='deferred','bg-blue-100 text-blue-700':f.kind==='spread','bg-violet-100 text-violet-700':f.kind==='coach'}"
+                      x-text="f.kind"></span>
+                <span class="ml-auto text-xs text-slate-500"><span class="font-bold text-slate-900" x-text="(f.entered||0).toLocaleString()"></span> entered</span>
+              </div>
+              <div x-show="f.entered===0" class="text-xs text-slate-400 italic">No sends recorded yet.</div>
+              <div x-show="f.entered>0" class="flex items-stretch overflow-x-auto pb-1">
+                <template x-for="(s, i) in f.steps" :key="s.template">
+                  <div class="flex items-stretch">
+                    <div x-show="i>0" class="flex flex-col items-center justify-center px-1 min-w-[58px]">
+                      <span class="text-[11px] font-bold leading-none"
+                            :class="s.choke ? 'text-rose-600' : (s.drop>0?'text-slate-400':'text-slate-300')"
+                            x-text="s.drop>0 ? '−'+Math.round(s.drop)+'%' : '→'"></span>
+                      <span x-show="s.choke" class="mt-1 text-[9px] font-bold text-white bg-rose-500 px-1.5 py-0.5 rounded-full leading-none">CHOKE</span>
+                    </div>
+                    <div class="w-[150px] flex-shrink-0 rounded-lg border p-2.5"
+                         :class="s.choke ? 'border-rose-400 ring-1 ring-rose-300 bg-rose-50' : 'border-slate-200 bg-slate-50'">
+                      <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] font-semibold text-violet-600" x-text="s.delay"></span>
+                        <span class="text-[10px] text-slate-400" x-text="(s.open_rate||0).toFixed(0)+'% open'"></span>
+                      </div>
+                      <div class="h-1.5 bg-slate-200 rounded-full overflow-hidden mb-1.5">
+                        <div class="h-full bg-violet-500" :style="`width:${f.entered>0 ? Math.max(2, Math.round(s.sent/f.entered*100)) : 0}%`"></div>
+                      </div>
+                      <div class="text-base font-bold text-slate-900 leading-none" x-text="(s.sent||0).toLocaleString()"></div>
+                      <div class="text-[11px] text-slate-500 mt-0.5 truncate" x-text="s.label" :title="s.template"></div>
+                      <div x-show="s.pending>0" class="text-[10px] text-amber-600 font-medium mt-1" x-text="'+'+s.pending+' in flight'"></div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </div>
+
       <div x-show="page==='overview'">
         <div x-show="statsLoading" class="flex justify-center py-20">
           <svg class="spinner w-8 h-8" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
@@ -787,7 +843,10 @@ function app() {
     authed: false, authToken: '', authError: '', authLoading: false,
 
     // Nav
-    page: 'overview',
+    page: 'flows',
+
+    // Flows (funnel + choke points)
+    flows: [], flowsLoading: false,
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -857,11 +916,20 @@ function app() {
     logout() { localStorage.removeItem('adminToken'); this.authed = false; this.authToken = '' },
 
     async loadAll() {
-      await Promise.all([this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
+      await Promise.all([this.loadFlows(), this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
+    },
+
+    async loadFlows() {
+      this.flowsLoading = true
+      try {
+        const r = await this.api('GET', '/v1/admin/flows')
+        if (r.ok) { const d = await r.json(); this.flows = d.flows || [] }
+      } finally { this.flowsLoading = false }
     },
 
     async nav(p) {
       this.page = p
+      if (p === 'flows') { await this.loadFlows() }
       if (p === 'overview') { await this.loadStats() }
       if (p === 'segments') await this.loadCampaignGroups()
       if (p === 'scheduled') await this.loadScheduled()
@@ -1165,10 +1233,10 @@ function app() {
     },
 
     pageTitle() {
-      return { overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
+      return { flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
     },
     pageSubtitle() {
-      return { overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
+      return { flows:'Each live sequence as a funnel — sends, opens, and where people drop off', overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
     },
 
     api(method, path, body) {
