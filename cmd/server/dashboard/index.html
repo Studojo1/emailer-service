@@ -75,6 +75,12 @@
     </div>
 
     <nav class="flex-1 px-3 py-4 space-y-0.5">
+      <div @click="nav('signups')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='signups' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Signups
+      </div>
       <div @click="nav('flows')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='flows' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
@@ -165,6 +171,58 @@
 
     <!-- Page content -->
     <div class="flex-1 p-8">
+
+      <!-- ═══════════════════════════════════ SIGNUPS ═══════════════════════════════════ -->
+      <div x-show="page==='signups'">
+        <div x-show="signupsLoading && !signups" class="text-sm text-slate-500 py-10 text-center">Loading…</div>
+        <div x-show="signups">
+          <!-- Stat cards: signups by window -->
+          <div class="grid grid-cols-5 gap-4 mb-8">
+            <template x-for="card in [{k:'total',l:'TOTAL'},{k:'last_2d',l:'LAST 2 DAYS'},{k:'last_4d',l:'LAST 4 DAYS'},{k:'last_7d',l:'LAST 7 DAYS'},{k:'last_30d',l:'LAST 30 DAYS'}]" :key="card.k">
+              <div class="bg-white rounded-2xl border-2 border-neutral-900 p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)]">
+                <div class="text-[11px] font-bold tracking-wide text-neutral-500" x-text="card.l"></div>
+                <div class="text-3xl font-extrabold text-neutral-900 mt-2" x-text="(signups[card.k]||0).toLocaleString()"></div>
+              </div>
+            </template>
+          </div>
+
+          <!-- Per-flow entries -->
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-neutral-900">Trigger flow entries</h3>
+            <span class="text-xs text-neutral-400">How many people entered each flow (got its first email)</span>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">Flow</th>
+                  <th class="px-5 py-3 font-medium">Total</th>
+                  <th class="px-5 py-3 font-medium">Last 2d</th>
+                  <th class="px-5 py-3 font-medium">Last 7d</th>
+                  <th class="px-5 py-3 font-medium">Last 30d</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="f in (signupFlows||[])" :key="f.id">
+                  <tr class="table-row cursor-pointer" @click="nav('flows'); activeFlow=f.id; openGroupFor(f.id)">
+                    <td class="px-5 py-3">
+                      <span class="inline-flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full" :style="`background:${flowColor(flowFirstTemplate(f.id))}`"></span>
+                        <span class="font-medium text-slate-800" x-text="f.title"></span>
+                      </span>
+                    </td>
+                    <td class="px-5 py-3 font-bold text-slate-900" x-text="(f.total||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="(f.last_2d||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="(f.last_7d||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="(f.last_30d||0).toLocaleString()"></td>
+                  </tr>
+                </template>
+                <tr x-show="!(signupFlows||[]).length"><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No flow entries recorded yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <!-- ═══════════════════════════════════ OVERVIEW ═══════════════════════════════════ -->
       <!-- FLOWS — flow-group sidebar + branching flowchart with live tracking -->
@@ -923,6 +981,7 @@ function app() {
 
     // Flows (funnel + choke points)
     flows: [], flowsLoading: false, activeGroup: null, activeFlow: null,
+    signups: null, signupFlows: [], signupsLoading: false,
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -993,7 +1052,7 @@ function app() {
     logout() { localStorage.removeItem('adminToken'); this.authed = false; this.authToken = '' },
 
     async loadAll() {
-      await Promise.all([this.loadFlows(), this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
+      await Promise.all([this.loadFlows(), this.loadSignups(), this.loadStats(), this.loadScheduledCount(), this.loadUsers(), this.loadCampaignGroups(), this.loadTemplates()])
     },
 
     // Colour for the flow/product a template belongs to — shared by Segments,
@@ -1064,8 +1123,29 @@ function app() {
       } finally { this.flowsLoading = false }
     },
 
+    async loadSignups() {
+      this.signupsLoading = true
+      try {
+        const r = await this.api('GET', '/v1/admin/signups')
+        if (r.ok) { const d = await r.json(); this.signups = d.signups || {}; this.signupFlows = d.flows || [] }
+      } finally { this.signupsLoading = false }
+    },
+
+    // first-step template of a flow id, for colour-coding the signups table.
+    flowFirstTemplate(id) {
+      const f = (this.flows||[]).find(f=>f.id===id)
+      return f && f.steps && f.steps[0] ? f.steps[0].template : ''
+    },
+    // open the sidebar group that contains a flow id (used when jumping from
+    // the signups table into the Flows chart).
+    openGroupFor(id) {
+      const g = this.flowGroups().find(g => (g.flows||[]).some(f=>f.id===id))
+      if (g) this.activeGroup = g.name
+    },
+
     async nav(p) {
       this.page = p
+      if (p === 'signups') { if (!this.flows.length) await this.loadFlows(); await this.loadSignups() }
       if (p === 'flows') { await this.loadFlows() }
       if (p === 'overview') { await this.loadStats() }
       if (p === 'segments') await this.loadCampaignGroups()
@@ -1403,10 +1483,11 @@ function app() {
     },
 
     pageTitle() {
-      return { flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
+      return { signups:'Signups', flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
     },
     pageSubtitle() {
-      return { flows:'Each flow at a glance — open one to see its workflow, opens, clicks, and any choke point', overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
+      return { signups:'How many people signed up and which trigger flow they entered',
+               flows:'Each flow at a glance — open one to see its workflow, opens, clicks, and any choke point', overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
     },
 
     api(method, path, body) {

@@ -55,6 +55,57 @@ type DailyVolume struct {
 	Count int    `json:"count"`
 }
 
+// SignupWindows holds signup counts over rolling windows.
+type SignupWindows struct {
+	Total   int `json:"total"`
+	Last2d  int `json:"last_2d"`
+	Last4d  int `json:"last_4d"`
+	Last7d  int `json:"last_7d"`
+	Last30d int `json:"last_30d"`
+}
+
+// FlowEntryRow is per-flow entry counts (people who got the flow's FIRST email)
+// over the same rolling windows, for the signups dashboard.
+type FlowEntryRow struct {
+	Template string `json:"template"` // first-step template (identifies the flow)
+	Total    int    `json:"total"`
+	Last2d   int    `json:"last_2d"`
+	Last7d   int    `json:"last_7d"`
+	Last30d  int    `json:"last_30d"`
+}
+
+// GetSignupStats returns signup counts by window (from "user".created_at) plus
+// per-flow entry counts (first-step template sends from email_send_log) by window.
+func (s *PostgresStore) GetSignupStats(ctx context.Context, firstStepTemplates []string) (*SignupWindows, []FlowEntryRow, error) {
+	w := &SignupWindows{}
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*),
+			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '2 days'),
+			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '4 days'),
+			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days'),
+			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')
+		FROM "user"`).Scan(&w.Total, &w.Last2d, &w.Last4d, &w.Last7d, &w.Last30d)
+	if err != nil {
+		return nil, nil, fmt.Errorf("signup windows: %w", err)
+	}
+
+	rows := []FlowEntryRow{}
+	for _, tpl := range firstStepTemplates {
+		var r = FlowEntryRow{Template: tpl}
+		_ = s.db.QueryRowContext(ctx, `
+			SELECT
+				COUNT(*),
+				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '2 days'),
+				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days'),
+				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '30 days')
+			FROM email_send_log WHERE template_name = $1`, tpl).
+			Scan(&r.Total, &r.Last2d, &r.Last7d, &r.Last30d)
+		rows = append(rows, r)
+	}
+	return w, rows, nil
+}
+
 // UserWithStats is a user row enriched with email activity counts
 type UserWithStats struct {
 	ID           string    `json:"id"`

@@ -178,3 +178,48 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, map[string]interface{}{"flows": out}, http.StatusOK)
 }
+
+// HandleAdminSignups handles GET /v1/admin/signups — signup counts by rolling
+// window, plus per-flow entry counts (first-step sends) so the dashboard can show
+// how many people signed up and which trigger flow they entered.
+func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	type firstStep struct{ id, title, tpl string }
+	firsts := make([]firstStep, 0, len(dashboardFlows))
+	tpls := make([]string, 0, len(dashboardFlows))
+	for _, f := range dashboardFlows {
+		if len(f.Steps) == 0 {
+			continue
+		}
+		firsts = append(firsts, firstStep{f.ID, f.Title, f.Steps[0].Template})
+		tpls = append(tpls, f.Steps[0].Template)
+	}
+
+	windows, rows, err := h.Store.GetSignupStats(ctx, tpls)
+	if err != nil {
+		writeError(w, "failed to load signup stats", http.StatusInternalServerError)
+		return
+	}
+
+	type outRow struct {
+		ID      string `json:"id"`
+		Title   string `json:"title"`
+		Total   int    `json:"total"`
+		Last2d  int    `json:"last_2d"`
+		Last7d  int    `json:"last_7d"`
+		Last30d int    `json:"last_30d"`
+	}
+	byTpl := map[string]int{}
+	for i, fs := range firsts {
+		byTpl[fs.tpl] = i
+	}
+	out := make([]outRow, 0, len(rows))
+	for _, row := range rows {
+		i := byTpl[row.Template]
+		out = append(out, outRow{
+			ID: firsts[i].id, Title: firsts[i].title,
+			Total: row.Total, Last2d: row.Last2d, Last7d: row.Last7d, Last30d: row.Last30d,
+		})
+	}
+	writeJSON(w, map[string]interface{}{"signups": windows, "flows": out}, http.StatusOK)
+}
