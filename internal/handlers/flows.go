@@ -98,15 +98,17 @@ var dashboardFlows = []flowDef{
 }
 
 type flowOutStep struct {
-	Label    string  `json:"label"`
-	Template string  `json:"template"`
-	Delay    string  `json:"delay"`
-	Sent     int     `json:"sent"`
-	Opened   int     `json:"opened"`
-	Pending  int     `json:"pending"`
-	OpenRate float64 `json:"open_rate"`
-	Drop     float64 `json:"drop"` // % fall in sent vs the previous step
-	Choke    bool    `json:"choke"`
+	Label     string  `json:"label"`
+	Template  string  `json:"template"`
+	Delay     string  `json:"delay"`
+	Sent      int     `json:"sent"`
+	Opened    int     `json:"opened"`
+	Clicked   int     `json:"clicked"`
+	Pending   int     `json:"pending"`
+	OpenRate  float64 `json:"open_rate"`
+	ClickRate float64 `json:"click_rate"`
+	Drop      float64 `json:"drop"` // % fall in sent vs the previous step
+	Choke     bool    `json:"choke"`
 }
 type flowOut struct {
 	ID      string        `json:"id"`
@@ -114,11 +116,14 @@ type flowOut struct {
 	Trigger string        `json:"trigger"`
 	Kind    string        `json:"kind"`
 	Entered int           `json:"entered"` // sent count of the first step
+	Health  string        `json:"health"`  // idle | healthy | choke
 	Steps   []flowOutStep `json:"steps"`
 }
 
-// HandleAdminFlows handles GET /v1/admin/flows — per-sequence funnel with the
-// drop-off (choke point) between steps, computed from the authoritative send log.
+// HandleAdminFlows handles GET /v1/admin/flows — per-sequence funnel with opens,
+// clicks, and a single meaningful choke point. A step is only a choke if real
+// people fell out (the previous step had sends, this step is much lower, and the
+// gap is NOT just emails still waiting in the queue).
 func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	counts, err := h.Store.GetSendCountsByTemplate(ctx)
@@ -136,19 +141,24 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 		fo.Steps = make([]flowOutStep, len(f.Steps))
 		for i, st := range f.Steps {
 			c := counts[st.Template]
+			pend := pending[strings.ReplaceAll(st.Template, "-", "_")]
 			os := flowOutStep{
 				Label: st.Label, Template: st.Template, Delay: st.Delay,
-				Sent: c.Sent, Opened: c.Opened,
-				Pending: pending[strings.ReplaceAll(st.Template, "-", "_")],
+				Sent: c.Sent, Opened: c.Opened, Clicked: c.Clicked, Pending: pend,
 			}
 			if c.Sent > 0 {
 				os.OpenRate = float64(c.Opened) / float64(c.Sent) * 100
+				os.ClickRate = float64(c.Clicked) / float64(c.Sent) * 100
 			}
 			if i == 0 {
 				fo.Entered = c.Sent
 			} else if prevSent > 0 {
 				os.Drop = float64(prevSent-c.Sent) / float64(prevSent) * 100
-				if os.Drop > maxDrop {
+				// Real choke only: the shortfall isn't explained by emails still
+				// queued. If (sent + pending) ~ prevSent, people are mid-flight,
+				// not dropping out.
+				inFlightExplains := (c.Sent + pend) >= prevSent
+				if os.Drop > maxDrop && !inFlightExplains {
 					maxDrop = os.Drop
 					chokeIdx = i
 				}
@@ -156,9 +166,13 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 			prevSent = c.Sent
 			fo.Steps[i] = os
 		}
-		// Flag the worst drop as the choke point (only if a real fall happened).
-		if chokeIdx >= 0 && maxDrop >= 15 {
+		if chokeIdx >= 0 && maxDrop >= 25 {
 			fo.Steps[chokeIdx].Choke = true
+			fo.Health = "choke"
+		} else if fo.Entered > 0 {
+			fo.Health = "healthy"
+		} else {
+			fo.Health = "idle"
 		}
 		out = append(out, fo)
 	}

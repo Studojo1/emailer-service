@@ -280,30 +280,66 @@ func (s *PostgresStore) GetCampaignGroups(ctx context.Context) ([]CampaignGroup,
 
 // TemplateStat is per-template send + open counts from the authoritative send log.
 type TemplateStat struct {
-	Sent   int `json:"sent"`
-	Opened int `json:"opened"`
+	Sent    int `json:"sent"`
+	Opened  int `json:"opened"`
+	Clicked int `json:"clicked"`
 }
 
-// GetSendCountsByTemplate returns sent + opened counts per template from
-// email_send_log — every actual send (instant or scheduled), keyed by the
-// hyphen template name. This is the accurate source for funnel volumes, unlike
-// scheduled_emails (which misses instant sends and uses underscore keys).
+// GetSendCountsByTemplate returns sent + opened + clicked counts per template.
+// Sends come from email_send_log (every actual send, keyed by hyphen template
+// name). Opens come from the email_opens table and clicks from email_clicks
+// (both keyed by email_type = the same hyphen template name) — these are the
+// authoritative engagement tables, counted by distinct recipient so a single
+// user opening twice counts once.
 func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string]TemplateStat, error) {
+	out := map[string]TemplateStat{}
+
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT template_name, COUNT(*) AS sent, COUNT(opened_at) AS opened
-		FROM email_send_log GROUP BY template_name`)
+		SELECT template_name, COUNT(*) AS sent FROM email_send_log GROUP BY template_name`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	out := map[string]TemplateStat{}
 	for rows.Next() {
 		var name string
 		var st TemplateStat
-		if err := rows.Scan(&name, &st.Sent, &st.Opened); err == nil {
+		if err := rows.Scan(&name, &st.Sent); err == nil {
 			out[name] = st
 		}
 	}
+	rows.Close()
+
+	// Opens — distinct recipients per template.
+	oRows, err := s.db.QueryContext(ctx, `
+		SELECT email_type, COUNT(DISTINCT user_id) FROM email_opens GROUP BY email_type`)
+	if err == nil {
+		for oRows.Next() {
+			var t string
+			var n int
+			if err := oRows.Scan(&t, &n); err == nil {
+				st := out[t]
+				st.Opened = n
+				out[t] = st
+			}
+		}
+		oRows.Close()
+	}
+
+	// Clicks — distinct recipients per template.
+	cRows, err := s.db.QueryContext(ctx, `
+		SELECT email_type, COUNT(DISTINCT email) FROM email_clicks GROUP BY email_type`)
+	if err == nil {
+		for cRows.Next() {
+			var t string
+			var n int
+			if err := cRows.Scan(&t, &n); err == nil {
+				st := out[t]
+				st.Clicked = n
+				out[t] = st
+			}
+		}
+		cRows.Close()
+	}
+
 	return out, nil
 }
 
