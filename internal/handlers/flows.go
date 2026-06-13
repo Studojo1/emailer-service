@@ -205,7 +205,7 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 		ID      string `json:"id"`
 		Title   string `json:"title"`
 		Total   int    `json:"total"`
-		Last2d  int    `json:"last_2d"`
+		Last24h int    `json:"last_24h"`
 		Last7d  int    `json:"last_7d"`
 		Last30d int    `json:"last_30d"`
 	}
@@ -218,7 +218,7 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 		i := byTpl[row.Template]
 		out = append(out, outRow{
 			ID: firsts[i].id, Title: firsts[i].title,
-			Total: row.Total, Last2d: row.Last2d, Last7d: row.Last7d, Last30d: row.Last30d,
+			Total: row.Total, Last24h: row.Last24h, Last7d: row.Last7d, Last30d: row.Last30d,
 		})
 	}
 	writeJSON(w, map[string]interface{}{"signups": windows, "flows": out}, http.StatusOK)

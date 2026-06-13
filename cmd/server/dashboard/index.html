@@ -177,8 +177,8 @@
         <div x-show="signupsLoading && !signups" class="text-sm text-slate-500 py-10 text-center">Loading…</div>
         <div x-show="signups">
           <!-- Stat cards: signups by window -->
-          <div class="grid grid-cols-5 gap-4 mb-8">
-            <template x-for="card in [{k:'total',l:'TOTAL'},{k:'last_2d',l:'LAST 2 DAYS'},{k:'last_4d',l:'LAST 4 DAYS'},{k:'last_7d',l:'LAST 7 DAYS'},{k:'last_30d',l:'LAST 30 DAYS'}]" :key="card.k">
+          <div class="grid grid-cols-4 gap-4 mb-8">
+            <template x-for="card in [{k:'last_24h',l:'LAST 24 HOURS'},{k:'last_7d',l:'LAST 7 DAYS'},{k:'last_30d',l:'LAST 30 DAYS'},{k:'total',l:'TOTAL (ALL TIME)'}]" :key="card.k">
               <div class="bg-white rounded-2xl border-2 border-neutral-900 p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)]">
                 <div class="text-[11px] font-bold tracking-wide text-neutral-500" x-text="card.l"></div>
                 <div class="text-3xl font-extrabold text-neutral-900 mt-2" x-text="(signups[card.k]||0).toLocaleString()"></div>
@@ -196,10 +196,10 @@
               <thead class="bg-slate-50">
                 <tr class="text-xs text-slate-500 text-left">
                   <th class="px-5 py-3 font-medium">Flow</th>
-                  <th class="px-5 py-3 font-medium">Total</th>
-                  <th class="px-5 py-3 font-medium">Last 2d</th>
+                  <th class="px-5 py-3 font-medium">Last 24h</th>
                   <th class="px-5 py-3 font-medium">Last 7d</th>
                   <th class="px-5 py-3 font-medium">Last 30d</th>
+                  <th class="px-5 py-3 font-medium">Total</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,10 +211,10 @@
                         <span class="font-medium text-slate-800" x-text="f.title"></span>
                       </span>
                     </td>
-                    <td class="px-5 py-3 font-bold text-slate-900" x-text="(f.total||0).toLocaleString()"></td>
-                    <td class="px-5 py-3 text-slate-600" x-text="(f.last_2d||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 font-bold text-slate-900" x-text="(f.last_24h||0).toLocaleString()"></td>
                     <td class="px-5 py-3 text-slate-600" x-text="(f.last_7d||0).toLocaleString()"></td>
                     <td class="px-5 py-3 text-slate-600" x-text="(f.last_30d||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-500" x-text="(f.total||0).toLocaleString()"></td>
                   </tr>
                 </template>
                 <tr x-show="!(signupFlows||[]).length"><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No flow entries recorded yet.</td></tr>
