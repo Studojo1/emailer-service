@@ -42,9 +42,9 @@ var dashboardFlows = []flowDef{
 	}},
 	{ID: "cc-welcome", Title: "Career Coach · not started", Trigger: "event.cc.welcome", Kind: "instant", Steps: []flowStep{
 		{"Welcome", "cc-welcome", "instant"},
-		{"Nudge 1", "cc-nudge-1", "+8h"},
-		{"Nudge 2", "cc-nudge-2", "+32h"},
-		{"Nudge 3", "cc-nudge-3", "+56h"},
+		{"Nudge 1", "cc-nudge-1", "+7h (if no open/click)"},
+		{"Nudge 2", "cc-nudge-2", "+31h"},
+		{"Nudge 3", "cc-nudge-3", "+55h"},
 	}},
 	{ID: "dna", Title: "Post-DNA", Trigger: "event.cc.dna_ready", Kind: "instant", Steps: []flowStep{
 		{"DNA ready", "cc-dna-ready", "instant"},
