@@ -779,6 +779,15 @@ func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			ctx := context.Background()
 			h.Store.RecordEmailClick(ctx, trackID, emailAddr, emailType, userAgent)
+			// Engagement-via-email: clicking any flow email means the user engaged,
+			// so clear their not-used chases across every tool (same as tool use).
+			if emailAddr != "" {
+				if u, err := h.Store.GetUserByEmail(ctx, emailAddr); err == nil && u != nil {
+					if n := RouteToolUsed(ctx, h.Store, u.ID); n > 0 {
+						slog.Info("click engagement: cleared not-used chases", "user_id", u.ID, "cleared", n)
+					}
+				}
+			}
 		}()
 	}
 

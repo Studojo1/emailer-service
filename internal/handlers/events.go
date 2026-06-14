@@ -187,6 +187,71 @@ func GateByType(t string) (gateType, welcomeType, chasePrefix string, chase []cc
 	return g.GateType, g.WelcomeType, g.ChasePrefix, g.Chase, true
 }
 
+// ── Cross-tool engagement router ────────────────────────────────────────────
+//
+// Every tool is treated uniformly. When a user demonstrably USES a tool (e.g.
+// uploads a resume on Outreach, creates a resume, applies to an internship,
+// starts a coach session), we:
+//   1. cancel the not-used chase + pending gate of EVERY tool (they engaged
+//      somewhere — stop chasing them for not starting),
+//   2. start that tool's used-flow.
+// The "used" signal may arrive from the email (click) or directly (tool action);
+// both land here as the same routing key.
+
+// toolFlow describes one tool's used-flow + the not-used artefacts to clear.
+type toolFlow struct {
+	Name          string       // tool label for logs
+	GatePrefix    string       // not-used gate row prefix to cancel
+	ChasePrefix   string       // not-used chase prefix to cancel
+	UsedStarter   string       // routing key whose instant email starts the used-flow
+}
+
+// toolFlows: registry of every tool's used-routing. Keyed by the "used" routing key.
+var toolFlows = map[string]toolFlow{
+	"event.cc.outreach_used": {
+		Name: "outreach", GatePrefix: "cc_gate_outreach_notused",
+		ChasePrefix: "cc_outreach_nudge", UsedStarter: "event.cc.outreach_used",
+	},
+	"event.cc.coach_used": {
+		Name: "coach", GatePrefix: "cc_gate_coach_notstarted",
+		ChasePrefix: "cc_nudge", UsedStarter: "event.cc.welcome", // coach used == active session; coach flow already drives DNA/roadmap
+	},
+	"event.cc.resume_used": {
+		Name: "resume", GatePrefix: "", ChasePrefix: "", UsedStarter: "",
+	},
+	"event.cc.internship_used": {
+		Name: "internship", GatePrefix: "", ChasePrefix: "cc_id_reengage", UsedStarter: "",
+	},
+}
+
+// allNotUsedPrefixes lists every tool's not-used gate + chase prefixes, so any
+// tool-use can clear chases the user is in for OTHER tools too.
+func allNotUsedPrefixes() []string {
+	out := []string{}
+	for _, g := range ccGates {
+		if g.GateType != "" {
+			out = append(out, g.GateType)
+		}
+		if g.ChasePrefix != "" {
+			out = append(out, g.ChasePrefix)
+		}
+	}
+	return out
+}
+
+// RouteToolUsed cancels every tool's not-used chase/gate for the user (they
+// engaged), returning how many rows were cleared. Exported so it can be called
+// from the click handler (engagement-via-email) as well as tool-action events.
+func RouteToolUsed(ctx context.Context, s *store.PostgresStore, userID string) int {
+	cleared := 0
+	for _, prefix := range allNotUsedPrefixes() {
+		if n, err := s.CancelPendingEmailsByPrefix(ctx, userID, prefix); err == nil {
+			cleared += n
+		}
+	}
+	return cleared
+}
+
 // ScheduleCCChase enrols a gate's chase chain (exported for the scheduler).
 func ScheduleCCChase(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, chase []ccSequence) {
 	ScheduleCCSequence(ctx, s, userID, after, chase)
@@ -339,6 +404,16 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
 		return nil
 	}
+	// Router-only "used" events: a tool was used but there's no instant email to
+	// send (e.g. resume_used, internship_used). Just clear not-used chases.
+	if tf, isUsed := toolFlows[routingKey]; isUsed && tf.UsedStarter == "" {
+		if event.UserID != "" {
+			if n := RouteToolUsed(ctx, h.Store, event.UserID); n > 0 {
+				slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", event.UserID, "cleared", n)
+			}
+		}
+		return nil
+	}
 	templateName, ok := ccRoutingKeyToTemplate[routingKey]
 	if !ok {
 		slog.Warn("unknown cc routing key", "routing_key", routingKey)
@@ -389,17 +464,12 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
 			slog.Error("cc email: failed to record", "template", templateName, "error", err)
 		}
-		// Exit rule: using the outreach tool cancels both the pending engagement
-		// gate AND any already-enrolled not-used nudges, so a high-intent user
-		// never gets "did you try it?" emails.
-		if routingKey == "event.cc.outreach_used" {
-			if n, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_outreach_nudge"); err != nil {
-				slog.Error("cc email: failed to cancel not-used chain", "user_id", event.UserID, "error", err)
-			} else if n > 0 {
-				slog.Info("cc email: cancelled not-used chain on tool use", "user_id", event.UserID, "count", n)
-			}
-			if _, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_gate_outreach_notused"); err != nil {
-				slog.Error("cc email: failed to cancel engagement gate", "user_id", event.UserID, "error", err)
+		// Cross-tool exit rule: using ANY tool means the user engaged, so cancel
+		// every tool's not-used chase + gate (not just this one). A high-intent
+		// user never gets "did you try it?" emails for any tool once they act.
+		if _, isUsed := toolFlows[routingKey]; isUsed {
+			if n := RouteToolUsed(ctx, h.Store, event.UserID); n > 0 {
+				slog.Info("cc email: tool used, cleared not-used chases across tools", "user_id", event.UserID, "routing_key", routingKey, "cleared", n)
 			}
 		}
 		// Engagement-gated chase: the welcome was just sent. For any gated flow,
@@ -730,8 +800,14 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		return h.HandleCCPaid(ctx, &event)
 
 	default:
-		// Handle all event.cc.* routing keys generically (the new efficient flow)
-		if _, ok := ccRoutingKeyToTemplate[routingKey]; ok {
+		// Handle all event.cc.* routing keys generically (the new efficient flow):
+		// instant-email keys, deferred/spread starters, and router-only "used"
+		// events (which send no email but clear not-used chases).
+		_, isInstant := ccRoutingKeyToTemplate[routingKey]
+		_, isDeferred := ccDeferredStarters[routingKey]
+		_, isSpread := ccSpreadStarters[routingKey]
+		_, isUsed := toolFlows[routingKey]
+		if isInstant || isDeferred || isSpread || isUsed {
 			var event CCEmailEvent
 			if err := json.Unmarshal(body, &event); err != nil {
 				return err
