@@ -118,6 +118,15 @@ type flowOut struct {
 	Entered int           `json:"entered"` // sent count of the first step
 	Health  string        `json:"health"`  // idle | healthy | choke
 	Steps   []flowOutStep `json:"steps"`
+	// Flow-wide tracking summary (across all steps) for the dashboard.
+	TotalSent     int     `json:"total_sent"`
+	TotalOpened   int     `json:"total_opened"`
+	TotalClicked  int     `json:"total_clicked"`
+	TotalIgnored  int     `json:"total_ignored"` // sent but never opened
+	TotalPending  int     `json:"total_pending"` // still in flight
+	OpenRate      float64 `json:"open_rate"`
+	ClickRate     float64 `json:"click_rate"`
+	IgnoredRate   float64 `json:"ignored_rate"`
 }
 
 // HandleAdminFlows handles GET /v1/admin/flows — per-sequence funnel with opens,
@@ -150,6 +159,11 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 				os.OpenRate = float64(c.Opened) / float64(c.Sent) * 100
 				os.ClickRate = float64(c.Clicked) / float64(c.Sent) * 100
 			}
+			// Flow-wide totals.
+			fo.TotalSent += c.Sent
+			fo.TotalOpened += c.Opened
+			fo.TotalClicked += c.Clicked
+			fo.TotalPending += pend
 			if i == 0 {
 				fo.Entered = c.Sent
 			} else if prevSent > 0 {
@@ -165,6 +179,16 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 			}
 			prevSent = c.Sent
 			fo.Steps[i] = os
+		}
+		// Ignored = sent but never opened; rates across the whole flow.
+		fo.TotalIgnored = fo.TotalSent - fo.TotalOpened
+		if fo.TotalIgnored < 0 {
+			fo.TotalIgnored = 0
+		}
+		if fo.TotalSent > 0 {
+			fo.OpenRate = float64(fo.TotalOpened) / float64(fo.TotalSent) * 100
+			fo.ClickRate = float64(fo.TotalClicked) / float64(fo.TotalSent) * 100
+			fo.IgnoredRate = float64(fo.TotalIgnored) / float64(fo.TotalSent) * 100
 		}
 		if chokeIdx >= 0 && maxDrop >= 25 {
 			fo.Steps[chokeIdx].Choke = true

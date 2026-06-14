@@ -270,10 +270,37 @@
                         :class="{'bg-emerald-100 text-emerald-700':currentFlow().kind==='instant','bg-amber-100 text-amber-700':currentFlow().kind==='deferred','bg-blue-100 text-blue-700':currentFlow().kind==='spread','bg-violet-100 text-violet-700':currentFlow().kind==='coach'}"
                         x-text="currentFlow().kind"></span>
                 </div>
-                <p class="text-sm text-neutral-500 mb-6">
+                <p class="text-sm text-neutral-500 mb-4">
                   <span class="font-bold text-neutral-900" x-text="(currentFlow().entered||0).toLocaleString()"></span> entered ·
                   fires when <span x-text="triggerWhere(currentFlow().id)"></span>
                 </p>
+
+                <!-- Flow-wide tracking summary -->
+                <div class="grid grid-cols-5 gap-3 mb-6">
+                  <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
+                    <div class="text-[10px] font-bold tracking-wide text-neutral-500">SENT</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_sent||0).toLocaleString()"></div>
+                  </div>
+                  <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
+                    <div class="text-[10px] font-bold tracking-wide text-emerald-600">OPENED</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_opened||0).toLocaleString()"></div>
+                    <div class="text-[10px] text-neutral-400" x-text="(currentFlow().open_rate||0).toFixed(0)+'%'"></div>
+                  </div>
+                  <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
+                    <div class="text-[10px] font-bold tracking-wide text-violet-600">CLICKED</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_clicked||0).toLocaleString()"></div>
+                    <div class="text-[10px] text-neutral-400" x-text="(currentFlow().click_rate||0).toFixed(0)+'%'"></div>
+                  </div>
+                  <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
+                    <div class="text-[10px] font-bold tracking-wide text-rose-600">IGNORED</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_ignored||0).toLocaleString()"></div>
+                    <div class="text-[10px] text-neutral-400" x-text="(currentFlow().ignored_rate||0).toFixed(0)+'% never opened'"></div>
+                  </div>
+                  <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
+                    <div class="text-[10px] font-bold tracking-wide text-amber-600">IN FLIGHT</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_pending||0).toLocaleString()"></div>
+                  </div>
+                </div>
 
                 <!-- trigger node -->
                 <div class="flex justify-center mb-0">
