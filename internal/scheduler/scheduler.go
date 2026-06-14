@@ -168,33 +168,34 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	}
 
 	// Engagement gate: this row sends no email. When it comes due, enrol the
-	// not-used chase ONLY if the user has neither opened/clicked the welcome nor
-	// used the tool. Engagers never enter the chase.
-	if e.EmailType == handlers.CCGateOutreachNotUsed {
-		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, handlers.OutreachWelcomeType)
+	// flow's chase ONLY if the user hasn't opened/clicked the welcome (and, for
+	// outreach, hasn't used the tool — that cancels the gate in the handler).
+	// Works for every gated flow via the gate registry.
+	if _, welcomeType, _, chase, ok := handlers.GateByType(e.EmailType); ok {
+		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, welcomeType)
 		if err != nil {
 			slog.Warn("scheduler: gate engagement check failed, skipping enrol", "user_id", e.UserID, "err", err)
 			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 			return false
 		}
 		if engaged {
-			slog.Info("scheduler: user engaged with welcome, not enrolling chase", "user_id", e.UserID)
+			slog.Info("scheduler: user engaged with welcome, not enrolling chase", "user_id", e.UserID, "gate", e.EmailType)
 		} else {
-			handlers.ScheduleCCSequence(ctx, sc.Store, e.UserID, time.Now().UTC(), handlers.OutreachNotUsedNudges)
-			slog.Info("scheduler: no engagement, enrolled not-used chase", "user_id", e.UserID)
+			handlers.ScheduleCCChase(ctx, sc.Store, e.UserID, time.Now().UTC(), chase)
+			slog.Info("scheduler: no engagement, enrolled chase", "user_id", e.UserID, "gate", e.EmailType)
 		}
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return false
 	}
 
-	// Per-step re-check: before sending any not-used nudge, drop the rest if the
-	// user has since opened/clicked the welcome (product use already cancels the
-	// chain in the event handler).
-	if strings.HasPrefix(e.EmailType, "cc_outreach_nudge") {
-		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, handlers.OutreachWelcomeType)
+	// Per-step re-check: before sending any gated chase email, drop the rest if
+	// the user has since engaged with that flow's welcome. Each gate's chase has
+	// a known prefix and welcome template.
+	if prefix, welcomeType, found := handlers.ChaseFor(e.EmailType); found {
+		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, welcomeType)
 		if err == nil && engaged {
-			slog.Info("scheduler: user engaged since enrol, cancelling remaining nudges", "user_id", e.UserID)
-			_, _ = sc.Store.CancelPendingEmailsByPrefix(ctx, e.UserID, "cc_outreach_nudge")
+			slog.Info("scheduler: user engaged since enrol, cancelling remaining chase", "user_id", e.UserID, "prefix", prefix)
+			_, _ = sc.Store.CancelPendingEmailsByPrefix(ctx, e.UserID, prefix)
 			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 			return false
 		}

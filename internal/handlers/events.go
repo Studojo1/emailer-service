@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/studojo/emailer-service/internal/email"
@@ -117,22 +118,90 @@ func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID stri
 const hour = time.Hour
 const day = 24 * time.Hour
 
-// CCGateOutreachNotUsed is the email_type of the engagement-gate placeholder row
-// scheduled +7h after the Outreach welcome. It sends no email; when it comes due
-// the scheduler checks engagement and either enrols OutreachNotUsedNudges or drops.
+// CCGateOutreachNotUsed is kept for backwards-compat with any in-flight rows
+// scheduled under the old single-gate name; it maps to the outreach gate below.
 const CCGateOutreachNotUsed = "cc_gate_outreach_notused"
 
-// OutreachWelcomeType is the welcome template whose open/click counts as engagement.
+// OutreachWelcomeType is the welcome template whose open/click counts as engagement
+// for the outreach not-used gate (exported for the scheduler's legacy path).
 const OutreachWelcomeType = "cc-welcome-new-user"
 
-// OutreachNotUsedNudges is the chase chain enrolled by the engagement gate, with
-// delays measured from the gate firing (+7h after welcome), i.e. d1 sends right
-// when the gate resolves, the rest follow at the original cadence.
-var OutreachNotUsedNudges = []ccSequence{
-	{"cc_outreach_nudge_d1", 0},
-	{"cc_outreach_nudge_d2", 24 * hour},
-	{"cc_outreach_nudge_d3", 56 * hour},
-	{"cc_outreach_nudge_d4", 89 * hour},
+// ccGate describes one engagement-gated chase: after WelcomeType is sent, a gate
+// row (GateType) is scheduled +7h. When it comes due the scheduler enrols Chase
+// ONLY if the user has not opened/clicked the welcome and has not used the tool.
+// Each chase email also re-checks engagement (by ChasePrefix) before sending.
+type ccGate struct {
+	GateType    string       // email_type of the placeholder gate row (no email sent)
+	WelcomeType string       // template whose open/click counts as engagement
+	ChasePrefix string       // prefix of the chase emails (for cancel/re-check)
+	Chase       []ccSequence // chase steps, delays measured from the gate firing
+}
+
+// ccGates: every engagement-gated flow. The starter routing key triggers the
+// welcome instantly and schedules the gate; the gate enrols the chase if no
+// engagement. Add a flow here to make it gated — no scheduler change needed.
+var ccGates = map[string]ccGate{
+	// Outreach Dojo — not used
+	"event.cc.welcome_new_user": {
+		GateType:    "cc_gate_outreach_notused",
+		WelcomeType: "cc-welcome-new-user",
+		ChasePrefix: "cc_outreach_nudge",
+		Chase: []ccSequence{
+			{"cc_outreach_nudge_d1", 0},
+			{"cc_outreach_nudge_d2", 24 * hour},
+			{"cc_outreach_nudge_d3", 56 * hour},
+			{"cc_outreach_nudge_d4", 89 * hour},
+		},
+	},
+	// Career Coach — not started
+	"event.cc.welcome": {
+		GateType:    "cc_gate_coach_notstarted",
+		WelcomeType: "cc-welcome",
+		ChasePrefix: "cc_nudge",
+		Chase: []ccSequence{
+			{"cc_nudge_1", 0},
+			{"cc_nudge_2", 24 * hour},
+			{"cc_nudge_3", 48 * hour},
+		},
+	},
+}
+
+// gateByType lets the scheduler resolve a due gate row back to its config.
+var gateByType = func() map[string]ccGate {
+	m := map[string]ccGate{}
+	for _, g := range ccGates {
+		m[g.GateType] = g
+	}
+	return m
+}()
+
+// OutreachNotUsedNudges kept exported for the scheduler's legacy gate path.
+var OutreachNotUsedNudges = ccGates["event.cc.welcome_new_user"].Chase
+
+// GateByType is the exported resolver used by the scheduler.
+func GateByType(t string) (gateType, welcomeType, chasePrefix string, chase []ccSequence, ok bool) {
+	g, found := gateByType[t]
+	if !found {
+		return "", "", "", nil, false
+	}
+	return g.GateType, g.WelcomeType, g.ChasePrefix, g.Chase, true
+}
+
+// ScheduleCCChase enrols a gate's chase chain (exported for the scheduler).
+func ScheduleCCChase(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, chase []ccSequence) {
+	ScheduleCCSequence(ctx, s, userID, after, chase)
+}
+
+// ChaseFor resolves a chase email_type to its gate's ChasePrefix + WelcomeType,
+// so the scheduler can re-check engagement before each chase send. Matches by the
+// gate's ChasePrefix.
+func ChaseFor(emailType string) (prefix, welcomeType string, ok bool) {
+	for _, g := range ccGates {
+		if g.ChasePrefix != "" && strings.HasPrefix(emailType, g.ChasePrefix) {
+			return g.ChasePrefix, g.WelcomeType, true
+		}
+	}
+	return "", "", false
 }
 
 // ccSequenceStarters maps a sequence-starting routing key to the follow-up steps
@@ -152,12 +221,10 @@ var ccSequenceStarters = map[string][]ccSequence{
 		{"cc_outreach_convert1", 60 * hour},
 		{"cc_outreach_convert2", 75 * hour},
 	},
-	// Career Coach NOT started: off cc-welcome
-	"event.cc.welcome": {
-		{"cc_nudge_1", 8 * hour},
-		{"cc_nudge_2", 32 * hour},
-		{"cc_nudge_3", 56 * hour},
-	},
+	// Career Coach NOT started is now engagement-gated (see ccGates) — the chase
+	// is enrolled by the +7h gate only if the user hasn't engaged, so it is no
+	// longer scheduled up front here.
+
 	// Post-DNA sequence: off dna_ready
 	"event.cc.dna_ready": {
 		{"cc_dna_confirm_nudge", 2 * day},
@@ -331,18 +398,18 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 			} else if n > 0 {
 				slog.Info("cc email: cancelled not-used chain on tool use", "user_id", event.UserID, "count", n)
 			}
-			if _, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, CCGateOutreachNotUsed); err != nil {
+			if _, err := h.Store.CancelPendingEmailsByPrefix(ctx, event.UserID, "cc_gate_outreach_notused"); err != nil {
 				slog.Error("cc email: failed to cancel engagement gate", "user_id", event.UserID, "error", err)
 			}
 		}
-		// Engagement-gated chase: the welcome itself was just sent. Instead of
-		// scheduling the nudges now, schedule a single gate check (+7h). When the
-		// gate comes due the scheduler enrols the nudges only if the user has NOT
-		// opened/clicked the welcome and has NOT used the tool. Engagers never
-		// enter the chase. All other sequences schedule their steps as before.
-		if routingKey == "event.cc.welcome_new_user" {
-			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, CCGateOutreachNotUsed, time.Now().UTC().Add(7*hour)); err != nil {
-				slog.Error("cc email: failed to schedule engagement gate", "user_id", event.UserID, "error", err)
+		// Engagement-gated chase: the welcome was just sent. For any gated flow,
+		// schedule a single gate check (+7h) instead of the chase. When the gate
+		// comes due the scheduler enrols the chase only if the user has NOT
+		// opened/clicked the welcome (and, for outreach, not used the tool).
+		// Non-gated flows schedule their follow-up steps immediately as before.
+		if gate, gated := ccGates[routingKey]; gated {
+			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, gate.GateType, time.Now().UTC().Add(7*hour)); err != nil {
+				slog.Error("cc email: failed to schedule engagement gate", "user_id", event.UserID, "gate", gate.GateType, "error", err)
 			}
 		} else if steps, ok := ccSequenceStarters[routingKey]; ok {
 			ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
