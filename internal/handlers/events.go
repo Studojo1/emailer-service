@@ -406,10 +406,18 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 	}
 	// Router-only "used" events: a tool was used but there's no instant email to
 	// send (e.g. resume_used, internship_used). Just clear not-used chases.
+	// Resolve the user by id, falling back to email so a caller that only sends
+	// an email still routes correctly.
 	if tf, isUsed := toolFlows[routingKey]; isUsed && tf.UsedStarter == "" {
-		if event.UserID != "" {
-			if n := RouteToolUsed(ctx, h.Store, event.UserID); n > 0 {
-				slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", event.UserID, "cleared", n)
+		uid := event.UserID
+		if uid == "" && event.Email != "" {
+			if u, err := h.Store.GetUserByEmail(ctx, event.Email); err == nil && u != nil {
+				uid = u.ID
+			}
+		}
+		if uid != "" {
+			if n := RouteToolUsed(ctx, h.Store, uid); n > 0 {
+				slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", uid, "cleared", n)
 			}
 		}
 		return nil
