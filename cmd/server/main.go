@@ -302,6 +302,16 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_email_clicks_email_type ON email_clicks (email_type);
 		CREATE INDEX IF NOT EXISTS idx_email_clicks_email ON email_clicks (email);
+		CREATE TABLE IF NOT EXISTS tool_used (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id TEXT NOT NULL DEFAULT '',
+			email TEXT NOT NULL DEFAULT '',
+			tool TEXT NOT NULL DEFAULT '',            -- outreach | resume | internship | coach
+			source TEXT NOT NULL DEFAULT '',          -- email | direct (attribution)
+			used_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_tool_used_user ON tool_used (user_id);
+		CREATE INDEX IF NOT EXISTS idx_tool_used_tool ON tool_used (tool);
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)

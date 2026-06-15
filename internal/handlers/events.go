@@ -410,12 +410,17 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 	// an email still routes correctly.
 	if tf, isUsed := toolFlows[routingKey]; isUsed && tf.UsedStarter == "" {
 		uid := event.UserID
-		if uid == "" && event.Email != "" {
-			if u, err := h.Store.GetUserByEmail(ctx, event.Email); err == nil && u != nil {
+		em := event.Email
+		if uid == "" && em != "" {
+			if u, err := h.Store.GetUserByEmail(ctx, em); err == nil && u != nil {
 				uid = u.ID
 			}
 		}
 		if uid != "" {
+			// Record the use with attribution (email vs direct) before clearing.
+			if err := h.Store.RecordToolUsed(ctx, uid, em, tf.Name); err != nil {
+				slog.Warn("tool used: record failed", "tool", tf.Name, "user_id", uid, "err", err)
+			}
 			if n := RouteToolUsed(ctx, h.Store, uid); n > 0 {
 				slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", uid, "cleared", n)
 			}
@@ -475,7 +480,10 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		// Cross-tool exit rule: using ANY tool means the user engaged, so cancel
 		// every tool's not-used chase + gate (not just this one). A high-intent
 		// user never gets "did you try it?" emails for any tool once they act.
-		if _, isUsed := toolFlows[routingKey]; isUsed {
+		if tf, isUsed := toolFlows[routingKey]; isUsed {
+			if err := h.Store.RecordToolUsed(ctx, event.UserID, event.Email, tf.Name); err != nil {
+				slog.Warn("cc email: tool-used record failed", "tool", tf.Name, "user_id", event.UserID, "err", err)
+			}
 			if n := RouteToolUsed(ctx, h.Store, event.UserID); n > 0 {
 				slog.Info("cc email: tool used, cleared not-used chases across tools", "user_id", event.UserID, "routing_key", routingKey, "cleared", n)
 			}

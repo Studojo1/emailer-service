@@ -221,6 +221,44 @@
               </tbody>
             </table>
           </div>
+
+          <!-- Tool usage & attribution: did they use the tool via the email or directly? -->
+          <div class="flex items-center justify-between mb-3 mt-8">
+            <h3 class="font-bold text-neutral-900">Tool usage &amp; attribution</h3>
+            <span class="text-xs text-neutral-400">Of people who used a tool after a mail went out — did they come via the email (clicked it first) or directly?</span>
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50">
+                <tr class="text-xs text-slate-500 text-left">
+                  <th class="px-5 py-3 font-medium">Tool</th>
+                  <th class="px-5 py-3 font-medium">Used (total)</th>
+                  <th class="px-5 py-3 font-medium">Via email</th>
+                  <th class="px-5 py-3 font-medium">Direct</th>
+                  <th class="px-5 py-3 font-medium">Email-driven %</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="t in ['outreach','resume','internship','coach']" :key="t">
+                  <tr class="table-row">
+                    <td class="px-5 py-3">
+                      <span class="inline-flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full" :style="`background:${toolColor(t)}`"></span>
+                        <span class="font-medium text-slate-800 capitalize" x-text="t"></span>
+                      </span>
+                    </td>
+                    <td class="px-5 py-3 font-bold text-slate-900" x-text="((toolUsed[t]||{}).total||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-violet-700 font-semibold" x-text="((toolUsed[t]||{}).via_email||0).toLocaleString()"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="((toolUsed[t]||{}).direct||0).toLocaleString()"></td>
+                    <td class="px-5 py-3">
+                      <span class="badge bg-violet-50 text-violet-700" x-text="emailDrivenPct(t)+'%'"></span>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="!Object.keys(toolUsed||{}).length"><td colspan="5" class="px-5 py-8 text-center text-sm text-slate-400">No tool usage recorded yet (records from now on).</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1008,7 +1046,7 @@ function app() {
 
     // Flows (funnel + choke points)
     flows: [], flowsLoading: false, activeGroup: null, activeFlow: null,
-    signups: null, signupFlows: [], signupsLoading: false,
+    signups: null, signupFlows: [], signupsLoading: false, toolUsed: {},
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -1154,7 +1192,7 @@ function app() {
       this.signupsLoading = true
       try {
         const r = await this.api('GET', '/v1/admin/signups')
-        if (r.ok) { const d = await r.json(); this.signups = d.signups || {}; this.signupFlows = d.flows || [] }
+        if (r.ok) { const d = await r.json(); this.signups = d.signups || {}; this.signupFlows = d.flows || []; this.toolUsed = d.tool_used || {} }
       } finally { this.signupsLoading = false }
     },
 
@@ -1162,6 +1200,17 @@ function app() {
     flowFirstTemplate(id) {
       const f = (this.flows||[]).find(f=>f.id===id)
       return f && f.steps && f.steps[0] ? f.steps[0].template : ''
+    },
+
+    // Colour per tool for the attribution table.
+    toolColor(t) {
+      return { outreach:'#7c3aed', resume:'#2563eb', internship:'#d97706', coach:'#16a34a' }[t] || '#94a3b8'
+    },
+    // % of tool users who came via the email (clicked it) vs directly.
+    emailDrivenPct(t) {
+      const s = this.toolUsed[t] || {}
+      const total = s.total || 0
+      return total ? Math.round((s.via_email||0)/total*100) : 0
     },
     // open the sidebar group that contains a flow id (used when jumping from
     // the signups table into the Flows chart).

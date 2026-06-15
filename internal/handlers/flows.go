@@ -245,5 +245,13 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 			Total: row.Total, Last24h: row.Last24h, Last7d: row.Last7d, Last30d: row.Last30d,
 		})
 	}
-	writeJSON(w, map[string]interface{}{"signups": windows, "flows": out}, http.StatusOK)
+
+	// Per-tool usage with attribution (used via email vs direct).
+	toolStats, _ := h.Store.GetToolUsedStats(ctx)
+
+	writeJSON(w, map[string]interface{}{
+		"signups":   windows,
+		"flows":     out,
+		"tool_used": toolStats,
+	}, http.StatusOK)
 }
