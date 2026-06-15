@@ -292,6 +292,13 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_email_opens_email_type ON email_opens (email_type);
 		CREATE INDEX IF NOT EXISTS idx_email_opens_user_id ON email_opens (user_id);
+		-- Identity honesty: the open pixel's track_id carries the EMAIL, so the
+		-- legacy user_id column actually holds emails. Add a correctly-named email
+		-- column, backfill from the legacy column, and index it. Reads switch to
+		-- email; user_id is kept (still written) until the backfill is verified.
+		ALTER TABLE email_opens ADD COLUMN IF NOT EXISTS email TEXT NOT NULL DEFAULT '';
+		UPDATE email_opens SET email = user_id WHERE email = '' AND user_id <> '';
+		CREATE INDEX IF NOT EXISTS idx_email_opens_email ON email_opens (email);
 		CREATE TABLE IF NOT EXISTS email_clicks (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			track_id TEXT NOT NULL UNIQUE,

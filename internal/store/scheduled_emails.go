@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // ScheduledEmail represents a scheduled nurture email
@@ -269,6 +270,25 @@ func (s *PostgresStore) CancelPendingEmailsByPrefix(ctx context.Context, userID,
 		UPDATE scheduled_emails SET sent_at = NOW()
 		WHERE user_id = $1 AND sent_at IS NULL AND email_type LIKE $2`,
 		userID, prefix+"%")
+	if err != nil {
+		return 0, err
+	}
+	n, _ := result.RowsAffected()
+	return int(n), nil
+}
+
+// CancelPendingEmailsByTypes cancels unsent rows whose email_type is in an
+// EXPLICIT set — used for cross-tool chase cancellation so we only ever touch
+// the precise not-used gate + chase email_types, never a value-delivery email
+// that merely shares a prefix.
+func (s *PostgresStore) CancelPendingEmailsByTypes(ctx context.Context, userID string, types []string) (int, error) {
+	if len(types) == 0 {
+		return 0, nil
+	}
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE scheduled_emails SET sent_at = NOW()
+		WHERE user_id = $1 AND sent_at IS NULL AND email_type = ANY($2)`,
+		userID, pq.Array(types))
 	if err != nil {
 		return 0, err
 	}

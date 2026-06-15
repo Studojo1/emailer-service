@@ -267,6 +267,17 @@
       <div x-show="page==='flows'">
         <div x-show="flowsLoading && flows.length===0" class="text-sm text-slate-500 py-10 text-center">Loading flows…</div>
 
+        <!-- Window toggle: scope all funnel numbers to a rolling window -->
+        <div class="flex items-center gap-2 mb-4">
+          <span class="text-xs text-neutral-500">Window:</span>
+          <template x-for="w in [{v:'',l:'All time'},{v:'24h',l:'Last 24h'},{v:'7d',l:'Last 7d'},{v:'30d',l:'Last 30d'}]" :key="w.v">
+            <button @click="flowWindow = w.v; loadFlows()"
+                    class="text-xs font-semibold px-3 py-1 rounded-full border-2 transition-all"
+                    :class="flowWindow===w.v ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400'"
+                    x-text="w.l"></button>
+          </template>
+        </div>
+
         <div x-show="!flowsLoading || flows.length>0" class="flex gap-6 items-start">
           <!-- LEFT: flow groups -->
           <div class="w-64 flex-shrink-0 space-y-2.5">
@@ -330,9 +341,9 @@
                     <div class="text-[10px] text-neutral-400" x-text="(currentFlow().click_rate||0).toFixed(0)+'%'"></div>
                   </div>
                   <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
-                    <div class="text-[10px] font-bold tracking-wide text-rose-600">IGNORED</div>
-                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_ignored||0).toLocaleString()"></div>
-                    <div class="text-[10px] text-neutral-400" x-text="(currentFlow().ignored_rate||0).toFixed(0)+'% never opened'"></div>
+                    <div class="text-[10px] font-bold tracking-wide text-rose-600">UNOPENED</div>
+                    <div class="text-xl font-extrabold text-neutral-900" x-text="(currentFlow().total_unopened||0).toLocaleString()"></div>
+                    <div class="text-[10px] text-neutral-400" x-text="(currentFlow().unopened_rate||0).toFixed(0)+'% no open yet'"></div>
                   </div>
                   <div class="rounded-xl border-2 border-neutral-900 bg-white p-3">
                     <div class="text-[10px] font-bold tracking-wide text-amber-600">IN FLIGHT</div>
@@ -1045,7 +1056,7 @@ function app() {
     page: 'flows',
 
     // Flows (funnel + choke points)
-    flows: [], flowsLoading: false, activeGroup: null, activeFlow: null,
+    flows: [], flowsLoading: false, activeGroup: null, activeFlow: null, flowWindow: '',
     signups: null, signupFlows: [], signupsLoading: false, toolUsed: {},
 
     // Overview
@@ -1179,7 +1190,8 @@ function app() {
     async loadFlows() {
       this.flowsLoading = true
       try {
-        const r = await this.api('GET', '/v1/admin/flows')
+        const qs = this.flowWindow ? ('?window=' + encodeURIComponent(this.flowWindow)) : ''
+        const r = await this.api('GET', '/v1/admin/flows' + qs)
         if (r.ok) {
           const d = await r.json(); this.flows = d.flows || []
           // Default-select the first group/flow so the canvas isn't empty.

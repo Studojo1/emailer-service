@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -28,17 +27,14 @@ func (s *PostgresStore) RecordEmailClick(ctx context.Context, trackID, email, em
 //
 // Product-action usage (e.g. event.cc.outreach_used) cancels the chase separately
 // in the event handler, so this only needs to cover the email-engagement half.
+//
+// Thin wrapper over the single engagement source of truth (GetEngagement), so
+// "engaged" has exactly one definition shared by the gate, attribution, and the
+// dashboard.
 func (s *PostgresStore) HasEngagedWithWelcome(ctx context.Context, email, welcomeType string) (bool, error) {
-	email = strings.ToLower(strings.TrimSpace(email))
-	var n int
-	err := s.db.QueryRowContext(ctx, `
-		SELECT
-		  (SELECT COUNT(*) FROM email_opens  WHERE lower(user_id) = $1 AND email_type = $2)
-		+ (SELECT COUNT(*) FROM email_clicks WHERE lower(email)   = $1 AND email_type = $2)`,
-		email, welcomeType,
-	).Scan(&n)
+	eng, err := s.GetEngagement(ctx, email)
 	if err != nil {
 		return false, err
 	}
-	return n > 0, nil
+	return eng.EngagedWithType(welcomeType), nil
 }
