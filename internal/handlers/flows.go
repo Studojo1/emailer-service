@@ -122,11 +122,11 @@ type flowOut struct {
 	TotalSent     int     `json:"total_sent"`
 	TotalOpened   int     `json:"total_opened"`
 	TotalClicked  int     `json:"total_clicked"`
-	TotalIgnored  int     `json:"total_ignored"` // sent but never opened
-	TotalPending  int     `json:"total_pending"` // still in flight
+	TotalUnopened int     `json:"total_unopened"` // sent but no open recorded (NOT "ignored" — may be not-opened-yet)
+	TotalPending  int     `json:"total_pending"`  // still in flight
 	OpenRate      float64 `json:"open_rate"`
 	ClickRate     float64 `json:"click_rate"`
-	IgnoredRate   float64 `json:"ignored_rate"`
+	UnopenedRate  float64 `json:"unopened_rate"`
 }
 
 // HandleAdminFlows handles GET /v1/admin/flows — per-sequence funnel with opens,
@@ -135,7 +135,8 @@ type flowOut struct {
 // gap is NOT just emails still waiting in the queue).
 func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	counts, err := h.Store.GetSendCountsByTemplate(ctx)
+	sinceDays := parseWindowDays(r.URL.Query().Get("window")) // "", "24h", "7d", "30d" -> 0/1/7/30
+	counts, err := h.Store.GetSendCountsByTemplate(ctx, sinceDays)
 	if err != nil {
 		writeError(w, "failed to load send counts", http.StatusInternalServerError)
 		return
@@ -180,27 +181,45 @@ func (h *Handler) HandleAdminFlows(w http.ResponseWriter, r *http.Request) {
 			prevSent = c.Sent
 			fo.Steps[i] = os
 		}
-		// Ignored = sent but never opened; rates across the whole flow.
-		fo.TotalIgnored = fo.TotalSent - fo.TotalOpened
-		if fo.TotalIgnored < 0 {
-			fo.TotalIgnored = 0
+		// Unopened = sent minus opened. NOT "ignored": within the window many are
+		// simply not-opened-yet. Labelled honestly on the dashboard.
+		fo.TotalUnopened = fo.TotalSent - fo.TotalOpened
+		if fo.TotalUnopened < 0 {
+			fo.TotalUnopened = 0
 		}
 		if fo.TotalSent > 0 {
 			fo.OpenRate = float64(fo.TotalOpened) / float64(fo.TotalSent) * 100
 			fo.ClickRate = float64(fo.TotalClicked) / float64(fo.TotalSent) * 100
-			fo.IgnoredRate = float64(fo.TotalIgnored) / float64(fo.TotalSent) * 100
+			fo.UnopenedRate = float64(fo.TotalUnopened) / float64(fo.TotalSent) * 100
 		}
+		// Health is now window-aware: counts are already restricted to the
+		// requested window, so "healthy" means activity IN the window, not all-time.
 		if chokeIdx >= 0 && maxDrop >= 25 {
 			fo.Steps[chokeIdx].Choke = true
 			fo.Health = "choke"
-		} else if fo.Entered > 0 {
+		} else if fo.TotalSent > 0 {
 			fo.Health = "healthy"
 		} else {
 			fo.Health = "idle"
 		}
 		out = append(out, fo)
 	}
-	writeJSON(w, map[string]interface{}{"flows": out}, http.StatusOK)
+	writeJSON(w, map[string]interface{}{"flows": out, "window": sinceDays}, http.StatusOK)
+}
+
+// parseWindowDays maps the dashboard window param to a rolling-window day count.
+// "" or "all" -> 0 (all-time); "24h" -> 1; "7d" -> 7; "30d" -> 30.
+func parseWindowDays(w string) int {
+	switch w {
+	case "24h", "1d":
+		return 1
+	case "7d":
+		return 7
+	case "30d":
+		return 30
+	default:
+		return 0
+	}
 }
 
 // HandleAdminSignups handles GET /v1/admin/signups — signup counts by rolling

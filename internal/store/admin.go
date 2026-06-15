@@ -341,11 +341,22 @@ type TemplateStat struct {
 // (both keyed by email_type = the same hyphen template name) — these are the
 // authoritative engagement tables, counted by distinct recipient so a single
 // user opening twice counts once.
-func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string]TemplateStat, error) {
+// GetSendCountsByTemplate returns sent/opened/clicked per template. sinceDays>0
+// restricts every count to that rolling window (so "is it working now" is
+// answerable); sinceDays<=0 is all-time.
+func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context, sinceDays int) (map[string]TemplateStat, error) {
 	out := map[string]TemplateStat{}
 
+	// Build a per-table time predicate. %s is the table's timestamp column.
+	pred := func(col string) string {
+		if sinceDays > 0 {
+			return fmt.Sprintf("WHERE %s >= NOW() - INTERVAL '%d days'", col, sinceDays)
+		}
+		return ""
+	}
+
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT template_name, COUNT(*) AS sent FROM email_send_log GROUP BY template_name`)
+		SELECT template_name, COUNT(*) AS sent FROM email_send_log `+pred("sent_at")+` GROUP BY template_name`)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +371,7 @@ func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string
 
 	// Opens — distinct recipients per template (keyed on the email column now).
 	oRows, err := s.db.QueryContext(ctx, `
-		SELECT email_type, COUNT(DISTINCT email) FROM email_opens GROUP BY email_type`)
+		SELECT email_type, COUNT(DISTINCT email) FROM email_opens `+pred("opened_at")+` GROUP BY email_type`)
 	if err == nil {
 		for oRows.Next() {
 			var t string
@@ -376,7 +387,7 @@ func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string
 
 	// Clicks — distinct recipients per template.
 	cRows, err := s.db.QueryContext(ctx, `
-		SELECT email_type, COUNT(DISTINCT email) FROM email_clicks GROUP BY email_type`)
+		SELECT email_type, COUNT(DISTINCT email) FROM email_clicks `+pred("clicked_at")+` GROUP BY email_type`)
 	if err == nil {
 		for cRows.Next() {
 			var t string
