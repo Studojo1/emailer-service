@@ -180,10 +180,17 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		}
 		if engaged {
 			slog.Info("scheduler: user engaged with welcome, not enrolling chase", "user_id", e.UserID, "gate", e.EmailType)
-		} else {
-			handlers.ScheduleCCChase(ctx, sc.Store, e.UserID, time.Now().UTC(), chase)
-			slog.Info("scheduler: no engagement, enrolled chase", "user_id", e.UserID, "gate", e.EmailType)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
 		}
+		// Not engaged: enrol the chase. Only consume the gate row if enrolment
+		// actually landed — otherwise leave it pending so the next tick retries,
+		// rather than silently dropping the user out of the chase forever.
+		if err := handlers.ScheduleCCChase(ctx, sc.Store, e.UserID, time.Now().UTC(), chase); err != nil {
+			slog.Error("scheduler: chase enrolment failed, leaving gate pending for retry", "user_id", e.UserID, "gate", e.EmailType, "err", err)
+			return false
+		}
+		slog.Info("scheduler: no engagement, enrolled chase", "user_id", e.UserID, "gate", e.EmailType)
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return false
 	}

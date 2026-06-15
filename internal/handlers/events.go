@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -99,11 +100,17 @@ type ccSequence struct {
 
 // ScheduleCCSequence queues a list of cc sequence steps into scheduled_emails with
 // per-type dedup. Mirrors ScheduleFunnelSequence. Safe to call repeatedly.
-func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, steps []ccSequence) {
+// ScheduleCCSequence queues each step. Returns an error if ANY step failed to
+// schedule (a dedup-check error or an insert error), so callers like the gate
+// can avoid consuming their placeholder row when enrolment didn't actually land.
+// A step that already exists (dedup hit) is NOT an error.
+func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, steps []ccSequence) error {
+	var failed int
 	for _, step := range steps {
 		exists, err := s.HasScheduledOrReceivedEmail(ctx, userID, step.emailType)
 		if err != nil {
 			slog.Error("cc sequence: dedup check failed", "type", step.emailType, "user_id", userID, "error", err)
+			failed++
 			continue
 		}
 		if exists {
@@ -111,8 +118,13 @@ func ScheduleCCSequence(ctx context.Context, s *store.PostgresStore, userID stri
 		}
 		if err := s.CreateScheduledEmail(ctx, userID, step.emailType, after.Add(step.delay)); err != nil {
 			slog.Error("cc sequence: schedule failed", "type", step.emailType, "user_id", userID, "error", err)
+			failed++
 		}
 	}
+	if failed > 0 {
+		return fmt.Errorf("cc sequence: %d of %d steps failed to schedule", failed, len(steps))
+	}
+	return nil
 }
 
 const hour = time.Hour
@@ -224,37 +236,37 @@ var toolFlows = map[string]toolFlow{
 	},
 }
 
-// allNotUsedPrefixes lists every tool's not-used gate + chase prefixes, so any
-// tool-use can clear chases the user is in for OTHER tools too.
-func allNotUsedPrefixes() []string {
+// allNotUsedTypes lists the EXACT email_types of every tool's not-used gate row
+// and every chase step, so cross-tool cancellation only ever touches the precise
+// "did you start?" emails — never a value-delivery email (DNA, roadmap, push,
+// convert) that merely shares a prefix. Built from the gate registry.
+func allNotUsedTypes() []string {
 	out := []string{}
 	for _, g := range ccGates {
 		if g.GateType != "" {
 			out = append(out, g.GateType)
 		}
-		if g.ChasePrefix != "" {
-			out = append(out, g.ChasePrefix)
+		for _, step := range g.Chase {
+			out = append(out, step.emailType)
 		}
 	}
 	return out
 }
 
-// RouteToolUsed cancels every tool's not-used chase/gate for the user (they
-// engaged), returning how many rows were cleared. Exported so it can be called
-// from the click handler (engagement-via-email) as well as tool-action events.
+// RouteToolUsed cancels every tool's not-used gate + chase rows for the user
+// (they engaged somewhere), returning how many rows were cleared. Exported so it
+// can be called from the click handler (engagement-via-email) and tool events.
 func RouteToolUsed(ctx context.Context, s *store.PostgresStore, userID string) int {
-	cleared := 0
-	for _, prefix := range allNotUsedPrefixes() {
-		if n, err := s.CancelPendingEmailsByPrefix(ctx, userID, prefix); err == nil {
-			cleared += n
-		}
+	n, err := s.CancelPendingEmailsByTypes(ctx, userID, allNotUsedTypes())
+	if err != nil {
+		return 0
 	}
-	return cleared
+	return n
 }
 
 // ScheduleCCChase enrols a gate's chase chain (exported for the scheduler).
-func ScheduleCCChase(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, chase []ccSequence) {
-	ScheduleCCSequence(ctx, s, userID, after, chase)
+func ScheduleCCChase(ctx context.Context, s *store.PostgresStore, userID string, after time.Time, chase []ccSequence) error {
+	return ScheduleCCSequence(ctx, s, userID, after, chase)
 }
 
 // ChaseFor resolves a chase email_type to its gate's ChasePrefix + WelcomeType,
@@ -459,6 +471,16 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		} else if already {
 			slog.Info("cc email: already sent, skipping", "user_id", event.UserID, "template", templateName)
 			return nil
+		}
+		// For gated welcomes, also skip if a gate row is already pending — the
+		// welcome was sent within the last 7h (the welcome row is marked sent, but
+		// HasReceivedEmail on the template alone could miss a same-window re-fire
+		// once cleanup races). The pending gate is the definitive "already started".
+		if gate, gated := ccGates[routingKey]; gated {
+			if pending, err := h.Store.HasScheduledOrReceivedEmail(ctx, event.UserID, gate.GateType); err == nil && pending {
+				slog.Info("cc email: gate already pending/done, skipping duplicate welcome", "user_id", event.UserID, "gate", gate.GateType)
+				return nil
+			}
 		}
 	}
 

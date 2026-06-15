@@ -33,8 +33,8 @@ func (s *PostgresStore) HasEngagedWithWelcome(ctx context.Context, email, welcom
 	var n int
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
-		  (SELECT COUNT(*) FROM email_opens  WHERE lower(user_id) = $1 AND email_type = $2)
-		+ (SELECT COUNT(*) FROM email_clicks WHERE lower(email)   = $1 AND email_type = $2)`,
+		  (SELECT COUNT(DISTINCT lower(user_id)) FROM email_opens  WHERE lower(user_id) = $1 AND email_type = $2)
+		+ (SELECT COUNT(DISTINCT lower(email))   FROM email_clicks WHERE lower(email)   = $1 AND email_type = $2)`,
 		email, welcomeType,
 	).Scan(&n)
 	if err != nil {
