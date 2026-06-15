@@ -384,79 +384,137 @@ var ccSpreadStarters = map[string][]ccSequence{
 	},
 }
 
-// HandleCCEmail handles all event.cc.* events. Instant-send keys send their email
-// now and schedule any follow-ups; deferred-start keys send nothing now and
-// schedule the whole sequence with a delay; spread-start (old-user) keys place
-// the first email at the next per-day spread slot so big dormant batches cascade.
-func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, event *CCEmailEvent) error {
-	// Spread starters (old-user re-engagement): cascade across days under a cap,
-	// using only the room new-user mail leaves free.
-	if steps, ok := ccSpreadStarters[routingKey]; ok {
-		if event.UserID == "" {
-			slog.Warn("cc spread email: missing user_id, cannot schedule", "routing_key", routingKey)
-			return nil
-		}
-		start, err := h.Store.NextSpreadSlot(ctx, "cc_old_", ccOldUserPerDay(), time.Now().UTC())
-		if err != nil {
-			slog.Error("cc spread: failed to find slot, scheduling now", "error", err)
-			start = time.Now().UTC()
-		}
-		ScheduleCCSequence(ctx, h.Store, event.UserID, start, steps)
-		slog.Info("cc old-user sequence scheduled (spread)", "routing_key", routingKey, "user_id", event.UserID, "first_at", start)
-		return nil
-	}
+// ccKind is the routing class of an event.cc.* key. It is derived ONCE from the
+// flow registries below by flowKind(), so the dispatch in HandleCCEmail is a
+// single switch over the kind rather than a chain of ad-hoc map lookups. Adding
+// a flow = adding it to the relevant registry; the kind (and thus the handling)
+// follows automatically.
+type ccKind int
 
-	// Deferred starters: schedule the sequence, send nothing now.
-	if steps, ok := ccDeferredStarters[routingKey]; ok {
-		if event.UserID == "" {
-			slog.Warn("cc deferred email: missing user_id, cannot schedule", "routing_key", routingKey)
-			return nil
-		}
-		ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
-		slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
-		return nil
+const (
+	kindUnknown      ccKind = iota
+	kindSpread              // old-user: schedule at next per-day spread slot, no instant
+	kindDeferred            // schedule the whole sequence with a delay, no instant
+	kindResumeImport        // special: record resume use, route to coach welcome
+	kindRouterOnly          // tool-used signal: no email, just clear not-used chases
+	kindInstant             // send the mapped template now (+ gate/sequence follow-ups)
+)
+
+// flowKind classifies a routing key into exactly one ccKind using the existing
+// registries. This is the single routing table; HandleCCEmail switches on it.
+func flowKind(routingKey string) ccKind {
+	if _, ok := ccSpreadStarters[routingKey]; ok {
+		return kindSpread
 	}
-	// Imported an EXISTING resume: they don't need the maker, they need
-	// direction. Record resume use (engagement) + route them into the Career
-	// Coach welcome flow instead of the resume flow.
+	if _, ok := ccDeferredStarters[routingKey]; ok {
+		return kindDeferred
+	}
 	if routingKey == "event.cc.resume_imported_existing" {
-		uid := event.UserID
-		if uid == "" && event.Email != "" {
-			if u, err := h.Store.GetUserByEmail(ctx, event.Email); err == nil && u != nil {
-				uid = u.ID
-			}
-		}
-		if uid != "" {
-			_ = h.Store.RecordToolUsed(ctx, uid, event.Email, "resume")
-			RouteToolUsed(ctx, h.Store, uid) // they engaged — clear not-used chases
-		}
-		// Guide to coach: run the coach welcome flow (gated, dedup-safe).
-		return h.HandleCCEmail(ctx, "event.cc.welcome", event)
+		return kindResumeImport
 	}
+	if tf, ok := toolFlows[routingKey]; ok && tf.UsedStarter == "" {
+		return kindRouterOnly
+	}
+	if _, ok := ccRoutingKeyToTemplate[routingKey]; ok {
+		return kindInstant
+	}
+	return kindUnknown
+}
 
-	// Router-only "used" events: a tool was used but there's no instant email to
-	// send (e.g. resume_used, internship_used). Just clear not-used chases.
-	// Resolve the user by id, falling back to email so a caller that only sends
-	// an email still routes correctly.
-	if tf, isUsed := toolFlows[routingKey]; isUsed && tf.UsedStarter == "" {
-		uid := event.UserID
-		em := event.Email
-		if uid == "" && em != "" {
-			if u, err := h.Store.GetUserByEmail(ctx, em); err == nil && u != nil {
-				uid = u.ID
-			}
-		}
-		if uid != "" {
-			// Record the use with attribution (email vs direct) before clearing.
-			if err := h.Store.RecordToolUsed(ctx, uid, em, tf.Name); err != nil {
-				slog.Warn("tool used: record failed", "tool", tf.Name, "user_id", uid, "err", err)
-			}
-			if n := RouteToolUsed(ctx, h.Store, uid); n > 0 {
-				slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", uid, "cleared", n)
-			}
-		}
+// HandleCCEmail handles all event.cc.* events. The kind (from flowKind) decides
+// the path: spread (old-user, per-day slot), deferred (delayed sequence, no
+// instant), resume-import (route to coach), router-only (tool-used, clear
+// chases), or instant (send template now + gate/sequence follow-ups).
+func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	switch flowKind(routingKey) {
+	case kindSpread:
+		return h.handleSpread(ctx, routingKey, event)
+	case kindDeferred:
+		return h.handleDeferred(ctx, routingKey, event)
+	case kindResumeImport:
+		return h.handleResumeImport(ctx, event)
+	case kindRouterOnly:
+		return h.handleRouterOnly(ctx, routingKey, event)
+	case kindInstant:
+		return h.handleInstant(ctx, routingKey, event)
+	default:
+		slog.Warn("unknown cc routing key", "routing_key", routingKey)
 		return nil
 	}
+}
+
+// handleInstant is the original instant-send path (template now + gate/sequence
+// follow-ups). Kept as the bulk of the prior HandleCCEmail body.
+// handleSpread schedules an old-user sequence at the next per-day spread slot.
+func (h *EventHandler) handleSpread(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	steps := ccSpreadStarters[routingKey]
+	if event.UserID == "" {
+		slog.Warn("cc spread email: missing user_id, cannot schedule", "routing_key", routingKey)
+		return nil
+	}
+	start, err := h.Store.NextSpreadSlot(ctx, "cc_old_", ccOldUserPerDay(), time.Now().UTC())
+	if err != nil {
+		slog.Error("cc spread: failed to find slot, scheduling now", "error", err)
+		start = time.Now().UTC()
+	}
+	ScheduleCCSequence(ctx, h.Store, event.UserID, start, steps)
+	slog.Info("cc old-user sequence scheduled (spread)", "routing_key", routingKey, "user_id", event.UserID, "first_at", start)
+	return nil
+}
+
+// handleDeferred schedules a whole sequence with a delay, sending nothing now.
+func (h *EventHandler) handleDeferred(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	steps := ccDeferredStarters[routingKey]
+	if event.UserID == "" {
+		slog.Warn("cc deferred email: missing user_id, cannot schedule", "routing_key", routingKey)
+		return nil
+	}
+	ScheduleCCSequence(ctx, h.Store, event.UserID, time.Now().UTC(), steps)
+	slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
+	return nil
+}
+
+// handleResumeImport: they uploaded an EXISTING resume, so they need direction,
+// not the maker. Record resume use, clear not-used chases, route to coach.
+func (h *EventHandler) handleResumeImport(ctx context.Context, event *CCEmailEvent) error {
+	uid := event.UserID
+	if uid == "" && event.Email != "" {
+		if u, err := h.Store.GetUserByEmail(ctx, event.Email); err == nil && u != nil {
+			uid = u.ID
+		}
+	}
+	if uid != "" {
+		_ = h.Store.RecordToolUsed(ctx, uid, event.Email, "resume")
+		RouteToolUsed(ctx, h.Store, uid) // they engaged — clear not-used chases
+	}
+	// Guide to coach: run the coach welcome flow (gated, dedup-safe).
+	return h.HandleCCEmail(ctx, "event.cc.welcome", event)
+}
+
+// handleRouterOnly: a tool-used signal with no instant email — record the use
+// (with attribution) and clear not-used chases across tools. Resolves the user
+// by id, falling back to email.
+func (h *EventHandler) handleRouterOnly(ctx context.Context, routingKey string, event *CCEmailEvent) error {
+	tf := toolFlows[routingKey]
+	uid := event.UserID
+	em := event.Email
+	if uid == "" && em != "" {
+		if u, err := h.Store.GetUserByEmail(ctx, em); err == nil && u != nil {
+			uid = u.ID
+		}
+	}
+	if uid != "" {
+		if err := h.Store.RecordToolUsed(ctx, uid, em, tf.Name); err != nil {
+			slog.Warn("tool used: record failed", "tool", tf.Name, "user_id", uid, "err", err)
+		}
+		if n := RouteToolUsed(ctx, h.Store, uid); n > 0 {
+			slog.Info("tool used (router-only), cleared not-used chases", "tool", tf.Name, "user_id", uid, "cleared", n)
+		}
+	}
+	return nil
+}
+
+func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, event *CCEmailEvent) error {
 	templateName, ok := ccRoutingKeyToTemplate[routingKey]
 	if !ok {
 		slog.Warn("unknown cc routing key", "routing_key", routingKey)
