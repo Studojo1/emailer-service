@@ -404,6 +404,24 @@ func (h *EventHandler) HandleCCEmail(ctx context.Context, routingKey string, eve
 		slog.Info("cc deferred sequence scheduled", "routing_key", routingKey, "user_id", event.UserID)
 		return nil
 	}
+	// Imported an EXISTING resume: they don't need the maker, they need
+	// direction. Record resume use (engagement) + route them into the Career
+	// Coach welcome flow instead of the resume flow.
+	if routingKey == "event.cc.resume_imported_existing" {
+		uid := event.UserID
+		if uid == "" && event.Email != "" {
+			if u, err := h.Store.GetUserByEmail(ctx, event.Email); err == nil && u != nil {
+				uid = u.ID
+			}
+		}
+		if uid != "" {
+			_ = h.Store.RecordToolUsed(ctx, uid, event.Email, "resume")
+			RouteToolUsed(ctx, h.Store, uid) // they engaged — clear not-used chases
+		}
+		// Guide to coach: run the coach welcome flow (gated, dedup-safe).
+		return h.HandleCCEmail(ctx, "event.cc.welcome", event)
+	}
+
 	// Router-only "used" events: a tool was used but there's no instant email to
 	// send (e.g. resume_used, internship_used). Just clear not-used chases.
 	// Resolve the user by id, falling back to email so a caller that only sends
