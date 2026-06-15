@@ -358,9 +358,9 @@ func (s *PostgresStore) GetSendCountsByTemplate(ctx context.Context) (map[string
 	}
 	rows.Close()
 
-	// Opens — distinct recipients per template.
+	// Opens — distinct recipients per template (keyed on the email column now).
 	oRows, err := s.db.QueryContext(ctx, `
-		SELECT email_type, COUNT(DISTINCT user_id) FROM email_opens GROUP BY email_type`)
+		SELECT email_type, COUNT(DISTINCT email) FROM email_opens GROUP BY email_type`)
 	if err == nil {
 		for oRows.Next() {
 			var t string
