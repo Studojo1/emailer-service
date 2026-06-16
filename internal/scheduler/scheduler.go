@@ -67,8 +67,13 @@ func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL stri
 func (sc *Scheduler) Run(ctx context.Context) {
 	ticker := time.NewTicker(1 * time.Minute)
 	catchupTicker := time.NewTicker(1 * time.Hour)
+	// Behavioral routing (Idea D) runs on a slow tick and is a no-op unless
+	// BEHAVIORAL_ROUTING_PCT > 0. Slow + cohort-gated + shadow-by-default so it
+	// can never mis-send at scale.
+	behavioralTicker := time.NewTicker(30 * time.Minute)
 	defer ticker.Stop()
 	defer catchupTicker.Stop()
+	defer behavioralTicker.Stop()
 
 	// Process immediately on start
 	sc.processDue(ctx)
@@ -80,6 +85,8 @@ func (sc *Scheduler) Run(ctx context.Context) {
 			sc.processDue(ctx)
 		case <-catchupTicker.C:
 			sc.runCatchup(ctx)
+		case <-behavioralTicker.C:
+			sc.runBehavioral(ctx)
 		case <-ctx.Done():
 			return
 		}

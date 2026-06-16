@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 )
 
@@ -276,5 +278,31 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 		"flows":     out,
 		"tool_used": toolStats,
 		"replies":   replyCount,
+	}, http.StatusOK)
+}
+
+// HandleAdminBehavioral reports the behavioral-routing experiment: variant vs
+// control cohort engagement, so you can see whether next-best routing beats the
+// fixed chains before widening the cohort or leaving shadow mode.
+func (h *Handler) HandleAdminBehavioral(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	pct := 0
+	if v := os.Getenv("BEHAVIORAL_ROUTING_PCT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			pct = n
+		}
+	}
+	shadow := strings.ToLower(os.Getenv("BEHAVIORAL_ROUTING_SHADOW")) != "false"
+	cohorts, err := h.Store.GetBehavioralExperiment(ctx, 14, pct)
+	if err != nil {
+		writeError(w, "failed to load experiment", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"enabled":     pct > 0,
+		"cohort_pct":  pct,
+		"shadow":      shadow,
+		"cohorts":     cohorts,
+		"window_days": 14,
 	}, http.StatusOK)
 }
