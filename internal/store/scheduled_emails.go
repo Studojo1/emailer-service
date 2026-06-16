@@ -80,6 +80,33 @@ func (s *PostgresStore) CreateScheduledEmail(ctx context.Context, userID, emailT
 	return err
 }
 
+// CountMarketingSentSince counts marketing (cc-*) emails actually sent to an
+// email address within the given lookback window. Used by the per-user
+// frequency cap. Reads email_send_log (the authoritative send record).
+func (s *PostgresStore) CountMarketingSentSince(ctx context.Context, email string, within time.Duration) (int, error) {
+	since := time.Now().UTC().Add(-within)
+	var n int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM email_send_log
+		WHERE lower(email_to) = lower($1)
+		  AND template_name LIKE 'cc-%'
+		  AND sent_at >= $2`,
+		email, since,
+	).Scan(&n)
+	return n, err
+}
+
+// RescheduleEmail pushes a pending scheduled email's send time forward (used to
+// DEFER under the frequency cap instead of dropping the email).
+func (s *PostgresStore) RescheduleEmail(ctx context.Context, id uuid.UUID, newScheduledAt time.Time) error {
+	_, err := s.db.ExecContext(ctx, `
+		UPDATE scheduled_emails SET scheduled_at = $2
+		WHERE id = $1 AND sent_at IS NULL`,
+		id, newScheduledAt,
+	)
+	return err
+}
+
 // GetDueScheduledEmails returns emails due to be sent (scheduled_at <= now, not
 // yet sent), PRIORITY ORDERED. New / active-user emails (everything that is not
 // old-user re-engagement) always come first, so high-intent students are sent
