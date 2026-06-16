@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your webinar link — it's tomorrow</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .when-box { background-color: #f3f0ff; border-radius: 14px; padding: 22px 28px; margin: 24px 0; }
+    .when-row { font-size: 16px; color: #333; margin: 0 0 8px; }
+    .when-row:last-child { margin-bottom: 0; }
+    .when-label { font-weight: 800; color: #7c3aed; }
+    .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 16px; font-weight: 700; padding: 16px 32px; border-radius: 8px; text-decoration: none; margin: 12px 0 24px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><span class="header-logo">Studojo</span></div>
+    <div class="body">
+      <div class="tag">It's tomorrow</div>
+      <h1 class="headline">Here's your joining link{{if .UserName}}, {{.UserName}}{{end}}.</h1>
+
+      <p class="body-text">The Studojo webinar{{if .WebinarTitle}} — "{{.WebinarTitle}}"{{end}} — is tomorrow. Save this email; the link below is how you join.</p>
+
+      <div class="when-box">
+        {{if .WebinarWhen}}<p class="when-row"><span class="when-label">When:</span> {{.WebinarWhen}}</p>{{end}}
+        <p class="when-row"><span class="when-label">Where:</span> the button below</p>
+      </div>
+
+      <a class="cta-button" href="{{.JoinURL}}">Join the webinar &rarr;</a>
+
+      <p class="body-text">Tip: open the link a few minutes early so you're settled before it starts. If the button doesn't work, copy this link: {{.JoinURL}}</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>See you tomorrow,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you registered for the Studojo webinar.</p>
+    </div>
+  </div>
+{{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
+</body>
+</html>

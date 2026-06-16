@@ -906,6 +906,93 @@ func (h *Handler) HandleInbound(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{"status": "recorded", "cancelled": cancelled}, http.StatusOK)
 }
 
+// HandleWebinarLinkCron sends the join link to every registrant when the webinar
+// is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it can run
+// daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
+func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
+		return
+	}
+	ctx := r.Context()
+	cfg, err := h.Store.GetWebinarConfig(ctx)
+	if err != nil || cfg == nil || cfg.WebinarDate == nil || cfg.JoinURL == "" {
+		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "no webinar configured"}, http.StatusOK)
+		return
+	}
+	// Send only when the webinar is tomorrow (date-only comparison, UTC).
+	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
+	webinarDay := cfg.WebinarDate.Format("2006-01-02")
+	if webinarDay != tomorrow {
+		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "not one day before", "webinar_date": webinarDay, "tomorrow": tomorrow}, http.StatusOK)
+		return
+	}
+
+	regs, err := h.Store.ListWebinarRegistrantsNeedingLink(ctx, webinarDay)
+	if err != nil {
+		writeError(w, "failed to list registrants", http.StatusInternalServerError)
+		return
+	}
+	when := webinarWhen(cfg)
+	sent, failed := 0, 0
+	for _, reg := range regs {
+		data := map[string]interface{}{
+			"UserName":     reg.FullName,
+			"WebinarTitle": cfg.Title,
+			"WebinarWhen":  when,
+			"JoinURL":      cfg.JoinURL,
+		}
+		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-link", data); serr != nil {
+			slog.Error("webinar link: send failed", "email", reg.Email, "error", serr)
+			failed++
+			continue
+		}
+		_ = h.Store.MarkWebinarLinkSent(ctx, reg.Email, webinarDay)
+		sent++
+	}
+	slog.Info("webinar link cron", "sent", sent, "failed", failed, "webinar_date", webinarDay)
+	writeJSON(w, map[string]interface{}{"sent": sent, "failed": failed, "webinar_date": webinarDay}, http.StatusOK)
+}
+
+// HandleWebinarConfig is the admin GET/PUT for the webinar date + join link.
+func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	switch r.Method {
+	case http.MethodGet:
+		cfg, _ := h.Store.GetWebinarConfig(ctx)
+		count, _ := h.Store.CountWebinarRegistrants(ctx)
+		date := ""
+		if cfg != nil && cfg.WebinarDate != nil {
+			date = cfg.WebinarDate.Format("2006-01-02")
+		}
+		writeJSON(w, map[string]interface{}{
+			"title": cfg.Title, "webinar_date": date, "webinar_time": cfg.WebinarTime,
+			"join_url": cfg.JoinURL, "registrants": count,
+		}, http.StatusOK)
+	case http.MethodPut:
+		var req struct {
+			Title       string `json:"title"`
+			WebinarDate string `json:"webinar_date"`
+			WebinarTime string `json:"webinar_time"`
+			JoinURL     string `json:"join_url"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeError(w, "invalid body", http.StatusBadRequest)
+			return
+		}
+		if err := h.Store.SetWebinarConfig(ctx, req.Title, req.WebinarDate, req.WebinarTime, req.JoinURL); err != nil {
+			writeError(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]string{"status": "saved"}, http.StatusOK)
+	default:
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 // requireInternalSecret enforces that the request carries the shared internal
 // secret. Returns true if the caller is authorised; otherwise it writes a 401
 // and returns false. Used by every service-to-service route so browser/client

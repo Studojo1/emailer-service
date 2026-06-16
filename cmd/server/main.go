@@ -327,6 +327,24 @@ func main() {
 			replied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 		CREATE INDEX IF NOT EXISTS idx_email_replies_email ON email_replies (email);
+		-- Single-row webinar config (the admin sets date + join link here).
+		CREATE TABLE IF NOT EXISTS webinar_config (
+			id INT PRIMARY KEY DEFAULT 1,
+			title TEXT NOT NULL DEFAULT '',
+			webinar_date DATE,                       -- the day the webinar runs
+			webinar_time TEXT NOT NULL DEFAULT '',   -- human time string e.g. "6:00 PM IST"
+			join_url TEXT NOT NULL DEFAULT '',
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT webinar_config_singleton CHECK (id = 1)
+		);
+		-- Tracks which registrants have already been sent the join link, so the
+		-- daily cron is idempotent and never double-sends.
+		CREATE TABLE IF NOT EXISTS webinar_link_sent (
+			email TEXT NOT NULL,
+			webinar_date DATE NOT NULL,
+			sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (email, webinar_date)
+		);
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)
@@ -443,6 +461,7 @@ func main() {
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
 	mux.HandleFunc("POST /v1/email/inbound", httpHandler.HandleInbound)
+	mux.HandleFunc("POST /v1/email/webinar-link-cron", httpHandler.HandleWebinarLinkCron)
 	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
 	// One-click unsubscribe (RFC 8058): GET shows a confirm page, POST performs
 	// the opt-out (Gmail/Yahoo native button and the confirm form both POST here).
@@ -478,6 +497,8 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/scheduled", httpHandler.HandleAdminScheduled)
 	adminMux.HandleFunc("GET /v1/admin/flows", httpHandler.HandleAdminFlows)
 	adminMux.HandleFunc("GET /v1/admin/behavioral", httpHandler.HandleAdminBehavioral)
+	adminMux.HandleFunc("GET /v1/admin/webinar", httpHandler.HandleWebinarConfig)
+	adminMux.HandleFunc("PUT /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("GET /v1/admin/signups", httpHandler.HandleAdminSignups)
 	adminMux.HandleFunc("GET /v1/admin/templates/{name}/preview", httpHandler.HandleAdminTemplatePreview)
 

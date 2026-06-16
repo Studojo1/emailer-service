@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your webinar registration is confirmed</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .what-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 28px 0; }
+    .what-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 16px; }
+    .what-item { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; font-size: 15px; color: #333; line-height: 1.6; }
+    .what-item:last-child { margin-bottom: 0; }
+    .what-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 8px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><span class="header-logo">Studojo</span></div>
+    <div class="body">
+      <div class="tag">Registration confirmed</div>
+      <h1 class="headline">You're in{{if .UserName}}, {{.UserName}}{{end}}.</h1>
+
+      <p class="body-text">Your spot for the Studojo webinar is reserved. Nothing more to do right now.</p>
+
+      <div class="what-box">
+        <div class="what-title">What happens next</div>
+        <div class="what-item"><div class="what-dot"></div><div><strong>Now:</strong> your registration is noted{{if .WebinarTitle}} for "{{.WebinarTitle}}"{{end}}.</div></div>
+        <div class="what-item"><div class="what-dot"></div><div><strong>One day before:</strong> we email you the joining link, so it's easy to find when it's time.</div></div>
+        <div class="what-item"><div class="what-dot"></div><div><strong>On the day:</strong> you click the link and join. That's it.</div></div>
+      </div>
+
+      {{if .WebinarWhen}}<p class="body-text"><strong>When:</strong> {{.WebinarWhen}}</p>{{end}}
+
+      <p class="body-text">Add it to your calendar so it doesn't slip. We'll send the link a day before, to this same email.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>See you there,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you registered for the Studojo webinar.</p>
+    </div>
+  </div>
+{{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
+</body>
+</html>

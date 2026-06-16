@@ -351,6 +351,10 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Something from me, Jeremy", nil
 	case "cc-cart-goat":
 		return "A code from me, GOAT10", nil
+	case "cc-webinar-confirm":
+		return "You're registered. Here's what happens next.", nil
+	case "cc-webinar-link":
+		return "Your webinar link — it's tomorrow", nil
 	case "cc-welcome":
 		return "You asked for an honest look. Good.", nil
 	case "cc-nudge-1":
