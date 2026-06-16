@@ -268,9 +268,13 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 	// Per-tool usage with attribution (used via email vs direct).
 	toolStats, _ := h.Store.GetToolUsedStats(ctx)
 
+	// Replies — the highest-intent signal (how many people replied to a mail).
+	replyCount, _ := h.Store.GetReplyCount(ctx)
+
 	writeJSON(w, map[string]interface{}{
 		"signups":   windows,
 		"flows":     out,
 		"tool_used": toolStats,
+		"replies":   replyCount,
 	}, http.StatusOK)
 }

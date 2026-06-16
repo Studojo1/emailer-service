@@ -319,6 +319,14 @@ func main() {
 		);
 		CREATE INDEX IF NOT EXISTS idx_tool_used_user ON tool_used (user_id);
 		CREATE INDEX IF NOT EXISTS idx_tool_used_tool ON tool_used (tool);
+		CREATE TABLE IF NOT EXISTS email_replies (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			email TEXT NOT NULL DEFAULT '',          -- the replier's address
+			subject TEXT NOT NULL DEFAULT '',        -- helps trace which thread
+			email_type TEXT NOT NULL DEFAULT '',     -- best-effort: which flow they replied to
+			replied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_replies_email ON email_replies (email);
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)
@@ -434,6 +442,7 @@ func main() {
 	mux.HandleFunc("PUT /v1/email/preferences/{user_id}", httpHandler.HandleUpdateEmailPreferences)
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
+	mux.HandleFunc("POST /v1/email/inbound", httpHandler.HandleInbound)
 	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
 	// One-click unsubscribe (RFC 8058): GET shows a confirm page, POST performs
 	// the opt-out (Gmail/Yahoo native button and the confirm form both POST here).
