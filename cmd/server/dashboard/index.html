@@ -186,6 +186,15 @@
             </template>
           </div>
 
+          <!-- Replies — the highest-intent signal -->
+          <div class="bg-white rounded-2xl border-2 border-emerald-600 p-5 shadow-[4px_4px_0_0_rgba(5,150,105,1)] mb-8 inline-flex items-center gap-4">
+            <div>
+              <div class="text-[11px] font-bold tracking-wide text-emerald-700">REPLIED TO A MAIL</div>
+              <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(replies||0).toLocaleString()"></div>
+            </div>
+            <div class="text-xs text-neutral-400 max-w-[220px]">People who replied to one of our emails — the strongest intent signal. A reply stops all their chases.</div>
+          </div>
+
           <!-- Per-flow entries -->
           <div class="flex items-center justify-between mb-3">
             <h3 class="font-bold text-neutral-900">Trigger flow entries</h3>
@@ -1057,7 +1066,7 @@ function app() {
 
     // Flows (funnel + choke points)
     flows: [], flowsLoading: false, activeGroup: null, activeFlow: null, flowWindow: '',
-    signups: null, signupFlows: [], signupsLoading: false, toolUsed: {},
+    signups: null, signupFlows: [], signupsLoading: false, toolUsed: {}, replies: 0,
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -1204,7 +1213,7 @@ function app() {
       this.signupsLoading = true
       try {
         const r = await this.api('GET', '/v1/admin/signups')
-        if (r.ok) { const d = await r.json(); this.signups = d.signups || {}; this.signupFlows = d.flows || []; this.toolUsed = d.tool_used || {} }
+        if (r.ok) { const d = await r.json(); this.signups = d.signups || {}; this.signupFlows = d.flows || []; this.toolUsed = d.tool_used || {}; this.replies = d.replies || 0 }
       } finally { this.signupsLoading = false }
     },
 

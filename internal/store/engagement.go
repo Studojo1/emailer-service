@@ -18,6 +18,7 @@ type Engagement struct {
 	AnyOpen        bool              `json:"any_open"`
 	AnyClick       bool              `json:"any_click"`
 	AnyToolUsed    bool              `json:"any_tool_used"`
+	AnyReply       bool              `json:"any_reply"` // replied to ANY email — highest intent
 }
 
 // GetEngagement assembles a user's full engagement state from the signal tables
@@ -69,6 +70,12 @@ func (s *PostgresStore) GetEngagement(ctx context.Context, email string) (*Engag
 			}
 		}
 		tRows.Close()
+	}
+
+	var replies int
+	if s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM email_replies WHERE lower(email) = $1`, email).Scan(&replies) == nil {
+		e.AnyReply = replies > 0
 	}
 
 	return e, nil

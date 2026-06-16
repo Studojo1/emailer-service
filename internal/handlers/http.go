@@ -867,6 +867,45 @@ a{color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
 </div></body></html>`)
 }
 
+// HandleInbound records an inbound reply (the highest-intent signal a user can
+// give) and cancels all their pending marketing chases. Secret-gated; meant to
+// be fed by a mailbox poller / forward rule / provider inbound webhook pointed at
+// the reply-to address. Body: {"from": "...", "subject": "...", "email_type": "..."}.
+// email_type is optional/best-effort.
+func (h *Handler) HandleInbound(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
+		return
+	}
+	var req struct {
+		From      string `json:"from"`
+		Subject   string `json:"subject"`
+		EmailType string `json:"email_type"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || strings.TrimSpace(req.From) == "" {
+		writeError(w, "from is required", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	if err := h.Store.RecordReply(ctx, req.From, req.Subject, req.EmailType); err != nil {
+		slog.Error("inbound: failed to record reply", "from", req.From, "error", err)
+		writeError(w, "failed to record reply", http.StatusInternalServerError)
+		return
+	}
+	// A reply means they're engaged and talking to us — stop all marketing chases.
+	cancelled := 0
+	if u, err := h.Store.GetUserByEmail(ctx, req.From); err == nil && u != nil {
+		if n, cerr := h.Store.CancelPendingCCMarketingEmails(ctx, u.ID); cerr == nil {
+			cancelled = n
+		}
+	}
+	slog.Info("inbound reply recorded", "from", req.From, "cancelled_chases", cancelled)
+	writeJSON(w, map[string]interface{}{"status": "recorded", "cancelled": cancelled}, http.StatusOK)
+}
+
 // requireInternalSecret enforces that the request carries the shared internal
 // secret. Returns true if the caller is authorised; otherwise it writes a 401
 // and returns false. Used by every service-to-service route so browser/client
