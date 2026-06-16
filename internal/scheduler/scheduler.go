@@ -34,6 +34,17 @@ func ratePerHour() int {
 	return 180
 }
 
+// maxMarketingPerWeek caps marketing emails per user per rolling 7 days, across
+// ALL flows, to prevent fatigue. Default 3, override with EMAIL_MAX_PER_USER_PER_WEEK.
+func maxMarketingPerWeek() int {
+	if v := os.Getenv("EMAIL_MAX_PER_USER_PER_WEEK"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return 3
+}
+
 // NewScheduler creates a new Scheduler. Pacing is derived from EMAIL_RATE_PER_HOUR
 // so the same binary serves a free tier or a higher paid quota with no code change.
 func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL string) *Scheduler {
@@ -238,6 +249,25 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		slog.Info("scheduler: already sent, marking done", "user_id", e.UserID, "type", e.EmailType)
 		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
 		return false
+	}
+
+	// Per-user frequency cap (fatigue): no inbox should get more than N marketing
+	// emails in a rolling week, however many flows the user is enrolled in.
+	// DEFER (push the row forward), never drop — the email still goes, just later.
+	// Transactional emails are exempt (only cc marketing is capped).
+	if isCCMarketingType(e.EmailType) {
+		recent, ferr := sc.Store.CountMarketingSentSince(ctx, user.Email, 7*24*time.Hour)
+		if ferr != nil {
+			slog.Warn("scheduler: frequency check failed, sending anyway", "user_id", e.UserID, "err", ferr)
+		} else if recent >= maxMarketingPerWeek() {
+			next := time.Now().UTC().Add(24 * time.Hour)
+			if rerr := sc.Store.RescheduleEmail(ctx, e.ID, next); rerr != nil {
+				slog.Error("scheduler: frequency defer failed", "id", e.ID, "err", rerr)
+			} else {
+				slog.Info("scheduler: frequency cap hit, deferred", "user_id", e.UserID, "type", e.EmailType, "recent", recent, "next", next)
+			}
+			return false
+		}
 	}
 
 	var templateData map[string]interface{}
