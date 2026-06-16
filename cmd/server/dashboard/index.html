@@ -87,6 +87,12 @@
         <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         Experiment
       </div>
+      <div @click="nav('webinar')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='webinar' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Webinar
+      </div>
       <div @click="nav('flows')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='flows' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
@@ -320,6 +326,51 @@
             </table>
           </div>
           <p class="text-xs text-neutral-400 mt-3">A reply always suppresses automation (hot lead), in both cohorts. When the variant's clicked/used/replied rates beat control without raising unsubscribes, widen the cohort; until then keep it small.</p>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════ WEBINAR ═══════════════════════════════════ -->
+      <div x-show="page==='webinar'">
+        <div class="max-w-2xl">
+          <div class="rounded-xl border-2 border-neutral-900 bg-white p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)] mb-6 inline-flex items-center gap-4">
+            <div>
+              <div class="text-[11px] font-bold tracking-wide text-neutral-500">REGISTRANTS</div>
+              <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(webinar.registrants||0).toLocaleString()"></div>
+            </div>
+            <div class="text-xs text-neutral-400 max-w-[260px]">Everyone who registered. Each gets an instant confirmation, then the join link the day before — automatically.</div>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 p-6">
+            <h3 class="font-bold text-neutral-900 mb-1">Webinar details</h3>
+            <p class="text-sm text-slate-500 mb-5">Set the date + join link. The link email goes out automatically <b>1 day before</b> the date, to all registrants, once each. Leave the date blank to pause.</p>
+            <div class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
+                <input x-model="webinar.title" class="input" placeholder="e.g. Career Launchpad: land your first internship" />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+                  <input x-model="webinar.webinar_date" type="date" class="input" />
+                </div>
+                <div>
+                  <label class="block text-sm font-medium text-slate-700 mb-1">Time (text)</label>
+                  <input x-model="webinar.webinar_time" class="input" placeholder="6:00 PM IST" />
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Join link</label>
+                <input x-model="webinar.join_url" class="input" placeholder="https://meet.google.com/… or Zoom URL" />
+              </div>
+              <button @click="saveWebinar()" :disabled="webinarSaving" class="btn-primary disabled:opacity-50 w-full justify-center">
+                <span x-show="!webinarSaving">Save webinar details</span>
+                <span x-show="webinarSaving">Saving…</span>
+              </button>
+              <div x-show="webinarResult" :class="webinarOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
+                class="text-sm rounded-lg px-4 py-2.5" x-text="webinarResult"></div>
+              <p class="text-xs text-neutral-400">The link cron must be scheduled (daily) to actually fire the link email a day before — it calls <code class="bg-slate-100 px-1 rounded">/v1/email/webinar-link-cron</code>.</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1120,6 +1171,8 @@ function app() {
     flows: [], flowsLoading: false, activeGroup: null, activeFlow: null, flowWindow: '',
     signups: null, signupFlows: [], signupsLoading: false, toolUsed: {}, replies: 0,
     behavioral: { enabled:false, cohort_pct:0, shadow:true, cohorts:[], window_days:14 },
+    webinar: { title:'', webinar_date:'', webinar_time:'', join_url:'', registrants:0 },
+    webinarSaving:false, webinarResult:'', webinarOk:false,
 
     // Overview
     stats: {}, statsLoading: false, recentLogs: [],
@@ -1276,6 +1329,22 @@ function app() {
     },
     pctOf(n, d) { return d ? Math.round((n||0)/d*100) : 0 },
 
+    async loadWebinar() {
+      const r = await this.api('GET', '/v1/admin/webinar')
+      if (r.ok) { this.webinar = await r.json() }
+    },
+    async saveWebinar() {
+      this.webinarSaving = true; this.webinarResult = ''
+      try {
+        const r = await this.api('PUT', '/v1/admin/webinar', {
+          title: this.webinar.title || '', webinar_date: this.webinar.webinar_date || '',
+          webinar_time: this.webinar.webinar_time || '', join_url: this.webinar.join_url || '',
+        })
+        if (r.ok) { this.webinarOk = true; this.webinarResult = 'Saved. Confirmation goes out on registration; link fires 1 day before the date.' }
+        else { this.webinarOk = false; this.webinarResult = 'Failed to save. Check the values.' }
+      } finally { this.webinarSaving = false }
+    },
+
     // first-step template of a flow id, for colour-coding the signups table.
     flowFirstTemplate(id) {
       const f = (this.flows||[]).find(f=>f.id===id)
@@ -1303,6 +1372,7 @@ function app() {
       this.page = p
       if (p === 'signups') { if (!this.flows.length) await this.loadFlows(); await this.loadSignups() }
       if (p === 'behavioral') { await this.loadBehavioral() }
+      if (p === 'webinar') { await this.loadWebinar() }
       if (p === 'flows') { await this.loadFlows() }
       if (p === 'overview') { await this.loadStats() }
       if (p === 'segments') await this.loadCampaignGroups()
@@ -1640,7 +1710,7 @@ function app() {
     },
 
     pageTitle() {
-      return { signups:'Signups', behavioral:'Behavioral Experiment', flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
+      return { signups:'Signups', webinar:'Webinar', behavioral:'Behavioral Experiment', flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
     },
     pageSubtitle() {
       return { behavioral:'Next-best-email routing experiment — variant vs control',

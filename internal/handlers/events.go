@@ -88,6 +88,8 @@ var ccRoutingKeyToTemplate = map[string]string{
 	"event.cc.resume_weak":   "cc-rm-weak-1",
 	// Internship Dojo
 	"event.cc.id_two_tools": "cc-id-two-tools",
+	// Webinar — instant "registration confirmed" on signup
+	"event.cc.webinar_registered": "cc-webinar-confirm",
 	// Old / dormant user keys are handled by ccSpreadStarters (see HandleCCEmail),
 	// not here, so they are scheduled with a per-day spread instead of sent now.
 }
@@ -563,6 +565,15 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 		"CouponCode":   event.CouponCode,
 	}
 
+	// Webinar confirmation: enrich with the admin-set title/when so the email
+	// reflects the current webinar. The join link itself goes out 1 day before.
+	if routingKey == "event.cc.webinar_registered" {
+		if cfg, err := h.Store.GetWebinarConfig(ctx); err == nil && cfg != nil {
+			data["WebinarTitle"] = cfg.Title
+			data["WebinarWhen"] = webinarWhen(cfg)
+		}
+	}
+
 	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
 	ctx = context.WithValue(ctx, email.UserNameKey, recipientName)
 	if err := h.Sender.SendTemplateEmail(ctx, recipientEmail, templateName, data); err != nil {
@@ -931,4 +942,17 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 		slog.Warn("unknown event type", "routing_key", routingKey)
 		return nil
 	}
+}
+
+// webinarWhen formats the admin-set webinar date + time into a human string for
+// the email, e.g. "Monday, 15 Jun 2026 at 6:00 PM IST". Falls back gracefully.
+func webinarWhen(cfg *store.WebinarConfig) string {
+	if cfg == nil || cfg.WebinarDate == nil {
+		return cfg.WebinarTime
+	}
+	d := cfg.WebinarDate.Format("Monday, 2 Jan 2006")
+	if cfg.WebinarTime != "" {
+		return d + " at " + cfg.WebinarTime
+	}
+	return d
 }
