@@ -409,6 +409,49 @@
           </template>
         </div>
 
+        <!-- AT-A-GLANCE: every flow's status in one place, so you can tell what's working without clicking in -->
+        <div x-show="!flowsLoading || flows.length>0" class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
+          <div class="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="font-bold text-neutral-900 text-sm">All flows at a glance</h3>
+            <div class="flex items-center gap-3 text-[11px] text-neutral-500">
+              <span><span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>firing</span>
+              <span><span class="inline-block w-2 h-2 rounded-full bg-rose-500 mr-1"></span>stuck</span>
+              <span><span class="inline-block w-2 h-2 rounded-full bg-neutral-300 mr-1"></span>idle</span>
+            </div>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr class="text-[11px] text-slate-500 text-left">
+                <th class="px-5 py-2 font-medium">Flow</th>
+                <th class="px-5 py-2 font-medium">Status</th>
+                <th class="px-5 py-2 font-medium">Entered</th>
+                <th class="px-5 py-2 font-medium">Sent</th>
+                <th class="px-5 py-2 font-medium">Opened</th>
+                <th class="px-5 py-2 font-medium">Clicked</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template x-for="f in flows" :key="f.id">
+                <tr class="table-row cursor-pointer" @click="activeFlow=f.id; openGroupFor(f.id)">
+                  <td class="px-5 py-2.5 font-medium text-slate-800" x-text="f.title"></td>
+                  <td class="px-5 py-2.5">
+                    <span class="inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full"
+                          :class="{'bg-emerald-50 text-emerald-700':f.health==='healthy','bg-rose-50 text-rose-700':f.health==='choke','bg-neutral-100 text-neutral-500':f.health==='idle'}">
+                      <span class="w-1.5 h-1.5 rounded-full" :class="{'bg-emerald-500':f.health==='healthy','bg-rose-500':f.health==='choke','bg-neutral-400':f.health==='idle'}"></span>
+                      <span x-text="f.health==='healthy'?'Firing':(f.health==='choke'?'Stuck':'Idle')"></span>
+                    </span>
+                  </td>
+                  <td class="px-5 py-2.5 font-bold text-slate-900" x-text="(f.entered||0).toLocaleString()"></td>
+                  <td class="px-5 py-2.5 text-slate-600" x-text="(f.total_sent||0).toLocaleString()"></td>
+                  <td class="px-5 py-2.5 text-slate-600" x-text="(f.total_opened||0).toLocaleString()+' ('+(f.open_rate||0).toFixed(0)+'%)'"></td>
+                  <td class="px-5 py-2.5 text-slate-600" x-text="(f.total_clicked||0).toLocaleString()+' ('+(f.click_rate||0).toFixed(0)+'%)'"></td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+          <div class="px-5 py-2 text-[11px] text-neutral-400 border-t border-slate-100">Click any flow to see its step-by-step breakdown below.</div>
+        </div>
+
         <div x-show="!flowsLoading || flows.length>0" class="flex gap-6 items-start">
           <!-- LEFT: flow groups -->
           <div class="w-64 flex-shrink-0 space-y-2.5">
