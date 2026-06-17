@@ -195,6 +195,63 @@ func (s *PostgresStore) CountRecentUsers(ctx context.Context, limit int) (int, e
 	return total, nil
 }
 
+// MissedSignup is a user who signed up but never received ANY cc-* email — a
+// silent failure (their welcome/flow never fired).
+type MissedSignup struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at"`
+}
+
+// CountSignupsWithNoCCEmail counts users who signed up (older than graceMinutes,
+// so a just-now signup mid-send isn't falsely flagged) and have NO cc-* row in
+// email_send_log — i.e. the system never emailed them at all. Checked against
+// email_send_log (the authoritative send record), matched by email.
+func (s *PostgresStore) CountSignupsWithNoCCEmail(ctx context.Context, graceMinutes int) (int, error) {
+	var n int
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FROM "user" u
+		WHERE u.email <> ''
+		  AND u.created_at <= NOW() - ($1 * INTERVAL '1 minute')
+		  AND NOT EXISTS (
+		    SELECT 1 FROM email_send_log l
+		    WHERE lower(l.email_to) = lower(u.email) AND l.template_name LIKE 'cc-%'
+		  )`, graceMinutes).Scan(&n)
+	return n, err
+}
+
+// ListSignupsWithNoCCEmail returns the users counted by CountSignupsWithNoCCEmail,
+// newest first, capped by limit.
+func (s *PostgresStore) ListSignupsWithNoCCEmail(ctx context.Context, graceMinutes, limit int) ([]MissedSignup, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT u.id, u.email, COALESCE(u.name,''), to_char(u.created_at, 'YYYY-MM-DD HH24:MI')
+		FROM "user" u
+		WHERE u.email <> ''
+		  AND u.created_at <= NOW() - ($1 * INTERVAL '1 minute')
+		  AND NOT EXISTS (
+		    SELECT 1 FROM email_send_log l
+		    WHERE lower(l.email_to) = lower(u.email) AND l.template_name LIKE 'cc-%'
+		  )
+		ORDER BY u.created_at DESC
+		LIMIT $2`, graceMinutes, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []MissedSignup
+	for rows.Next() {
+		var m MissedSignup
+		if err := rows.Scan(&m.ID, &m.Email, &m.Name, &m.CreatedAt); err == nil {
+			out = append(out, m)
+		}
+	}
+	return out, rows.Err()
+}
+
 // ListUsersAtOrderStage returns distinct users who have at least one outreach_order
 // at the given status (e.g. "leads_ready").
 func (s *PostgresStore) ListUsersAtOrderStage(ctx context.Context, stage string) ([]User, error) {
