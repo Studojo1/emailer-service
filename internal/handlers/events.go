@@ -633,50 +633,13 @@ type InternshipAppliedEvent struct {
 }
 
 // HandleUserSignup handles user signup events
+// HandleUserSignup is intentionally a NO-OP. The old transactional "welcome"
+// email is retired — it produced a duplicate second welcome alongside the new
+// flow's cc-welcome-new-user. Signups now get exactly ONE welcome, sent by the
+// event.cc.welcome_new_user flow. We keep this handler so any stray/legacy
+// event.user.signup is accepted and dropped (no email) rather than erroring.
 func (h *EventHandler) HandleUserSignup(ctx context.Context, event *UserSignupEvent) error {
-	// Check preferences - welcome email is a product email
-	prefs, err := h.Store.GetEmailPreferences(ctx, event.UserID)
-	if err != nil {
-		return err
-	}
-
-	if !prefs.ProductEmails {
-		slog.Info("skipping welcome email - product emails disabled", "user_id", event.UserID)
-		return nil
-	}
-
-	// Dedup: skip if already sent
-	already, err := h.Store.HasReceivedEmail(ctx, event.UserID, "welcome")
-	if err != nil {
-		slog.Error("welcome email: dedup check failed", "user_id", event.UserID, "error", err)
-	} else if already {
-		slog.Info("welcome email: already sent, skipping", "user_id", event.UserID)
-		return nil
-	}
-
-	// Send welcome email
-	ctx = context.WithValue(ctx, email.UserIDKey, event.UserID)
-	ctx = context.WithValue(ctx, email.UserNameKey, event.Name)
-	err = h.Sender.SendTemplateEmail(ctx, event.Email, "welcome", map[string]interface{}{
-		"UserName":     event.Name,
-		"DashboardURL": h.FrontendURL + "/",
-	})
-	if err != nil {
-		slog.Error("failed to send welcome email", "error", err, "user_id", event.UserID)
-		return err
-	}
-
-	slog.Info("welcome email sent", "user_id", event.UserID, "email", event.Email)
-
-	// Record the sent welcome email for admin tracking
-	if err := h.Store.RecordSentEmail(ctx, event.UserID, "welcome"); err != nil {
-		slog.Error("failed to record welcome email", "error", err)
-	}
-
-	// The old nurture sequence is retired. The new efficient flow's engagement
-	// sequences are started by their own event.cc.* triggers (welcome_new_user,
-	// welcome, dna_ready, etc.), not from this transactional account-welcome.
-
+	slog.Info("event.user.signup received — old welcome retired, no email sent (new flow handles welcome)", "user_id", event.UserID)
 	return nil
 }
 
