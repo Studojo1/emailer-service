@@ -283,6 +283,32 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// HandleAdminMissedSignups reports users who signed up but never received ANY
+// cc-* email — silent failures the rest of the dashboard can't show (it only
+// shows emails that DID fire). GET returns the count + a capped list.
+func (h *Handler) HandleAdminMissedSignups(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	// 10-minute grace so a signup that's mid-send right now isn't flagged.
+	const grace = 10
+	limit := 200
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+	count, err := h.Store.CountSignupsWithNoCCEmail(ctx, grace)
+	if err != nil {
+		writeError(w, "failed to count", http.StatusInternalServerError)
+		return
+	}
+	list, err := h.Store.ListSignupsWithNoCCEmail(ctx, grace, limit)
+	if err != nil {
+		writeError(w, "failed to list", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"count": count, "users": list}, http.StatusOK)
+}
+
 // HandleAdminPricingBlast queues the one-off Outreach pricing email to the most
 // recent N users (default 700). Admin-authed (admin mux), so the dashboard can
 // call it directly. GET returns the preview count; POST queues the send.
