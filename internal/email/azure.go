@@ -13,11 +13,24 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"sync/atomic"
 	"time"
 )
+
+// replyToAddress returns the Reply-To. Defaults to a studojo.com address so it
+// is DOMAIN-ALIGNED with the From (no-reply@studojo.com) — a free-mail Reply-To
+// (studojo@gmail.com) on a custom-domain From is a known spam signal. Point a
+// monitored studojo.com mailbox (or a forward) at this address; override with
+// EMAIL_REPLY_TO.
+func replyToAddress() string {
+	if v := os.Getenv("EMAIL_REPLY_TO"); v != "" {
+		return v
+	}
+	return "support@studojo.com"
+}
 
 // acsConfig holds the endpoint + access key for one ACS resource.
 type acsConfig struct {
@@ -223,7 +236,7 @@ func (c *Client) sendViaACSConfig(ctx context.Context, cfg acsConfig, from, to, 
 			},
 		},
 		"replyTo": []map[string]string{
-			{"address": "studojo@gmail.com", "displayName": "Studojo Support"},
+			{"address": replyToAddress(), "displayName": "Studojo Support"},
 		},
 		"content": map[string]string{
 			"subject":   subject,
