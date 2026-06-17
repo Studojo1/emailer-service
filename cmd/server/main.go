@@ -497,6 +497,8 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/scheduled", httpHandler.HandleAdminScheduled)
 	adminMux.HandleFunc("GET /v1/admin/flows", httpHandler.HandleAdminFlows)
 	adminMux.HandleFunc("GET /v1/admin/behavioral", httpHandler.HandleAdminBehavioral)
+	adminMux.HandleFunc("GET /v1/admin/pricing-blast", httpHandler.HandleAdminPricingBlast)
+	adminMux.HandleFunc("POST /v1/admin/pricing-blast", httpHandler.HandleAdminPricingBlast)
 	adminMux.HandleFunc("GET /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("PUT /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("GET /v1/admin/signups", httpHandler.HandleAdminSignups)

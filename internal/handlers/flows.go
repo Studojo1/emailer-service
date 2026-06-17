@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // flowStep / flowDef describe one campaign sequence for the dashboard Flows view.
@@ -279,6 +281,64 @@ func (h *Handler) HandleAdminSignups(w http.ResponseWriter, r *http.Request) {
 		"tool_used": toolStats,
 		"replies":   replyCount,
 	}, http.StatusOK)
+}
+
+// HandleAdminPricingBlast queues the one-off Outreach pricing email to the most
+// recent N users (default 700). Admin-authed (admin mux), so the dashboard can
+// call it directly. GET returns the preview count; POST queues the send.
+// Staggered + deduped by the same scheduled_emails path bulk-send uses.
+func (h *Handler) HandleAdminPricingBlast(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	const tmpl = "cc-outreach-pricing"
+	limit := 700
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			limit = n
+		}
+	}
+
+	if r.Method == http.MethodGet {
+		count, err := h.Store.CountRecentUsers(ctx, limit)
+		if err != nil {
+			writeError(w, "failed to count", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]interface{}{"count": count, "limit": limit, "template": tmpl}, http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	users, err := h.Store.ListRecentUsers(ctx, limit)
+	if err != nil {
+		writeError(w, "failed to list users", http.StatusInternalServerError)
+		return
+	}
+	now := time.Now().UTC()
+	delay := time.Duration(0)
+	queued, skipped, batchPos := 0, 0, 0
+	for _, u := range users {
+		already, _ := h.Store.HasScheduledOrReceivedEmail(ctx, u.ID, tmpl)
+		if already {
+			skipped++
+			continue
+		}
+		if err := h.Store.CreateScheduledEmail(ctx, u.ID, tmpl, now.Add(delay)); err != nil {
+			slog.Error("pricing blast: schedule failed", "user_id", u.ID, "error", err)
+			continue
+		}
+		queued++
+		batchPos++
+		delay += 10 * time.Second
+		if batchPos >= 20 {
+			delay += 2 * time.Minute
+			batchPos = 0
+		}
+	}
+	slog.Info("pricing blast queued", "queued", queued, "skipped", skipped, "limit", limit)
+	writeJSON(w, map[string]interface{}{"queued": queued, "skipped": skipped, "limit": limit}, http.StatusOK)
 }
 
 // HandleAdminBehavioral reports the behavioral-routing experiment: variant vs
