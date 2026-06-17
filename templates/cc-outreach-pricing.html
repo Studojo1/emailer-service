@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>New Outreach pricing</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+    .price-box { background-color: #f3f0ff; border-radius: 14px; padding: 28px; margin: 28px 0; text-align: center; }
+    .price-old { font-size: 18px; color: #999999; text-decoration: line-through; margin: 0 0 6px; }
+    .price-new { font-size: 40px; font-weight: 800; color: #7c3aed; margin: 0; line-height: 1; }
+    .price-sub { font-size: 14px; color: #666666; margin: 8px 0 0; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><span class="header-logo">Studojo</span></div>
+    <div class="body">
+      <div class="tag">New pricing</div>
+      <h1 class="headline">Outreach Dojo is now ₹499{{if .UserName}}, {{.UserName}}{{end}}.</h1>
+
+      <p class="body-text">We've made Outreach Dojo simple. One focused 8-day sprint, one flat price. Here's the short version.</p>
+
+      <div class="price-box">
+        <p class="price-old" style="font-size:12px;color:#7c3aed;text-decoration:none;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:0 0 6px;">Starter · 8-day sprint</p>
+        <p class="price-new">&#8377;499</p>
+        <p class="price-sub">just &#8377;9.98 per hiring manager · 50 emails over 8 days</p>
+      </div>
+
+      <div class="what-box" style="background-color:#f3f0ff;border-radius:14px;padding:24px 28px;margin:28px 0;">
+        <div class="what-title" style="font-size:13px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">What you get</div>
+        <div style="margin-bottom:12px;font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;50 verified hiring managers</div>
+        <div style="margin-bottom:12px;font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;Tailored to your role &amp; industry</div>
+        <div style="margin-bottom:12px;font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;AI-personalised email per contact</div>
+        <div style="margin-bottom:12px;font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;8-day controlled send window</div>
+        <div style="margin-bottom:12px;font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;Reply tracking dashboard</div>
+        <div style="font-size:15px;color:#333333;line-height:1.6;"><span style="color:#16a34a;font-weight:700;">&#10003;</span>&nbsp;Email support</div>
+      </div>
+
+      <p class="body-text">It's a focused sprint, not a subscription. You reach 50 real hiring managers, with a personalised message to each, over 8 days — and watch the replies come in.</p>
+
+      <a class="cta-button" href="https://studojo.com/outreach" style="display:inline-block;background-color:#7c3aed;color:#ffffff !important;font-size:15px;font-weight:700;padding:14px 28px;border-radius:8px;text-decoration:none;margin:8px 0 24px;">Start your sprint &rarr;</a>
+
+      <p class="body-text">Reply to this email if you have any questions. I read everything.</p>
+
+      <hr class="divider" />
+      <div class="sign-off">
+        <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you have a Studojo account.</p>
+    </div>
+  </div>
+{{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
+</body>
+</html>

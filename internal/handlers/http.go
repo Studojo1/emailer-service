@@ -495,8 +495,9 @@ func (h *Handler) HandlePublishEvent(w http.ResponseWriter, r *http.Request) {
 
 // BulkSendRequest represents a bulk email send request
 type BulkSendRequest struct {
-	EmailType  string `json:"email_type"`  // welcome, nurture_day3, nurture_day7, nurture_day14, nurture_day30, leads_ready
+	EmailType  string `json:"email_type"`  // a cc-* template, "welcome", or "leads_ready"
 	WithinDays int    `json:"within_days"` // 0 = all users (ignored for order-stage types)
+	Limit      int    `json:"limit"`       // >0 = target the most recent N signups (e.g. last 700)
 }
 
 // HandleBulkSendPreview handles GET /v1/email/bulk-send/preview.
@@ -512,12 +513,21 @@ func (h *Handler) HandleBulkSendPreview(w http.ResponseWriter, r *http.Request) 
 			withinDays = parsed
 		}
 	}
+	limit := 0
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed >= 0 {
+			limit = parsed
+		}
+	}
 
 	var count int
 	var err error
-	if emailType == "leads_ready" {
+	switch {
+	case emailType == "leads_ready":
 		count, err = h.Store.CountUsersAtOrderStage(r.Context(), "leads_ready")
-	} else {
+	case limit > 0:
+		count, err = h.Store.CountRecentUsers(r.Context(), limit)
+	default:
 		count, err = h.Store.CountUsersBySignupDate(r.Context(), withinDays)
 	}
 	if err != nil {
@@ -563,10 +573,14 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 
 	var users []store.User
 	var err error
-	// leads_ready targets users at that outreach order stage, not by signup date
-	if req.EmailType == "leads_ready" {
+	switch {
+	case req.EmailType == "leads_ready":
+		// targets users at that outreach order stage, not by signup date
 		users, err = h.Store.ListUsersAtOrderStage(r.Context(), "leads_ready")
-	} else {
+	case req.Limit > 0:
+		// "last N users" — most recent N signups (e.g. pricing blast to last 700)
+		users, err = h.Store.ListRecentUsers(r.Context(), req.Limit)
+	default:
 		users, err = h.Store.ListUsersBySignupDate(r.Context(), req.WithinDays)
 	}
 	if err != nil {

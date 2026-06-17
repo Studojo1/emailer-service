@@ -284,11 +284,10 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	case "welcome":
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
-		if strings.HasPrefix(e.EmailType, "cc_") {
-			// cc sequence emails are self-contained (links hardcoded). The two
-			// coupon-bearing types get a default code from env (DEFAULT_COUPON_CODE)
-			// when scheduled (e.g. the abandoned-checkout coupon); instant coupon
-			// events carry their own code on the payload instead.
+		// Accept both cc_ (sequence types) and cc- (template names queued by
+		// bulk-send, e.g. cc-outreach-pricing) so any cc email renders with the
+		// standard self-contained data instead of being dropped as "unknown".
+		if strings.HasPrefix(e.EmailType, "cc_") || strings.HasPrefix(e.EmailType, "cc-") {
 			templateData = map[string]interface{}{
 				"UserName":     user.Name,
 				"DashboardURL": sc.FrontendURL + "/",

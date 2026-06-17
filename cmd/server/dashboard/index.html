@@ -1066,6 +1066,28 @@
                 class="text-sm rounded-lg px-4 py-2.5" x-text="bulkResult"></div>
             </div>
           </div>
+
+          <!-- One-off pricing announcement to the most recent N users -->
+          <div class="bg-white rounded-xl border-2 border-violet-300 p-6 mt-5">
+            <h3 class="font-semibold text-slate-800 mb-1">Outreach pricing announcement</h3>
+            <p class="text-sm text-slate-500 mb-4">Sends the <b>cc-outreach-pricing</b> email to the most recent <b x-text="pricingLimit"></b> signups. Staggered (10s apart, +2min every 20) and deduped — anyone already sent it is skipped. Edit the pricing copy in the template first.</p>
+            <div class="space-y-3">
+              <div class="flex items-center gap-3">
+                <label class="text-sm text-slate-700">Most recent</label>
+                <input x-model.number="pricingLimit" type="number" min="1" class="input w-28" />
+                <label class="text-sm text-slate-700">users</label>
+                <button @click="previewPricing()" class="btn-secondary btn-sm">Preview count</button>
+                <button @click="openPreview('cc-outreach-pricing')" class="btn-secondary btn-sm">Preview email</button>
+              </div>
+              <div x-show="pricingPreview!==null" class="text-sm text-slate-600">Will send to <b x-text="pricingPreview"></b> users.</div>
+              <button @click="sendPricing()" :disabled="pricingSending" class="btn-primary disabled:opacity-50 w-full justify-center">
+                <span x-show="!pricingSending" x-text="'Send pricing email to last '+pricingLimit+' users'"></span>
+                <span x-show="pricingSending">Queuing…</span>
+              </button>
+              <div x-show="pricingResult" :class="pricingOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
+                class="text-sm rounded-lg px-4 py-2.5" x-text="pricingResult"></div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1262,6 +1284,7 @@ function app() {
     // Trigger
     triggerEmail: '', triggerTemplate: '', triggerName: 'Jeremy', triggerResult: '', triggerOk: false,
     bulkInboxEmail: '', bulkSending: false, bulkSentCount: 0, bulkFailed: 0, bulkResult: '',
+    pricingLimit: 700, pricingPreview: null, pricingSending: false, pricingResult: '', pricingOk: false,
 
     // Modals
     sendModal: false, sendModalUser: null, sendModalTemplate: '', sendModalResult: '',
@@ -1581,6 +1604,21 @@ function app() {
       this.bulkResult = this.bulkFailed > 0
         ? `Done — sent ${this.bulkSentCount - this.bulkFailed}/${this.bulkSentCount}, ${this.bulkFailed} failed (check logs).`
         : `Done — all ${this.bulkSentCount} templates sent to ${this.bulkInboxEmail}.`
+    },
+
+    async previewPricing() {
+      this.pricingPreview = null
+      const r = await this.api('GET', `/v1/admin/pricing-blast?limit=${this.pricingLimit||700}`)
+      if (r.ok) { const d = await r.json(); this.pricingPreview = d.count }
+    },
+    async sendPricing() {
+      if (!confirm(`Send the Outreach pricing email to the most recent ${this.pricingLimit} users? This goes to real inboxes.`)) return
+      this.pricingSending = true; this.pricingResult = ''
+      try {
+        const r = await this.api('POST', `/v1/admin/pricing-blast?limit=${this.pricingLimit||700}`)
+        if (r.ok) { const d = await r.json(); this.pricingOk = true; this.pricingResult = `Queued for ${d.queued} users (skipped ${d.skipped} already sent). They'll send staggered over the next while.` }
+        else { this.pricingOk = false; this.pricingResult = 'Failed to queue. Check logs.' }
+      } finally { this.pricingSending = false }
     },
 
     async fireTriggerForTemplate(template) {

@@ -155,6 +155,46 @@ func (s *PostgresStore) ListUsersBySignupDate(ctx context.Context, withinDays in
 	return users, rows.Err()
 }
 
+// ListRecentUsers returns the most recent N users by signup date (created_at
+// DESC, LIMIT n). Used for "last N users" blasts (e.g. a pricing announcement
+// to the last 700 signups). limit <= 0 returns all users.
+func (s *PostgresStore) ListRecentUsers(ctx context.Context, limit int) ([]User, error) {
+	query := `SELECT id, email, COALESCE(name, '') FROM "user" WHERE email <> '' ORDER BY created_at DESC`
+	var args []interface{}
+	if limit > 0 {
+		query += ` LIMIT $1`
+		args = append(args, limit)
+	}
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Email, &u.Name); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// CountRecentUsers returns how many users ListRecentUsers(limit) would target
+// (capped at limit, for the dashboard preview).
+func (s *PostgresStore) CountRecentUsers(ctx context.Context, limit int) (int, error) {
+	var total int
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM "user" WHERE email <> ''`).Scan(&total); err != nil {
+		return 0, err
+	}
+	if limit > 0 && total > limit {
+		return limit, nil
+	}
+	return total, nil
+}
+
 // ListUsersAtOrderStage returns distinct users who have at least one outreach_order
 // at the given status (e.g. "leads_ready").
 func (s *PostgresStore) ListUsersAtOrderStage(ctx context.Context, stage string) ([]User, error) {

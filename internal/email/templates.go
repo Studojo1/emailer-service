@@ -83,6 +83,8 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"cc-outreach-push1", "cc-outreach-push2", "cc-outreach-push3",
 		"cc-outreach-convert1", "cc-outreach-convert2",
 		"cc-outreach-payment-page", "cc-outreach-coupon",
+		// One-off pricing announcement (bulk send to recent users)
+		"cc-outreach-pricing",
 		// Webinar flow
 		"cc-webinar-confirm", "cc-webinar-link",
 		// Career Coach flow
