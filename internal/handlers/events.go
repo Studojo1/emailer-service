@@ -94,6 +94,20 @@ var ccRoutingKeyToTemplate = map[string]string{
 	// not here, so they are scheduled with a per-day spread instead of sent now.
 }
 
+// instantMarketingRoutingKeys are the instant-send routing keys that are
+// MARKETING and must therefore respect the user's unsubscribe (ProductEmails)
+// preference. Everything else in ccRoutingKeyToTemplate is transactional/expected
+// (welcome, dna_ready, roadmap_delivered, webinar_registered) and always sends.
+var instantMarketingRoutingKeys = map[string]bool{
+	"event.cc.outreach_used":   true,
+	"event.cc.outreach_coupon": true,
+	"event.cc.cart_goat":       true,
+	"event.cc.coupon_unlock":   true,
+	"event.cc.resume_strong":   true,
+	"event.cc.resume_weak":     true,
+	"event.cc.id_two_tools":    true,
+}
+
 // ccSequence is one step of a scheduled cc sequence.
 type ccSequence struct {
 	emailType string
@@ -541,6 +555,21 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 				slog.Info("cc email: gate already pending/done, skipping duplicate welcome", "user_id", event.UserID, "gate", gate.GateType)
 				return nil
 			}
+		}
+	}
+
+	// Respect the unsubscribe preference for MARKETING instant sends. The
+	// scheduler already gates scheduled marketing on ProductEmails, but instant
+	// sends bypassed it entirely (audit J2) — an unsubscribed user still got
+	// instant coupons/nudges. Transactional/expected sends (welcome, dna_ready,
+	// roadmap_delivered, webinar confirm) are NOT gated — those are the user's own
+	// requested actions and must always go.
+	if event.UserID != "" && instantMarketingRoutingKeys[routingKey] {
+		if prefs, err := h.Store.GetEmailPreferences(ctx, event.UserID); err != nil {
+			slog.Warn("cc email: prefs check failed, sending anyway", "user_id", event.UserID, "err", err)
+		} else if !prefs.ProductEmails {
+			slog.Info("cc email: user unsubscribed from product emails, skipping marketing send", "user_id", event.UserID, "routing_key", routingKey)
+			return nil
 		}
 	}
 
