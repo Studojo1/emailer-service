@@ -24,11 +24,10 @@
       <div class="variant-note">CTA Variant · Deepest tool: Outreach or strong resume</div>
       <p class="body-text">This closing block is swapped into the stage email when the user's deepest signal is Outreach use, an abandoned Outreach checkout, or a strong finished resume. Their profile is ready to put in front of people, so the single clear CTA is Outreach.</p>
       <p class="body-text">You have everything you need to start reaching hiring managers directly. That is the fastest path to a reply from here.</p>
-      <a class="cta-button" href="https://studojo.com/outreach" style="">Reach hiring managers now</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="">Reach hiring managers now</a>
     </div>
     <div class="footer"><p class="footer-text">Studojo · studojo.com · CTA reference block, not a standalone email</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

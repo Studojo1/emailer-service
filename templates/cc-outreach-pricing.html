@@ -51,7 +51,7 @@
 
       <p class="body-text">It's a focused sprint, not a subscription. You reach 50 real hiring managers, with a personalised message to each, over 8 days — and watch the replies come in.</p>
 
-      <a class="cta-button" href="https://studojo.com/outreach" style="display:inline-block;background-color:#7c3aed;color:#ffffff !important;font-size:15px;font-weight:700;padding:14px 28px;border-radius:8px;text-decoration:none;margin:8px 0 24px;">Start your sprint &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="display:inline-block;background-color:#7c3aed;color:#ffffff !important;font-size:15px;font-weight:700;padding:14px 28px;border-radius:8px;text-decoration:none;margin:8px 0 24px;">Start your sprint &rarr;</a>
 
       <p class="body-text">Reply to this email if you have any questions. I read everything.</p>
 
@@ -61,7 +61,7 @@
       </div>
     </div>
     <div class="footer">
-      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you have a Studojo account.</p>
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you have a Studojo account.{{if .UnsubscribeURL}} <a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p>
     </div>
   </div>
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}

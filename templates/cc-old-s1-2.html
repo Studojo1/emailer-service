@@ -40,16 +40,15 @@
 
       <p class="body-text">You are in the same spot she was. The work is done. The line is right in front of you.</p>
 
-      <a class="cta-button" href="https://studojo.com" style="">Finish what you started</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com"}}{{else}}https://studojo.com{{end}}" style="">Finish what you started</a>
 
       <hr class="divider" />
       <div class="sign-off">
         <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

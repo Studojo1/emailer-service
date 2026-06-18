@@ -15,9 +15,9 @@ Use it at checkout. No expiry, no catch.
 
 We built this for students who are serious. You clearly are. You don't make it to the payment page by accident.
 
-— Jeremy
+- Jeremy
 Co-founder, Studojo
-studojo.com
-{PIXEL}
+studojo.com{{if .UnsubscribeURL}}
+<a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe from marketing emails</a>{{end}}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body></html>

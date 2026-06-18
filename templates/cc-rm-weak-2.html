@@ -42,16 +42,15 @@
 
       <p class="body-text">A resume tells the world what you have done. The career coach tells you where to point it. Both matter, but knowing your direction comes first.</p>
 
-      <a class="cta-button" href="https://studojo.pro/career-coach" style="">Find your direction &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Find your direction &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">
         <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

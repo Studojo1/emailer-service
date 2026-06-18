@@ -34,8 +34,8 @@
       <p class="body-text">If you are not sure where you stand or what to focus on, start with the Career Coach. If you know what you want and just need to reach the right people, start with Outreach Dojo. Either one is a real move forward.</p>
 
       <div class="two-btn">
-        <a class="half-btn primary" href="https://studojo.pro/career-coach">Career Coach</a>
-        <a class="half-btn ghost" href="https://studojo.com/outreach">Outreach Dojo</a>
+        <a class="half-btn primary" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Career Coach</a>
+        <a class="half-btn ghost" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Outreach Dojo</a>
       </div>
 
       <p class="body-text">Whenever you are ready, we are here. Your account is still waiting for you.</p>
@@ -45,9 +45,8 @@
         <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>
