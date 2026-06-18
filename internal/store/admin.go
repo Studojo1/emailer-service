@@ -76,13 +76,19 @@ type FlowEntryRow struct {
 // GetSignupStats returns signup counts by window (from "user".created_at) plus
 // per-flow entry counts (first-step template sends from email_send_log) by window.
 func (s *PostgresStore) GetSignupStats(ctx context.Context, firstStepTemplates []string) (*SignupWindows, []FlowEntryRow, error) {
+	// "Last24h" is reported as the IST CALENDAR DAY (today, Asia/Kolkata = UTC+5:30),
+	// and 7d/30d as the trailing IST calendar windows — so these line up with the
+	// funnel dashboard (which uses `created_at + INTERVAL '5.5 hours'`) instead of a
+	// rolling-UTC window that always disagrees by a few hours (audit M7). Without
+	// this, "64 signups" here vs "51" on the funnel was the same data over two
+	// different day boundaries.
 	w := &SignupWindows{}
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			COUNT(*),
-			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours'),
-			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days'),
-			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')
+			COUNT(*) FILTER (WHERE DATE(created_at + INTERVAL '5.5 hours') = DATE(NOW() + INTERVAL '5.5 hours')),
+			COUNT(*) FILTER (WHERE DATE(created_at + INTERVAL '5.5 hours') > DATE(NOW() + INTERVAL '5.5 hours') - 7),
+			COUNT(*) FILTER (WHERE DATE(created_at + INTERVAL '5.5 hours') > DATE(NOW() + INTERVAL '5.5 hours') - 30)
 		FROM "user"`).Scan(&w.Total, &w.Last24h, &w.Last7d, &w.Last30d)
 	if err != nil {
 		return nil, nil, fmt.Errorf("signup windows: %w", err)
@@ -91,12 +97,14 @@ func (s *PostgresStore) GetSignupStats(ctx context.Context, firstStepTemplates [
 	rows := []FlowEntryRow{}
 	for _, tpl := range firstStepTemplates {
 		var r = FlowEntryRow{Template: tpl}
+		// Same IST calendar-day windows so "signups today" and "emails sent today"
+		// are measured over the identical boundary and are directly comparable.
 		_ = s.db.QueryRowContext(ctx, `
 			SELECT
 				COUNT(*),
-				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '24 hours'),
-				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '7 days'),
-				COUNT(*) FILTER (WHERE sent_at >= NOW() - INTERVAL '30 days')
+				COUNT(*) FILTER (WHERE DATE(sent_at + INTERVAL '5.5 hours') = DATE(NOW() + INTERVAL '5.5 hours')),
+				COUNT(*) FILTER (WHERE DATE(sent_at + INTERVAL '5.5 hours') > DATE(NOW() + INTERVAL '5.5 hours') - 7),
+				COUNT(*) FILTER (WHERE DATE(sent_at + INTERVAL '5.5 hours') > DATE(NOW() + INTERVAL '5.5 hours') - 30)
 			FROM email_send_log WHERE template_name = $1`, tpl).
 			Scan(&r.Total, &r.Last24h, &r.Last7d, &r.Last30d)
 		rows = append(rows, r)
