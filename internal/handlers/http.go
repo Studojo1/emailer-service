@@ -1013,7 +1013,16 @@ func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 // callers must go through a server-side proxy that holds the secret.
 func requireInternalSecret(w http.ResponseWriter, r *http.Request) bool {
 	secret := os.Getenv("INTERNAL_SECRET")
-	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+	if secret == "" {
+		// Misconfiguration, not an attack: the service can't authenticate anyone,
+		// so every event POST silently 401s. Log it loudly so it's diagnosable
+		// instead of looking like "emails just aren't firing" (audit B8).
+		slog.Error("requireInternalSecret: INTERNAL_SECRET is not set — rejecting all internal calls", "path", r.URL.Path)
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	if r.Header.Get("X-Internal-Secret") != secret {
+		slog.Warn("requireInternalSecret: rejected call with missing/invalid X-Internal-Secret", "path", r.URL.Path)
 		writeError(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}
