@@ -722,9 +722,25 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"}, http.StatusOK)
 }
 
+// parseTrackID splits a track_id of the form {emailType}__{email}__{uuid}.
+// The email's local part can legitimately contain "__", which broke the old
+// left-to-right SplitN (audit N7) — it would truncate the email at the first
+// "__" and record opens/clicks for the wrong address. emailType (a template
+// name) and the uuid never contain "__", so we take emailType from the FIRST
+// "__" and the uuid from the LAST "__", leaving everything in between as the
+// full email. ok is false if the id isn't well-formed.
+func parseTrackID(trackID string) (emailType, email string, ok bool) {
+	first := strings.Index(trackID, "__")
+	last := strings.LastIndex(trackID, "__")
+	if first < 0 || last <= first {
+		return "", "", false
+	}
+	return trackID[:first], trackID[first+2 : last], true
+}
+
 // HandleTrackOpen handles GET /v1/email/track/{track_id}
 // Returns a 1x1 transparent pixel and records the open event.
-// track_id format: {emailType}__{userID}__{uuid}
+// track_id format: {emailType}__{email}__{uuid}
 func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	trackID := r.PathValue("track_id")
 	if trackID == "" {
@@ -732,21 +748,14 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse emailType and userID from trackID (format: emailType__userID__uuid)
-	parts := strings.SplitN(trackID, "__", 3)
-	emailType, userID := "", ""
-	if len(parts) >= 2 {
-		emailType = parts[0]
-		userID = parts[1]
-	}
+	emailType, emailAddr, ok := parseTrackID(trackID)
 
 	userAgent := r.Header.Get("User-Agent")
 	go func() {
 		ctx := context.Background()
-		h.Store.RecordEmailOpen(ctx, trackID, userID, emailType, userAgent)
+		h.Store.RecordEmailOpen(ctx, trackID, emailAddr, emailType, userAgent)
 		// Also mark opened_at in email_send_log (best-effort, non-blocking)
-		if len(parts) >= 2 {
-			emailAddr := parts[1] // track_id format: template__email__uuid
+		if ok {
 			h.Store.MarkEmailOpened(ctx, emailAddr, emailType)
 		}
 	}()
@@ -783,12 +792,7 @@ func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if trackID != "" {
-		parts := strings.SplitN(trackID, "__", 3)
-		emailType, emailAddr := "", ""
-		if len(parts) >= 2 {
-			emailType = parts[0]
-			emailAddr = parts[1]
-		}
+		emailType, emailAddr, _ := parseTrackID(trackID)
 		userAgent := r.Header.Get("User-Agent")
 		go func() {
 			ctx := context.Background()
