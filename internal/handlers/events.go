@@ -587,6 +587,12 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 	if recipientName == "" {
 		recipientName = "there"
 	}
+	// Never "send" to an empty address — it would hit the provider with an empty
+	// recipient and then still get recorded as sent (audit E1). Bail cleanly.
+	if strings.TrimSpace(recipientEmail) == "" {
+		slog.Warn("cc email: no recipient address, skipping", "routing_key", routingKey, "user_id", event.UserID)
+		return nil
+	}
 
 	data := map[string]interface{}{
 		"UserName":     recipientName,
