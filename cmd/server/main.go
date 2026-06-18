@@ -327,6 +327,15 @@ func main() {
 			replied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 		CREATE INDEX IF NOT EXISTS idx_email_replies_email ON email_replies (email);
+		-- Suppression list: addresses we must never email again (hard bounces +
+		-- spam complaints reported by the provider). The send path checks this
+		-- before every send so a dead/complained address can't keep damaging
+		-- domain reputation. Keyed by the normalised (lower/trim) email.
+		CREATE TABLE IF NOT EXISTS suppressed_emails (
+			email TEXT PRIMARY KEY,
+			reason TEXT NOT NULL DEFAULT '',         -- 'hard_bounce' | 'complaint' | ...
+			suppressed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
 		-- Single-row webinar config (the admin sets date + join link here).
 		CREATE TABLE IF NOT EXISTS webinar_config (
 			id INT PRIMARY KEY DEFAULT 1,
@@ -461,6 +470,7 @@ func main() {
 	mux.HandleFunc("POST /v1/email/events", httpHandler.HandlePublishEvent)
 	mux.HandleFunc("POST /v1/email/checkin-reminder", httpHandler.HandleCheckinReminder)
 	mux.HandleFunc("POST /v1/email/inbound", httpHandler.HandleInbound)
+	mux.HandleFunc("POST /v1/email/delivery-report", httpHandler.HandleEmailDeliveryReport)
 	mux.HandleFunc("POST /v1/email/webinar-link-cron", httpHandler.HandleWebinarLinkCron)
 	mux.HandleFunc("POST /v1/email/send-template", httpHandler.HandleSendTemplate)
 	// One-click unsubscribe (RFC 8058): GET shows a confirm page, POST performs

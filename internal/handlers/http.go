@@ -920,6 +920,80 @@ func (h *Handler) HandleInbound(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{"status": "recorded", "cancelled": cancelled}, http.StatusOK)
 }
 
+// HandleEmailDeliveryReport receives Azure Communication Services delivery
+// reports (via Event Grid) and suppresses addresses that hard-bounce or file a
+// spam complaint, so we stop mailing dead/complaining inboxes and protect sender
+// reputation (audit R1). Secret-gated. Handles the Event Grid subscription
+// validation handshake, and is tolerant of the event shape (best-effort parse).
+func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
+		return
+	}
+
+	// Event Grid delivers a JSON array of events.
+	var events []struct {
+		EventType string          `json:"eventType"`
+		Data      json.RawMessage `json:"data"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&events); err != nil {
+		writeError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	suppressed := 0
+	for _, ev := range events {
+		// 1) Subscription validation handshake — echo the code back.
+		if ev.EventType == "Microsoft.EventGrid.SubscriptionValidationEvent" {
+			var vd struct {
+				ValidationCode string `json:"validationCode"`
+			}
+			_ = json.Unmarshal(ev.Data, &vd)
+			writeJSON(w, map[string]string{"validationResponse": vd.ValidationCode}, http.StatusOK)
+			return
+		}
+
+		// 2) Delivery report — suppress on a permanent failure or complaint.
+		if ev.EventType == "Microsoft.Communication.EmailDeliveryReportReceived" {
+			var dr struct {
+				Recipient      string `json:"recipient"`
+				DeliveryStatus string `json:"deliveryStatus"`
+			}
+			if err := json.Unmarshal(ev.Data, &dr); err != nil || dr.Recipient == "" {
+				continue
+			}
+			// ACS statuses: Delivered, Bounced, Failed, Quarantined, Suppressed,
+			// FilteredSpam. Treat permanent-failure / complaint signals as suppressible;
+			// transient/Delivered are ignored.
+			reason := ""
+			switch strings.ToLower(dr.DeliveryStatus) {
+			case "bounced":
+				reason = "hard_bounce"
+			case "quarantined", "filteredspam", "suppressed":
+				reason = "complaint"
+			}
+			if reason == "" {
+				continue
+			}
+			if err := h.Store.SuppressEmail(ctx, dr.Recipient, reason); err != nil {
+				slog.Error("delivery-report: suppress failed", "recipient", dr.Recipient, "err", err)
+				continue
+			}
+			// Also stop any pending marketing chases to this person.
+			if u, err := h.Store.GetUserByEmail(ctx, dr.Recipient); err == nil && u != nil {
+				_, _ = h.Store.CancelPendingCCMarketingEmails(ctx, u.ID)
+			}
+			suppressed++
+			slog.Info("delivery-report: address suppressed", "recipient", dr.Recipient, "reason", reason, "status", dr.DeliveryStatus)
+		}
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
+}
+
 // HandleWebinarLinkCron sends the join link to every registrant when the webinar
 // is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it can run
 // daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
