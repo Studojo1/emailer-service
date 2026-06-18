@@ -85,18 +85,9 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User
 	).Scan(&user.ID, &user.Email, &user.Name)
 
 	if err == sql.ErrNoRows {
-		// Log for debugging - check if user exists with different casing/whitespace
-		var allEmails []string
-		rows, _ := s.db.QueryContext(ctx, `SELECT email FROM "user"`)
-		if rows != nil {
-			for rows.Next() {
-				var e string
-				if rows.Scan(&e) == nil {
-					allEmails = append(allEmails, e)
-				}
-			}
-			rows.Close()
-		}
+		// Not found. (Previously this loaded the ENTIRE user table into memory for
+		// a debug check whose result was never used — an OOM risk on every lookup
+		// miss as the user base grows, audit L1. Removed.)
 		return nil, nil
 	}
 	if err != nil {
@@ -131,11 +122,14 @@ func (s *PostgresStore) ListUsersBySignupDate(ctx context.Context, withinDays in
 	var query string
 	var args []interface{}
 
+	// Safety ceiling on the row count so "all users" (withinDays<=0) can't load an
+	// ever-growing user table fully into memory (audit L3).
 	if withinDays > 0 {
-		query = `SELECT id, email, COALESCE(name, '') FROM "user" WHERE created_at >= NOW() - INTERVAL '1 day' * $1 ORDER BY created_at DESC`
-		args = []interface{}{withinDays}
+		query = `SELECT id, email, COALESCE(name, '') FROM "user" WHERE created_at >= NOW() - INTERVAL '1 day' * $1 ORDER BY created_at DESC LIMIT $2`
+		args = []interface{}{withinDays, maxUserListRows}
 	} else {
-		query = `SELECT id, email, COALESCE(name, '') FROM "user" ORDER BY created_at DESC`
+		query = `SELECT id, email, COALESCE(name, '') FROM "user" ORDER BY created_at DESC LIMIT $1`
+		args = []interface{}{maxUserListRows}
 	}
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
@@ -155,16 +149,21 @@ func (s *PostgresStore) ListUsersBySignupDate(ctx context.Context, withinDays in
 	return users, rows.Err()
 }
 
+// maxUserListRows is a safety ceiling for "list all users" queries so an
+// unbounded blast can't load an ever-growing user table fully into memory and OOM
+// the pod (audit L3). No real campaign targets more than this; raise if ever needed.
+const maxUserListRows = 100000
+
 // ListRecentUsers returns the most recent N users by signup date (created_at
 // DESC, LIMIT n). Used for "last N users" blasts (e.g. a pricing announcement
-// to the last 700 signups). limit <= 0 returns all users.
+// to the last 700 signups). limit <= 0 returns up to maxUserListRows (a safety
+// ceiling, not truly unbounded).
 func (s *PostgresStore) ListRecentUsers(ctx context.Context, limit int) ([]User, error) {
-	query := `SELECT id, email, COALESCE(name, '') FROM "user" WHERE email <> '' ORDER BY created_at DESC`
-	var args []interface{}
-	if limit > 0 {
-		query += ` LIMIT $1`
-		args = append(args, limit)
+	if limit <= 0 || limit > maxUserListRows {
+		limit = maxUserListRows
 	}
+	query := `SELECT id, email, COALESCE(name, '') FROM "user" WHERE email <> '' ORDER BY created_at DESC LIMIT $1`
+	args := []interface{}{limit}
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
