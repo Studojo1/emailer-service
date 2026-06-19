@@ -144,11 +144,43 @@ func (s *Sender) nextSender(templateName string) string {
 	if templateName == "cc-cart-goat" && s.welcomeSender != "" {
 		return s.welcomeSender
 	}
+	// Transactional / confirmation / onboarding emails must ALWAYS use their
+	// correct domain (support or welcome), never the round-robin pool. Sending a
+	// webinar confirmation, payment receipt, or analysis email from the
+	// promotions domain is what pushes them into Gmail's Promotions tab. The
+	// round-robin (volume spreading) is only for marketing/engagement sends.
+	if fixedSender := s.fixedSenderForTemplate(templateName); fixedSender != "" {
+		return fixedSender
+	}
 	if len(s.senderPool) > 0 {
 		idx := atomic.AddUint64(&s.senderIndex, 1) - 1
 		return s.senderPool[int(idx)%len(s.senderPool)]
 	}
 	return s.getSenderForTemplate(templateName)
+}
+
+// fixedSenderForTemplate returns a non-pool sender for templates whose Gmail
+// category placement matters (transactional/confirmation -> support domain,
+// onboarding -> welcome domain). Returns "" for marketing/engagement sends,
+// which then go through the round-robin pool.
+func (s *Sender) fixedSenderForTemplate(templateName string) string {
+	switch templateName {
+	// Transactional + confirmations + analysis (not marketing) -> support domain
+	case "payment-thankyou", "password-changed", "forgot-password",
+		"resume-optimized", "internship-applied", "contact-form",
+		"welcome", "leads-ready",
+		"cc-dna-ready", "cc-roadmap-delivered",
+		"cc-webinar-confirm", "cc-webinar-link":
+		if s.supportSender != "" {
+			return s.supportSender
+		}
+	// Onboarding -> welcome domain
+	case "cc-welcome", "cc-welcome-new-user":
+		if s.welcomeSender != "" {
+			return s.welcomeSender
+		}
+	}
+	return ""
 }
 
 // getSenderForTemplate returns the right from address for a given template.
