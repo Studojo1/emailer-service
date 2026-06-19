@@ -71,13 +71,17 @@ func (sc *Scheduler) Run(ctx context.Context) {
 	// BEHAVIORAL_ROUTING_PCT > 0. Slow + cohort-gated + shadow-by-default so it
 	// can never mis-send at scale.
 	behavioralTicker := time.NewTicker(30 * time.Minute)
+	// Apollo credit-burn tripwire — cheap DB read, paged at most once/day.
+	burnTicker := time.NewTicker(15 * time.Minute)
 	defer ticker.Stop()
 	defer catchupTicker.Stop()
 	defer behavioralTicker.Stop()
+	defer burnTicker.Stop()
 
 	// Process immediately on start
 	sc.processDue(ctx)
 	sc.runCatchup(ctx)
+	sc.checkApolloBurn(ctx)
 
 	for {
 		select {
@@ -87,6 +91,8 @@ func (sc *Scheduler) Run(ctx context.Context) {
 			sc.runCatchup(ctx)
 		case <-behavioralTicker.C:
 			sc.runBehavioral(ctx)
+		case <-burnTicker.C:
+			sc.checkApolloBurn(ctx)
 		case <-ctx.Done():
 			return
 		}
