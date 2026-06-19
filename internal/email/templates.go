@@ -87,6 +87,9 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"cc-outreach-pricing",
 		// Webinar flow
 		"cc-webinar-confirm", "cc-webinar-link",
+		// Webinar intent-funnel (one-time blast: pitch tools by registrant life_stage)
+		"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+		"cc-webinar-funnel-coach", "cc-webinar-funnel-resume",
 		// Career Coach flow
 		"cc-welcome",
 		"cc-nudge-1", "cc-nudge-2", "cc-nudge-3",
