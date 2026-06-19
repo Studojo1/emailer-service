@@ -11,7 +11,7 @@
     .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
-    .two-btn { display: flex; gap: 12px; margin: 24px 0; }
+    .two-btn { display:block; gap: 12px; margin: 24px 0; }
     .half-btn { flex: 1; text-align: center; font-size: 14px; font-weight: 700; padding: 14px 16px; border-radius: 8px; text-decoration: none; border: 2px solid #19191a; box-shadow: 3px 3px 0 rgba(25,26,35,1); }
     .half-btn.primary { background: #7c3aed; color: #fff; }
     .half-btn.ghost { background: #fff; color: #19191a; }
@@ -35,10 +35,7 @@
 
       <!-- CTA SWAP POINT: at send time this block is replaced by the deepest-tool variant
            (cta-outreach / cta-coach / cta-two-tool). Default shown below is the two-tool choice. -->
-      <div class="two-btn">
-        <a class="half-btn primary" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Reach hiring managers</a>
-        <a class="half-btn ghost" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Talk to your coach</a>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;"><tr><td width="50%" valign="top" style="padding-right:6px;"><a class="half-btn primary" style="display:block;background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;text-align:center;padding:13px 0;border-radius:8px;font-size:15px;" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Reach hiring managers</a></td><td width="50%" valign="top" style="padding-left:6px;"><a class="half-btn ghost" style="display:block;background-color:#ffffff;color:#7c3aed;font-weight:700;text-decoration:none;text-align:center;padding:12px 0;border-radius:8px;font-size:15px;border:2px solid #7c3aed;" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Talk to your coach</a></td></tr></table>
 
       <p class="body-text">Whichever fits where you are, it takes minutes to be back in it.</p>
 

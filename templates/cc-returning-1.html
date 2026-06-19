@@ -13,7 +13,7 @@
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .still-there-box { background-color: #f3f0ff; border-radius: 14px; padding: 22px 26px; margin: 24px 0; }
     .still-there-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
-    .still-there-item { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; color: #333; line-height: 1.6; }
+    .still-there-item { display:block; gap: 10px; align-items: flex-start; margin-bottom: 10px; font-size: 14px; color: #333; line-height: 1.6; }
     .still-there-item:last-child { margin-bottom: 0; }
     .tick { color: #7c3aed; font-weight: 800; flex-shrink: 0; margin-top: 1px; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
@@ -37,17 +37,17 @@
 
       <div class="still-there-box">
         <div class="still-there-title">What's waiting for you</div>
-        <div class="still-there-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;"><div class="tick">+</div><div>Your career analysis, readiness score, and gap breakdown</div></div>
-        <div class="still-there-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;"><div class="tick">+</div><div>Your priority actions, ranked in order of impact</div></div>
-        <div class="still-there-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;"><div class="tick">+</div><div>Your roadmap and any actions you've already completed</div></div>
-        <div class="still-there-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;"><div class="tick">+</div><div>Your conversation history with the coach</div></div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">+</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your career analysis, readiness score, and gap breakdown</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">+</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your priority actions, ranked in order of impact</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">+</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your roadmap and any actions you've already completed</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">+</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your conversation history with the coach</div></td></tr></table>
       </div>
 
       <p class="body-text">You can pick up exactly where you left off. Or if things have changed, your target role, your experience, what you've been working on, the coach can update your profile to reflect who you are now.</p>
 
       <p class="body-text">Either way, the foundation you built is still there.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Come back to your dashboard &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Come back to your dashboard &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

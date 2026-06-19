@@ -13,7 +13,7 @@
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .impact-box { border: 2px solid #e5e5e5; border-radius: 14px; padding: 22px 26px; margin: 24px 0; }
     .impact-title { font-size: 13px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
-    .impact-row { display: flex; gap: 16px; align-items: center; margin-bottom: 10px; font-size: 14px; color: #444; line-height: 1.5; }
+    .impact-row { display:block; gap: 16px; align-items: center; margin-bottom: 10px; font-size: 14px; color: #444; line-height: 1.5; }
     .impact-row:last-child { margin-bottom: 0; }
     .impact-arrow { font-size: 16px; color: #10b981; font-weight: 700; flex-shrink: 0; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
@@ -37,27 +37,15 @@
 
       <div class="impact-box">
         <div class="impact-title">What completing actions actually changes</div>
-        <div class="impact-row">
-          <div class="impact-arrow">+</div>
-          <div>Your readiness score updates to reflect what you've built</div>
-        </div>
-        <div class="impact-row">
-          <div class="impact-arrow">+</div>
-          <div>Your reply probability changes. sometimes significantly</div>
-        </div>
-        <div class="impact-row">
-          <div class="impact-arrow">+</div>
-          <div>The coach reprioritises your remaining actions based on your new position</div>
-        </div>
-        <div class="impact-row">
-          <div class="impact-arrow">+</div>
-          <div>You get a clearer picture of when you're ready for direct outreach</div>
-        </div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">+</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your readiness score updates to reflect what you've built</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">+</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>Your reply probability changes. sometimes significantly</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">+</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>The coach reprioritises your remaining actions based on your new position</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">+</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>You get a clearer picture of when you're ready for direct outreach</div></td></tr></table>
       </div>
 
       <p class="body-text">Log one thing. See what changes. Then decide what to do next.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Log a completed action &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Log a completed action &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

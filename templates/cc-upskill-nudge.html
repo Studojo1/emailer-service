@@ -12,9 +12,9 @@
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .loop-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
-    .loop-item { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+    .loop-item { display:block; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
     .loop-item:last-child { margin-bottom: 0; }
-    .loop-num { flex-shrink: 0; width: 26px; height: 26px; background: #7c3aed; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .loop-num { flex-shrink: 0; width: 26px; height: 26px; background: #7c3aed; border-radius: 50%; display:block; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
     .loop-text { font-size: 14px; color: #333; line-height: 1.7; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
     .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
@@ -36,27 +36,15 @@
       <p class="body-text">Here is how the loop works:</p>
 
       <div class="loop-box">
-        <div class="loop-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="loop-num">1</div>
-          <div class="loop-text">You come back to the coach and update it on what you've been working on: skills you've built, things you've learned, shifts in what you want.</div>
-        </div>
-        <div class="loop-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="loop-num">2</div>
-          <div class="loop-text">The coach refines your profile. Your analysis updates to reflect who you are now, not who you were when you first signed up.</div>
-        </div>
-        <div class="loop-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="loop-num">3</div>
-          <div class="loop-text">Your readiness score and reply probability recalculate. Your priority actions shift to match your current position. The roadmap stays current.</div>
-        </div>
-        <div class="loop-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="loop-num">4</div>
-          <div class="loop-text">You know exactly where you stand, not where you stood three weeks ago. That is what separates a student who is climbing from one who is stuck.</div>
-        </div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">1</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div class="loop-text">You come back to the coach and update it on what you've been working on: skills you've built, things you've learned, shifts in what you want.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">2</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div class="loop-text">The coach refines your profile. Your analysis updates to reflect who you are now, not who you were when you first signed up.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">3</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div class="loop-text">Your readiness score and reply probability recalculate. Your priority actions shift to match your current position. The roadmap stays current.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="34" style="padding-right:10px;"><div style="width:24px;height:24px;background:#7c3aed;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:800;color:#ffffff;">4</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div class="loop-text">You know exactly where you stand, not where you stood three weeks ago. That is what separates a student who is climbing from one who is stuck.</div></td></tr></table>
       </div>
 
       <p class="body-text">The students who reach the top of their industry don't just build skills. They track where they are and adjust. Come back and keep building your picture.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Continue with your coach &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Continue with your coach &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

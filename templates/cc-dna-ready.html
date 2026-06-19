@@ -14,11 +14,11 @@
     .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .contains-box { border: 2px solid #e5e5e5; border-radius: 14px; padding: 8px 24px; margin: 24px 0; }
-    .contains-row { display: flex; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
+    .contains-row { display:block; gap: 14px; align-items: flex-start; padding: 14px 0; border-bottom: 1px solid #f0f0f0; }
     .contains-row:last-child { border-bottom: none; }
     .contains-label { font-size: 14px; font-weight: 700; color: #111; margin: 0 0 3px; }
     .contains-desc { font-size: 13px; color: #666; line-height: 1.6; margin: 0; }
-    .contains-num { flex-shrink: 0; width: 26px; height: 26px; background: #7c3aed; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .contains-num { flex-shrink: 0; width: 26px; height: 26px; background: #7c3aed; border-radius: 50%; display:block; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
     .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
     .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
@@ -43,37 +43,25 @@
       <p class="body-text">Yours is ready. Here's what's inside:</p>
 
       <div class="contains-box">
-        <div class="contains-row">
-          <div class="contains-num">1</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">1</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="contains-label">Your readiness score</div>
-            <div class="contains-desc">Where you stand as a candidate for your target role, right now.</div>
-          </div>
+            <div class="contains-desc">Where you stand as a candidate for your target role, right now.</td></tr></table>
         </div>
-        <div class="contains-row">
-          <div class="contains-num">2</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">2</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="contains-label">Your gap breakdown</div>
-            <div class="contains-desc">Skills, experience, and industry gaps ranked by how much fixing each one would move your readiness.</div>
-          </div>
+            <div class="contains-desc">Skills, experience, and industry gaps ranked by how much fixing each one would move your readiness.</td></tr></table>
         </div>
-        <div class="contains-row">
-          <div class="contains-num">3</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">3</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="contains-label">Your priority actions</div>
-            <div class="contains-desc">The specific steps to take, in order, to close the gaps that matter most.</div>
-          </div>
+            <div class="contains-desc">The specific steps to take, in order, to close the gaps that matter most.</td></tr></table>
         </div>
-        <div class="contains-row">
-          <div class="contains-num">4</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">4</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="contains-label">Your reply probability</div>
-            <div class="contains-desc">An honest estimate of how likely a hiring manager is to respond to outreach from you today.</div>
-          </div>
+            <div class="contains-desc">An honest estimate of how likely a hiring manager is to respond to outreach from you today.</td></tr></table>
         </div>
       </div>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Review your career analysis &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Review your career analysis &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

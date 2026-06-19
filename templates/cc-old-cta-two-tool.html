@@ -12,7 +12,7 @@
     .body { padding: 40px 40px 32px; }
     .variant-note { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #92400e; background: #fffbeb; border: 1.5px solid #f59e0b; border-radius: 100px; padding: 5px 14px; display: inline-block; margin-bottom: 20px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
-    .two-btn { display: flex; gap: 12px; margin: 8px 0 0; }
+    .two-btn { display:block; gap: 12px; margin: 8px 0 0; }
     .half-btn { flex: 1; text-align: center; font-size: 14px; font-weight: 700; padding: 14px 16px; border-radius: 8px; text-decoration: none; border: 2px solid #19191a; box-shadow: 3px 3px 0 rgba(25,26,35,1); }
     .half-btn.primary { background: #7c3aed; color: #fff; }
     .half-btn.ghost { background: #fff; color: #19191a; }
@@ -27,10 +27,7 @@
       <div class="variant-note">CTA Variant · Deepest tool: Internship Dojo or no dominant signal</div>
       <p class="body-text">This closing block is swapped in when the user applied heavily on Internship Dojo with no results, or has no single dominant tool signal. There is no obvious one-tool answer, so they get a clear two-way choice. This is also the default for the barely-started stage.</p>
       <p class="body-text">Pick the move that fits where you are right now. Either one beats another round of applications that go nowhere.</p>
-      <div class="two-btn">
-        <a class="half-btn primary" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Reach hiring managers</a>
-        <a class="half-btn ghost" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Talk to your coach</a>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:24px 0;"><tr><td width="50%" valign="top" style="padding-right:6px;"><a class="half-btn primary" style="display:block;background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;text-align:center;padding:13px 0;border-radius:8px;font-size:15px;" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Reach hiring managers</a></td><td width="50%" valign="top" style="padding-left:6px;"><a class="half-btn ghost" style="display:block;background-color:#ffffff;color:#7c3aed;font-weight:700;text-decoration:none;text-align:center;padding:12px 0;border-radius:8px;font-size:15px;border:2px solid #7c3aed;" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Talk to your coach</a></td></tr></table>
     </div>
     <div class="footer"><p class="footer-text">Studojo · studojo.com · CTA reference block, not a standalone email</p></div>
   </div>

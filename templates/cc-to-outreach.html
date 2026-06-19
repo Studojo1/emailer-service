@@ -13,7 +13,7 @@
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .bridge-box { background-color: #f3f0ff; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
     .bridge-title { font-size: 13px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
-    .bridge-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #333; line-height: 1.6; }
+    .bridge-row { display:block; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #333; line-height: 1.6; }
     .bridge-row:last-child { margin-bottom: 0; }
     .bridge-dot { flex-shrink: 0; width: 8px; height: 8px; background: #7c3aed; border-radius: 50%; margin-top: 7px; }
     .testimonial-block { background-color: #f3f0ff; border-left: 4px solid #7c3aed; border-radius: 0 12px 12px 0; padding: 20px 24px; margin: 24px 0; }
@@ -41,22 +41,10 @@
 
       <div class="bridge-box">
         <div class="bridge-title">Here is what Outreach Dojo does</div>
-        <div class="bridge-row">
-          <div class="bridge-dot" style=""></div>
-          <div>We find the right hiring managers at your target companies on LinkedIn. Not HR departments. The actual people who make or influence hiring decisions.</div>
-        </div>
-        <div class="bridge-row">
-          <div class="bridge-dot" style=""></div>
-          <div>We write a personalised note to each one on your behalf. Built around their team, their company's work, and why you are reaching out specifically.</div>
-        </div>
-        <div class="bridge-row">
-          <div class="bridge-dot" style=""></div>
-          <div>You review every message before it goes out. Nothing is sent without your approval.</div>
-        </div>
-        <div class="bridge-row">
-          <div class="bridge-dot" style=""></div>
-          <div>You start getting replies. From people who read your message, found it specific and genuine, and want to talk.</div>
-        </div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>We find the right hiring managers at your target companies on LinkedIn. Not HR departments. The actual people who make or influence hiring decisions.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>We write a personalised note to each one on your behalf. Built around their team, their company's work, and why you are reaching out specifically.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>You review every message before it goes out. Nothing is sent without your approval.</div></td></tr></table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>You start getting replies. From people who read your message, found it specific and genuine, and want to talk.</div></td></tr></table>
       </div>
 
       <div class="testimonial-block">
@@ -67,7 +55,7 @@
 
       <p class="body-text">The coach built the map. This is how you use it.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="">Start your outreach &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Start your outreach &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

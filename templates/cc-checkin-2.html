@@ -11,14 +11,14 @@
     .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
-    .comparison-row { display: flex; gap: 16px; margin: 24px 0; }
+    .comparison-row { display:block; gap: 16px; margin: 24px 0; }
     .comparison-card { flex: 1; border-radius: 12px; padding: 18px 20px; }
     .comparison-card.neutral { background: #f5f4f0; border: 1.5px solid #e0e0e0; }
     .comparison-card.active { background: #f3f0ff; border: 1.5px solid #7c3aed; }
     .comp-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 10px; }
     .comparison-card.neutral .comp-label { color: #999; }
     .comparison-card.active .comp-label { color: #7c3aed; }
-    .comp-point { font-size: 13px; color: #444; line-height: 1.6; margin-bottom: 8px; display: flex; gap: 8px; }
+    .comp-point { font-size: 13px; color: #444; line-height: 1.6; margin-bottom: 8px; display:block; gap: 8px; }
     .comp-point:last-child { margin-bottom: 0; }
     .comp-dot { flex-shrink: 0; width: 6px; height: 6px; border-radius: 50%; margin-top: 7px; }
     .comparison-card.neutral .comp-dot { background: #ccc; }
@@ -44,22 +44,30 @@
 
       <p class="body-text">It's been about a week since your career analysis was generated. Here's something we've noticed about students who act on their analysis versus those who don't.</p>
 
-      <div class="comparison-row">
-        <div class="comparison-card neutral">
-          <div class="comp-label">Students who sit on it</div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Read the analysis once, feel informed</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Plan to start "next week" repeatedly</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Still applying on portals 6 weeks later</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Readiness score stays flat</div></div>
-        </div>
-        <div class="comparison-card active">
-          <div class="comp-label">Students who act on it</div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Pick the top priority action only</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Complete it and log it in the coach</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>See their readiness score move</div></div>
-          <div class="comp-point"><div class="comp-dot" style=""></div><div>Start outreach from a stronger position</div></div>
-        </div>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;"><tr>
+        <td width="50%" valign="top" style="padding-right:6px;">
+          <div style="background:#fafafa;border:1px solid #eeeeee;border-radius:12px;padding:18px;">
+            <div style="font-size:14px;font-weight:700;color:#111111;margin-bottom:10px;">Students who sit on it</div>
+            <div style="font-size:14px;color:#555555;line-height:1.9;">
+              <div><span style="color:#999;">&bull;</span>&nbsp;Read the analysis once, feel informed</div>
+              <div><span style="color:#999;">&bull;</span>&nbsp;Plan to start "next week" repeatedly</div>
+              <div><span style="color:#999;">&bull;</span>&nbsp;Still applying on portals 6 weeks later</div>
+              <div><span style="color:#999;">&bull;</span>&nbsp;Readiness score stays flat</div>
+            </div>
+          </div>
+        </td>
+        <td width="50%" valign="top" style="padding-left:6px;">
+          <div style="background:#f3effe;border:1px solid #7c3aed;border-radius:12px;padding:18px;">
+            <div style="font-size:14px;font-weight:700;color:#7c3aed;margin-bottom:10px;">Students who act on it</div>
+            <div style="font-size:14px;color:#555555;line-height:1.9;">
+              <div><span style="color:#7c3aed;">&bull;</span>&nbsp;Pick the top priority action only</div>
+              <div><span style="color:#7c3aed;">&bull;</span>&nbsp;Complete it and log it in the coach</div>
+              <div><span style="color:#7c3aed;">&bull;</span>&nbsp;See their readiness score move</div>
+              <div><span style="color:#7c3aed;">&bull;</span>&nbsp;Start outreach from a stronger position</div>
+            </div>
+          </div>
+        </td>
+      </tr></table>
 
       <div class="testimonial-block">
         <p class="testimonial-text">"I completed two actions from my roadmap in the first two weeks. My readiness went up. When I started my outreach, the coach told me my reply probability had gone from 12% to 24%. That felt real."</p>
@@ -69,7 +77,7 @@
 
       <p class="body-text">Where are you on your first action? Log it in the dashboard and see what shifts.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Log your progress &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Log your progress &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

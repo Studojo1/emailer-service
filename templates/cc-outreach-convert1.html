@@ -11,7 +11,7 @@
     .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
-    .deliverable-row { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid #eeeeee; align-items: flex-start; }
+    .deliverable-row { display:block; gap: 16px; padding: 18px 0; border-bottom: 1px solid #eeeeee; align-items: flex-start; }
     .deliverable-row:last-child { border-bottom: none; }
     .deliverable-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
     .deliverable-title { font-size: 15px; font-weight: 800; color: #111; margin: 0 0 5px; }
@@ -38,33 +38,21 @@
       <p class="body-text">Here's what you're getting:</p>
 
       <div class="deliverables-wrapper">
-        <div class="deliverable-row">
-          <div class="deliverable-icon">🎯</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>
             <div class="deliverable-title">A list of real hiring managers at your target companies</div>
-            <div class="deliverable-desc">Not HR departments. Not generic contact pages. The actual engineering leads, product managers, founders, or team heads who have the authority to say "bring this person in." We find them on LinkedIn.</div>
-          </div>
+            <div class="deliverable-desc">Not HR departments. Not generic contact pages. The actual engineering leads, product managers, founders, or team heads who have the authority to say "bring this person in." We find them on LinkedIn.</div></td></tr></table>
         </div>
-        <div class="deliverable-row">
-          <div class="deliverable-icon">✍️</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>
             <div class="deliverable-title">A personalised message for each one</div>
-            <div class="deliverable-desc">Written specifically for that person: their company, their team's current focus, what makes your background relevant to them. It reads like you spent an hour on it. Because we do the research, so you don't have to.</div>
-          </div>
+            <div class="deliverable-desc">Written specifically for that person: their company, their team's current focus, what makes your background relevant to them. It reads like you spent an hour on it. Because we do the research, so you don't have to.</div></td></tr></table>
         </div>
-        <div class="deliverable-row">
-          <div class="deliverable-icon">👁️</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>
             <div class="deliverable-title">Your review before anything goes out</div>
-            <div class="deliverable-desc">You see every message. You approve every message. Nothing is sent without your sign-off. If something doesn't feel right, you change it.</div>
-          </div>
+            <div class="deliverable-desc">You see every message. You approve every message. Nothing is sent without your sign-off. If something doesn't feel right, you change it.</div></td></tr></table>
         </div>
-        <div class="deliverable-row">
-          <div class="deliverable-icon">📬</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:12px;"><tr><td valign="top" width="22" style="color:#7c3aed;font-weight:700;font-size:15px;line-height:1.6;">•</td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;"><div>
             <div class="deliverable-title">Replies from people who can open doors</div>
-            <div class="deliverable-desc">Not automated rejections. Not "we'll keep your CV on file." Actual replies from hiring managers who read your message, found it specific and human, and want to continue the conversation.</div>
-          </div>
+            <div class="deliverable-desc">Not automated rejections. Not "we'll keep your CV on file." Actual replies from hiring managers who read your message, found it specific and human, and want to continue the conversation.</div></td></tr></table>
         </div>
       </div>
 
@@ -72,7 +60,7 @@
         If you're worried your profile isn't strong enough, that's exactly when this matters most. A hiring manager who replies to your outreach already has a reason to be interested in you before they look at your resume. The conversation starts differently. The bar to impress is lower, because you already showed you're not like every other applicant.
       </div>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="">Complete your outreach &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Complete your outreach &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

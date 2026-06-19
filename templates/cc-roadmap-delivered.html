@@ -14,9 +14,9 @@
     .headline { font-size: 28px; font-weight: 800; color: #111111; line-height: 1.2; margin: 0 0 24px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .how-box { background-color: #fafafa; border: 1px solid #eeeeee; border-radius: 14px; padding: 24px 28px; margin: 24px 0; }
-    .how-item { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
+    .how-item { display:block; gap: 14px; align-items: flex-start; margin-bottom: 16px; }
     .how-item:last-child { margin-bottom: 0; }
-    .how-num { flex-shrink: 0; width: 26px; height: 26px; background: #19191a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
+    .how-num { flex-shrink: 0; width: 26px; height: 26px; background: #19191a; border-radius: 50%; display:block; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; color: #fff; margin-top: 2px; }
     .how-title { font-size: 14px; font-weight: 700; color: #111; margin: 0 0 3px; }
     .how-desc { font-size: 13px; color: #666; line-height: 1.6; margin: 0; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
@@ -43,32 +43,46 @@
       <p class="body-text">Here is what the students who actually move forward do:</p>
 
       <div class="how-box">
-        <div class="how-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="how-num">1</div>
-          <div>
-            <div class="how-title">Pick the top action only</div>
-            <div class="how-desc">Your roadmap has priority actions ranked in order. Look at the first one. Only that one. Ignore the rest for now.</div>
-          </div>
-        </div>
-        <div class="how-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="how-num">2</div>
-          <div>
-            <div class="how-title">Set a specific deadline for it</div>
-            <div class="how-desc">Not "this week." A date. "I will have this done by Tuesday." Specificity is the difference between an intention and a plan.</div>
-          </div>
-        </div>
-        <div class="how-item" style="margin-bottom:14px;font-size:15px;color:#333333;line-height:1.6;">
-          <div class="how-num">3</div>
-          <div>
-            <div class="how-title">Log it in the coach when it's done</div>
-            <div class="how-desc">Mark it complete in your dashboard. Your readiness score updates. You see what moved and what to focus on next.</div>
-          </div>
-        </div>
+        <!-- Table-based layout: email clients (Gmail/Outlook) don't support flexbox,
+             so the number circle + text are laid out with a table to stay aligned. -->
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;">
+          <tr>
+            <td valign="top" width="38" style="padding-right:12px;">
+              <div style="width:26px;height:26px;background:#19191a;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">1</div>
+            </td>
+            <td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
+              <div style="font-size:14px;font-weight:700;color:#111111;margin:0 0 3px;">Pick the top action only</div>
+              <div>Your roadmap has priority actions ranked in order. Look at the first one. Only that one. Ignore the rest for now.</div>
+            </td>
+          </tr>
+        </table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:16px;">
+          <tr>
+            <td valign="top" width="38" style="padding-right:12px;">
+              <div style="width:26px;height:26px;background:#19191a;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">2</div>
+            </td>
+            <td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
+              <div style="font-size:14px;font-weight:700;color:#111111;margin:0 0 3px;">Set a specific deadline for it</div>
+              <div>Not "this week." A date. "I will have this done by Tuesday." Specificity is the difference between an intention and a plan.</div>
+            </td>
+          </tr>
+        </table>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%">
+          <tr>
+            <td valign="top" width="38" style="padding-right:12px;">
+              <div style="width:26px;height:26px;background:#19191a;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">3</div>
+            </td>
+            <td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
+              <div style="font-size:14px;font-weight:700;color:#111111;margin:0 0 3px;">Log it in the coach when it's done</div>
+              <div>Mark it complete in your dashboard. Your readiness score updates. You see what moved and what to focus on next.</div>
+            </td>
+          </tr>
+        </table>
       </div>
 
       <p class="body-text">The fastest path to your first hiring manager reply is a strong profile backed by direct outreach. Your roadmap is building the first half. Outreach Dojo handles the second.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Open your roadmap &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Open your roadmap &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

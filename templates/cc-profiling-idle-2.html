@@ -13,7 +13,7 @@
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .gap-box { border: 2px solid #e5e5e5; border-radius: 14px; padding: 22px 26px; margin: 24px 0; }
     .gap-title { font-size: 13px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 14px; }
-    .gap-item { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #444; line-height: 1.6; }
+    .gap-item { display:block; gap: 12px; align-items: flex-start; margin-bottom: 12px; font-size: 14px; color: #444; line-height: 1.6; }
     .gap-item:last-child { margin-bottom: 0; }
     .gap-dot { flex-shrink: 0; width: 8px; height: 8px; border-radius: 50%; background: #7c3aed; margin-top: 7px; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
@@ -50,7 +50,7 @@
 
       <p class="body-text">These take 5 to 10 more minutes. Everything you've already shared is still there.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Finish your profile &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Finish your profile &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">
