@@ -68,16 +68,15 @@
 
       <p class="body-text">The fastest path to your first hiring manager reply is a strong profile backed by direct outreach. Your roadmap is building the first half. Outreach Dojo handles the second.</p>
 
-      <a class="cta-button" href="https://studojo.pro/career-coach" style="">Open your roadmap &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Open your roadmap &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">
         <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

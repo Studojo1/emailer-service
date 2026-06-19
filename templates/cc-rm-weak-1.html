@@ -37,16 +37,15 @@
 
       <p class="body-text">Career Coach builds a specific picture of your profile, your gaps, and the actions that will move your readiness the most. It takes 10 to 15 minutes and tells you things most students find out too late.</p>
 
-      <a class="cta-button" href="https://studojo.pro/career-coach" style="">Talk to your career coach &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}" style="">Talk to your career coach &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">
         <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

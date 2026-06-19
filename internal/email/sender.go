@@ -15,9 +15,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// SendLogger is implemented by the store to record email sends for the admin dashboard.
+// SendLogger is implemented by the store to record email sends for the admin
+// dashboard and to gate sends on the suppression list.
 type SendLogger interface {
 	LogEmailSent(ctx context.Context, userID, userName, emailTo, templateName, fromAddress string) error
+	// IsEmailSuppressed reports whether an address has hard-bounced or complained
+	// and must never be emailed again.
+	IsEmailSuppressed(ctx context.Context, email string) (bool, error)
 }
 
 // ContextKey is a typed key for values stored in a send context.
@@ -205,6 +209,19 @@ func (s *Sender) unsubscribeURL(userID string) string {
 
 // SendTemplateEmail sends an email using a template
 func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string, data interface{}) error {
+	// Suppression gate: never send to an address that has hard-bounced or filed a
+	// spam complaint. Continuing to mail dead/complained addresses is what wrecks
+	// sender-domain reputation (audit R1). A suppression-store error is logged but
+	// does not block the send (fail-open on the check, not on the suppression).
+	if s.logger != nil {
+		if suppressed, err := s.logger.IsEmailSuppressed(ctx, to); err != nil {
+			slog.Warn("suppression check failed, sending anyway", "to", to, "err", err)
+		} else if suppressed {
+			slog.Info("skipping send to suppressed address", "to", to, "template", templateName)
+			return nil
+		}
+	}
+
 	// Inject tracking pixel URL into template data
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {

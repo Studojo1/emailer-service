@@ -192,8 +192,10 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	if _, welcomeType, _, chase, ok := handlers.GateByType(e.EmailType); ok {
 		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, welcomeType)
 		if err != nil {
-			slog.Warn("scheduler: gate engagement check failed, skipping enrol", "user_id", e.UserID, "err", err)
-			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			// A transient DB error is NOT a signal that the user engaged. Marking
+			// the gate sent here drops the user out of the chase forever on a hiccup
+			// (audit B1). Leave the row pending so the next tick re-checks.
+			slog.Warn("scheduler: gate engagement check failed, leaving gate pending for retry", "user_id", e.UserID, "err", err)
 			return false
 		}
 		if engaged {

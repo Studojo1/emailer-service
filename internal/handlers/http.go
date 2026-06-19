@@ -722,9 +722,25 @@ func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]string{"status": "ok"}, http.StatusOK)
 }
 
+// parseTrackID splits a track_id of the form {emailType}__{email}__{uuid}.
+// The email's local part can legitimately contain "__", which broke the old
+// left-to-right SplitN (audit N7) — it would truncate the email at the first
+// "__" and record opens/clicks for the wrong address. emailType (a template
+// name) and the uuid never contain "__", so we take emailType from the FIRST
+// "__" and the uuid from the LAST "__", leaving everything in between as the
+// full email. ok is false if the id isn't well-formed.
+func parseTrackID(trackID string) (emailType, email string, ok bool) {
+	first := strings.Index(trackID, "__")
+	last := strings.LastIndex(trackID, "__")
+	if first < 0 || last <= first {
+		return "", "", false
+	}
+	return trackID[:first], trackID[first+2 : last], true
+}
+
 // HandleTrackOpen handles GET /v1/email/track/{track_id}
 // Returns a 1x1 transparent pixel and records the open event.
-// track_id format: {emailType}__{userID}__{uuid}
+// track_id format: {emailType}__{email}__{uuid}
 func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 	trackID := r.PathValue("track_id")
 	if trackID == "" {
@@ -732,21 +748,14 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse emailType and userID from trackID (format: emailType__userID__uuid)
-	parts := strings.SplitN(trackID, "__", 3)
-	emailType, userID := "", ""
-	if len(parts) >= 2 {
-		emailType = parts[0]
-		userID = parts[1]
-	}
+	emailType, emailAddr, ok := parseTrackID(trackID)
 
 	userAgent := r.Header.Get("User-Agent")
 	go func() {
 		ctx := context.Background()
-		h.Store.RecordEmailOpen(ctx, trackID, userID, emailType, userAgent)
+		h.Store.RecordEmailOpen(ctx, trackID, emailAddr, emailType, userAgent)
 		// Also mark opened_at in email_send_log (best-effort, non-blocking)
-		if len(parts) >= 2 {
-			emailAddr := parts[1] // track_id format: template__email__uuid
+		if ok {
 			h.Store.MarkEmailOpened(ctx, emailAddr, emailType)
 		}
 	}()
@@ -783,12 +792,7 @@ func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if trackID != "" {
-		parts := strings.SplitN(trackID, "__", 3)
-		emailType, emailAddr := "", ""
-		if len(parts) >= 2 {
-			emailType = parts[0]
-			emailAddr = parts[1]
-		}
+		emailType, emailAddr, _ := parseTrackID(trackID)
 		userAgent := r.Header.Get("User-Agent")
 		go func() {
 			ctx := context.Background()
@@ -920,6 +924,80 @@ func (h *Handler) HandleInbound(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{"status": "recorded", "cancelled": cancelled}, http.StatusOK)
 }
 
+// HandleEmailDeliveryReport receives Azure Communication Services delivery
+// reports (via Event Grid) and suppresses addresses that hard-bounce or file a
+// spam complaint, so we stop mailing dead/complaining inboxes and protect sender
+// reputation (audit R1). Secret-gated. Handles the Event Grid subscription
+// validation handshake, and is tolerant of the event shape (best-effort parse).
+func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !requireInternalSecret(w, r) {
+		return
+	}
+
+	// Event Grid delivers a JSON array of events.
+	var events []struct {
+		EventType string          `json:"eventType"`
+		Data      json.RawMessage `json:"data"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&events); err != nil {
+		writeError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	suppressed := 0
+	for _, ev := range events {
+		// 1) Subscription validation handshake — echo the code back.
+		if ev.EventType == "Microsoft.EventGrid.SubscriptionValidationEvent" {
+			var vd struct {
+				ValidationCode string `json:"validationCode"`
+			}
+			_ = json.Unmarshal(ev.Data, &vd)
+			writeJSON(w, map[string]string{"validationResponse": vd.ValidationCode}, http.StatusOK)
+			return
+		}
+
+		// 2) Delivery report — suppress on a permanent failure or complaint.
+		if ev.EventType == "Microsoft.Communication.EmailDeliveryReportReceived" {
+			var dr struct {
+				Recipient      string `json:"recipient"`
+				DeliveryStatus string `json:"deliveryStatus"`
+			}
+			if err := json.Unmarshal(ev.Data, &dr); err != nil || dr.Recipient == "" {
+				continue
+			}
+			// ACS statuses: Delivered, Bounced, Failed, Quarantined, Suppressed,
+			// FilteredSpam. Treat permanent-failure / complaint signals as suppressible;
+			// transient/Delivered are ignored.
+			reason := ""
+			switch strings.ToLower(dr.DeliveryStatus) {
+			case "bounced":
+				reason = "hard_bounce"
+			case "quarantined", "filteredspam", "suppressed":
+				reason = "complaint"
+			}
+			if reason == "" {
+				continue
+			}
+			if err := h.Store.SuppressEmail(ctx, dr.Recipient, reason); err != nil {
+				slog.Error("delivery-report: suppress failed", "recipient", dr.Recipient, "err", err)
+				continue
+			}
+			// Also stop any pending marketing chases to this person.
+			if u, err := h.Store.GetUserByEmail(ctx, dr.Recipient); err == nil && u != nil {
+				_, _ = h.Store.CancelPendingCCMarketingEmails(ctx, u.ID)
+			}
+			suppressed++
+			slog.Info("delivery-report: address suppressed", "recipient", dr.Recipient, "reason", reason, "status", dr.DeliveryStatus)
+		}
+	}
+	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
+}
+
 // HandleWebinarLinkCron sends the join link to every registrant when the webinar
 // is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it can run
 // daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
@@ -1013,7 +1091,16 @@ func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 // callers must go through a server-side proxy that holds the secret.
 func requireInternalSecret(w http.ResponseWriter, r *http.Request) bool {
 	secret := os.Getenv("INTERNAL_SECRET")
-	if secret == "" || r.Header.Get("X-Internal-Secret") != secret {
+	if secret == "" {
+		// Misconfiguration, not an attack: the service can't authenticate anyone,
+		// so every event POST silently 401s. Log it loudly so it's diagnosable
+		// instead of looking like "emails just aren't firing" (audit B8).
+		slog.Error("requireInternalSecret: INTERNAL_SECRET is not set — rejecting all internal calls", "path", r.URL.Path)
+		writeError(w, "unauthorized", http.StatusUnauthorized)
+		return false
+	}
+	if r.Header.Get("X-Internal-Secret") != secret {
+		slog.Warn("requireInternalSecret: rejected call with missing/invalid X-Internal-Secret", "path", r.URL.Path)
 		writeError(w, "unauthorized", http.StatusUnauthorized)
 		return false
 	}

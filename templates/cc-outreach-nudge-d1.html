@@ -38,7 +38,7 @@
 
       <p class="body-text">Three minutes to get started. Most students have their first outreach batch ready the same day.</p>
 
-      <a class="cta-button" href="https://studojo.com/outreach" style="">Try Outreach Dojo &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="">Try Outreach Dojo &rarr;</a>
 
       <p class="body-text">Any questions, just reply here. I read every email.</p>
 
@@ -47,9 +47,8 @@
         <p>Talk soon,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

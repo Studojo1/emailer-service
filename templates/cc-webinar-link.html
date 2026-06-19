@@ -49,7 +49,7 @@
       </div>
     </div>
     <div class="footer">
-      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you registered for the Studojo webinar.</p>
+      <p class="footer-text">Studojo · studojo.com<br />You're receiving this because you registered for the Studojo webinar.{{if .UnsubscribeURL}} <a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p>
     </div>
   </div>
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}

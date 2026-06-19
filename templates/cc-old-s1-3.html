@@ -36,8 +36,8 @@
       <!-- CTA SWAP POINT: at send time this block is replaced by the deepest-tool variant
            (cta-outreach / cta-coach / cta-two-tool). Default shown below is the two-tool choice. -->
       <div class="two-btn">
-        <a class="half-btn primary" href="https://studojo.com/outreach">Reach hiring managers</a>
-        <a class="half-btn ghost" href="https://studojo.pro/career-coach">Talk to your coach</a>
+        <a class="half-btn primary" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}">Reach hiring managers</a>
+        <a class="half-btn ghost" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.pro/career-coach"}}{{else}}https://studojo.pro/career-coach{{end}}">Talk to your coach</a>
       </div>
 
       <p class="body-text">Whichever fits where you are, it takes minutes to be back in it.</p>
@@ -47,9 +47,8 @@
         <p>Talk soon,<br /><span class="sign-off-name">Jeremy</span><br />Co-founder, Studojo</p>
       </div>
     </div>
-    <div class="footer"><p class="footer-text">Studojo · studojo.com</p></div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com{{if .UnsubscribeURL}}<br /><a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

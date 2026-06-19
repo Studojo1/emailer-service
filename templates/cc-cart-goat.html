@@ -42,7 +42,7 @@
       </div>
 
       <div class="cta-wrap">
-        <a href="https://studojo.com/outreach" class="cta-button" style="">Finish checkout &rarr;</a>
+        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
       </div>
 
       <p class="body-text">You don't reach the payment page by accident. You're serious about this. Let's get you the rest of the way.</p>
@@ -55,12 +55,11 @@
     </div>
     <div class="footer">
       <p class="footer-text">
-        Studojo &middot; <a href="https://studojo.com">studojo.com</a>
+        Studojo &middot; <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com"}}{{else}}https://studojo.com{{end}}">studojo.com</a>
         {{if .UnsubscribeURL}}<br><a href="{{.UnsubscribeURL}}">Unsubscribe from marketing emails</a>{{end}}
       </p>
     </div>
   </div>
-{PIXEL}
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
 </body>
 </html>

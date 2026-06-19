@@ -99,6 +99,12 @@ var dashboardFlows = []flowDef{
 		{"Returning 2", "cc-returning-2", "cron"},
 		{"Returning 3", "cc-returning-3", "cron"},
 	}},
+	// Webinar: instant "registration confirmed" on signup, then the join link sent
+	// by the daily webinar-link cron one day before the webinar.
+	{ID: "webinar", Title: "Webinar", Trigger: "event.cc.webinar_registered", Kind: "instant", Steps: []flowStep{
+		{"Registration confirmed", "cc-webinar-confirm", "instant"},
+		{"Join link", "cc-webinar-link", "1 day before"},
+	}},
 }
 
 type flowOutStep struct {
