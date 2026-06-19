@@ -406,6 +406,10 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "You're registered. Here's what happens next.", nil
 	case "cc-webinar-link":
 		return "Your webinar link — it's tomorrow", nil
+	case "cc-webinar-funnel-all", "cc-webinar-funnel-coach", "cc-webinar-funnel-resume":
+		return "Before the webinar: a head start", nil
+	case "cc-webinar-funnel-outreach":
+		return "Before the webinar: see how replies actually happen", nil
 	case "cc-welcome":
 		return "You asked for an honest look. Good.", nil
 	case "cc-nudge-1":
