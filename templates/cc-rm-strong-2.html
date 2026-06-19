@@ -11,7 +11,7 @@
     .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
-    .stat-row { display: flex; gap: 12px; margin: 24px 0; }
+    .stat-row { display:block; gap: 12px; margin: 24px 0; }
     .stat-card { flex: 1; border-radius: 12px; padding: 16px; text-align: center; border: 2px solid #e5e5e5; }
     .stat-card.highlight { border-color: #7c3aed; background: #f3f0ff; }
     .stat-num { font-size: 32px; font-weight: 800; color: #111; line-height: 1; margin-bottom: 6px; }
@@ -38,16 +38,20 @@
 
       <p class="body-text">You built a resume. Most students stop there. The ones who get replies do one more thing: they get their profile in front of the right people directly.</p>
 
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="stat-num">~2%</div>
-          <div class="stat-label">Reply rate applying through portals with a strong resume</div>
-        </div>
-        <div class="stat-card highlight">
-          <div class="stat-num">~25%</div>
-          <div class="stat-label">Reply rate with personalised direct outreach to hiring managers</div>
-        </div>
-      </div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:20px 0;"><tr>
+        <td width="50%" valign="top" style="padding-right:6px;">
+          <div style="background:#fafafa;border:1px solid #eeeeee;border-radius:12px;padding:18px;text-align:center;">
+            <div style="font-size:26px;font-weight:800;color:#19191a;">~2%</div>
+            <div style="font-size:13px;color:#666666;margin-top:4px;">Reply rate applying through portals with a strong resume</div>
+          </div>
+        </td>
+        <td width="50%" valign="top" style="padding-left:6px;">
+          <div style="background:#f3effe;border:1px solid #7c3aed;border-radius:12px;padding:18px;text-align:center;">
+            <div style="font-size:26px;font-weight:800;color:#7c3aed;">~10%</div>
+            <div style="font-size:13px;color:#666666;margin-top:4px;">Reply rate with personalised direct outreach to hiring managers</div>
+          </div>
+        </td>
+      </tr></table>
 
       <p class="body-text">The resume is the foundation. Outreach is how you use it. Here is what that looks like when both come together:</p>
 
