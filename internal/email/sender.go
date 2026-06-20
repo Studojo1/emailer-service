@@ -165,19 +165,22 @@ func (s *Sender) nextSender(templateName string) string {
 // which then go through the round-robin pool.
 func (s *Sender) fixedSenderForTemplate(templateName string) string {
 	switch templateName {
-	// Transactional + confirmations + analysis (not marketing) -> support domain
+	// Transactional + confirmations + analysis + onboarding + webinar — all routed
+	// through the trusted support.studojo.com (.com) domain so Gmail places them in
+	// PRIMARY, not Promotions. The .pro welcome/promotions subdomains were getting
+	// tabbed into Promotions; the time-sensitive + onboarding emails belong in Primary.
 	case "payment-thankyou", "password-changed", "forgot-password",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready",
 		"cc-dna-ready", "cc-roadmap-delivered",
-		"cc-webinar-confirm", "cc-webinar-link":
+		"cc-webinar-confirm", "cc-webinar-link",
+		// onboarding -> Primary (was welcome.studojo.pro -> Promotions)
+		"cc-welcome", "cc-welcome-new-user",
+		// webinar intent-funnel (the "second" webinar email) -> Primary
+		"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+		"cc-webinar-funnel-coach", "cc-webinar-funnel-resume":
 		if s.supportSender != "" {
 			return s.supportSender
-		}
-	// Onboarding -> welcome domain
-	case "cc-welcome", "cc-welcome-new-user":
-		if s.welcomeSender != "" {
-			return s.welcomeSender
 		}
 	}
 	return ""
