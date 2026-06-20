@@ -106,3 +106,48 @@ func (s *PostgresStore) CountWebinarRegistrants(ctx context.Context) (int, error
 		`SELECT COUNT(DISTINCT lower(email)) FROM webinar_registrations WHERE email <> ''`).Scan(&n)
 	return n, err
 }
+
+// Webinar is one webinar with its registrant count, for the dashboard list.
+type Webinar struct {
+	ID          int        `json:"id"`
+	Title       string     `json:"title"`
+	WebinarDate *time.Time `json:"webinar_date"`
+	WebinarTime string     `json:"webinar_time"`
+	Status      string     `json:"status"`       // 'upcoming' | 'conducted'
+	Registrants int        `json:"registrants"`  // distinct registrants for this webinar
+	CreatedAt   *time.Time `json:"created_at"`
+}
+
+// ListWebinars returns every webinar with its distinct-registrant count, newest
+// first. Powers the dashboard "webinars conducted + per-webinar counts" view.
+func (s *PostgresStore) ListWebinars(ctx context.Context) ([]Webinar, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT w.id, w.title, w.webinar_date, w.webinar_time, w.status, w.created_at,
+		       COUNT(DISTINCT lower(r.email)) FILTER (WHERE r.email <> '') AS registrants
+		FROM webinars w
+		LEFT JOIN webinar_registrations r ON r.webinar_id = w.id
+		GROUP BY w.id
+		ORDER BY w.id DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Webinar
+	for rows.Next() {
+		var w Webinar
+		if err := rows.Scan(&w.ID, &w.Title, &w.WebinarDate, &w.WebinarTime, &w.Status, &w.CreatedAt, &w.Registrants); err == nil {
+			out = append(out, w)
+		}
+	}
+	return out, nil
+}
+
+// CountWebinarsByStatus returns how many webinars are conducted vs upcoming.
+func (s *PostgresStore) CountWebinarsByStatus(ctx context.Context) (conducted, upcoming int, err error) {
+	err = s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'conducted'),
+			COUNT(*) FILTER (WHERE status = 'upcoming')
+		FROM webinars`).Scan(&conducted, &upcoming)
+	return
+}

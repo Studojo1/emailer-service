@@ -379,12 +379,48 @@
       <!-- ═══════════════════════════════════ WEBINAR ═══════════════════════════════════ -->
       <div x-show="page==='webinar'">
         <div class="max-w-2xl">
-          <div class="rounded-xl border-2 border-neutral-900 bg-white p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)] mb-6 inline-flex items-center gap-4">
-            <div>
-              <div class="text-[11px] font-bold tracking-wide text-neutral-500">REGISTRANTS</div>
+          <!-- Webinars conducted / upcoming summary -->
+          <div class="flex flex-wrap gap-4 mb-6">
+            <div class="rounded-xl border-2 border-neutral-900 bg-white p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)]">
+              <div class="text-[11px] font-bold tracking-wide text-neutral-500">WEBINARS CONDUCTED</div>
+              <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(webinarsConducted||0).toLocaleString()"></div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <div class="text-[11px] font-bold tracking-wide text-neutral-500">UPCOMING</div>
+              <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(webinarsUpcoming||0).toLocaleString()"></div>
+            </div>
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+              <div class="text-[11px] font-bold tracking-wide text-neutral-500">TOTAL REGISTRANTS</div>
               <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(webinar.registrants||0).toLocaleString()"></div>
             </div>
-            <div class="text-xs text-neutral-400 max-w-[260px]">Everyone who registered. Each gets an instant confirmation, then the join link the day before — automatically.</div>
+          </div>
+
+          <!-- Per-webinar list -->
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6" x-show="webinarsList && webinarsList.length">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-50 text-slate-500 text-left">
+                <tr>
+                  <th class="px-5 py-3 font-medium">Webinar</th>
+                  <th class="px-5 py-3 font-medium">Date</th>
+                  <th class="px-5 py-3 font-medium">Status</th>
+                  <th class="px-5 py-3 font-medium text-right">Registrants</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template x-for="wb in webinarsList" :key="wb.id">
+                  <tr class="border-t border-slate-100">
+                    <td class="px-5 py-3 font-semibold text-neutral-800" x-text="wb.title || ('Webinar '+wb.id)"></td>
+                    <td class="px-5 py-3 text-slate-600" x-text="wb.webinar_date ? wb.webinar_date.slice(0,10) : '—'"></td>
+                    <td class="px-5 py-3">
+                      <span class="text-xs font-bold px-2 py-1 rounded"
+                        :class="wb.status==='conducted' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'"
+                        x-text="wb.status"></span>
+                    </td>
+                    <td class="px-5 py-3 text-right font-bold text-neutral-900" x-text="(wb.registrants||0).toLocaleString()"></td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
 
           <div class="bg-white rounded-xl border border-slate-200 p-6">
@@ -1306,6 +1342,7 @@ function app() {
     signups: null, signupFlows: [], signupsLoading: false, toolUsed: {}, replies: 0, missed: { count:0, users:[] },
     behavioral: { enabled:false, cohort_pct:0, shadow:true, cohorts:[], window_days:14 },
     webinar: { title:'', webinar_date:'', webinar_time:'', join_url:'', registrants:0 },
+    webinarsList: [], webinarsConducted: 0, webinarsUpcoming: 0,
     webinarSaving:false, webinarResult:'', webinarOk:false,
 
     // Overview
@@ -1469,6 +1506,15 @@ function app() {
     async loadWebinar() {
       const r = await this.api('GET', '/v1/admin/webinar')
       if (r.ok) { this.webinar = await r.json() }
+      // Load the multi-webinar list (conducted / upcoming + per-webinar counts)
+      const wr = await this.api('GET', '/v1/admin/webinars')
+      if (wr.ok) {
+        const d = await wr.json()
+        this.webinarsList = d.webinars || []
+        this.webinarsConducted = d.conducted || 0
+        this.webinarsUpcoming = d.upcoming || 0
+        if (d.total_registrations != null) this.webinar.registrants = d.total_registrations
+      }
     },
     async saveWebinar() {
       this.webinarSaving = true; this.webinarResult = ''
