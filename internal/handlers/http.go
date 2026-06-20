@@ -1075,6 +1075,29 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, map[string]interface{}{"sent": sent, "failed": failed, "webinar_date": webinarDay}, http.StatusOK)
 }
 
+// HandleAdminWebinars (GET /v1/admin/webinars) returns the list of webinars with
+// per-webinar registrant counts + how many are conducted vs upcoming. Powers the
+// dashboard "webinars conducted" view.
+func (h *Handler) HandleAdminWebinars(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	list, err := h.Store.ListWebinars(ctx)
+	if err != nil {
+		writeError(w, "failed to list webinars", http.StatusInternalServerError)
+		return
+	}
+	conducted, upcoming, _ := h.Store.CountWebinarsByStatus(ctx)
+	totalReg, _ := h.Store.CountWebinarRegistrants(ctx)
+	if list == nil {
+		list = []store.Webinar{}
+	}
+	writeJSON(w, map[string]interface{}{
+		"webinars":            list,
+		"conducted":           conducted,
+		"upcoming":            upcoming,
+		"total_registrations": totalReg,
+	}, http.StatusOK)
+}
+
 // HandleWebinarConfig is the admin GET/PUT for the webinar date + join link.
 func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
