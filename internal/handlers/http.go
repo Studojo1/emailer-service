@@ -998,9 +998,31 @@ func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
 }
 
-// HandleWebinarLinkCron sends the join link to every registrant when the webinar
-// is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it can run
-// daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
+// webinarFunnelTemplate maps a registrant's stated life_stage (intent) to the
+// intent-funnel email that recommends the right tools before the webinar. Each
+// funnel template also contains the meeting join link, so this IS the "second"
+// webinar email. Mapping (per product spec):
+//   Actively job hunting   -> Outreach Dojo
+//   Planning higher studies-> Career Coach only
+//   Working professional   -> Resume Maker only
+//   everything else / blank-> all 3 tools (Career Coach + Internship + Resume)
+func webinarFunnelTemplate(lifeStage string) string {
+	switch strings.TrimSpace(lifeStage) {
+	case "Actively job hunting":
+		return "cc-webinar-funnel-outreach"
+	case "Planning higher studies":
+		return "cc-webinar-funnel-coach"
+	case "Working professional":
+		return "cc-webinar-funnel-resume"
+	default:
+		return "cc-webinar-funnel-all"
+	}
+}
+
+// HandleWebinarLinkCron sends the intent-funnel email (with the join link) to
+// every registrant when the webinar is exactly ONE DAY away, choosing the
+// template by each registrant's life_stage. Idempotent (webinar_link_sent dedup)
+// so it can run daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
 func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1037,8 +1059,12 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 			"WebinarWhen":  when,
 			"JoinURL":      cfg.JoinURL,
 		}
-		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-link", data); serr != nil {
-			slog.Error("webinar link: send failed", "email", reg.Email, "error", serr)
+		// The "second" webinar email is the intent-funnel: pick the template that
+		// matches the registrant's stated life_stage, recommending the right tools
+		// before the webinar. The join link is built into every funnel template.
+		tmpl := webinarFunnelTemplate(reg.LifeStage)
+		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, tmpl, data); serr != nil {
+			slog.Error("webinar funnel: send failed", "email", reg.Email, "template", tmpl, "error", serr)
 			failed++
 			continue
 		}

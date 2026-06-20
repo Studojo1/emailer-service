@@ -49,23 +49,31 @@ func (s *PostgresStore) SetWebinarConfig(ctx context.Context, title, webinarDate
 }
 
 // WebinarRegistrant is a row from the frontend's webinar_registrations table,
-// which lives in the same Postgres the emailer connects to.
+// which lives in the same Postgres the emailer connects to. LifeStage is the
+// registrant's stated intent, used to pick which intent-funnel email they get.
 type WebinarRegistrant struct {
-	Email    string
-	FullName string
+	Email     string
+	FullName  string
+	LifeStage string
 }
 
 // ListWebinarRegistrantsNeedingLink returns registrants who have NOT yet been
 // sent the join link for the given webinar_date. Idempotent source for the cron.
+// DISTINCT ON (lower(email)) dedupes by email and keeps the most recent row so
+// we read a single, current life_stage per person.
 func (s *PostgresStore) ListWebinarRegistrantsNeedingLink(ctx context.Context, webinarDate string) ([]WebinarRegistrant, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT DISTINCT lower(r.email) AS email, COALESCE(r.full_name, '') AS full_name
+		SELECT DISTINCT ON (lower(r.email))
+		       lower(r.email) AS email,
+		       COALESCE(r.full_name, '') AS full_name,
+		       COALESCE(r.life_stage, '') AS life_stage
 		FROM webinar_registrations r
 		WHERE r.email <> ''
 		  AND NOT EXISTS (
 			SELECT 1 FROM webinar_link_sent ls
 			WHERE lower(ls.email) = lower(r.email) AND ls.webinar_date = $1::date
-		  )`, webinarDate)
+		  )
+		ORDER BY lower(r.email), r.created_at DESC`, webinarDate)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +81,7 @@ func (s *PostgresStore) ListWebinarRegistrantsNeedingLink(ctx context.Context, w
 	var out []WebinarRegistrant
 	for rows.Next() {
 		var w WebinarRegistrant
-		if rows.Scan(&w.Email, &w.FullName) == nil {
+		if rows.Scan(&w.Email, &w.FullName, &w.LifeStage) == nil {
 			out = append(out, w)
 		}
 	}
