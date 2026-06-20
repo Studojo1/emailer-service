@@ -203,27 +203,20 @@ type MissedSignup struct {
 	CreatedAt string `json:"created_at"`
 }
 
-// ccFlowLaunch is the date the cc-* email flow went live. Users who signed up
-// BEFORE this were never meant to receive a cc-* email (the flow didn't exist),
-// so counting them as "missed" is a false alarm. The missed-signups card only
-// considers signups on/after this date.
-const ccFlowLaunch = "2026-06-11"
-
-// CountSignupsWithNoCCEmail counts users who signed up AFTER the cc-flow launched
-// (older than graceMinutes so a just-now signup mid-send isn't falsely flagged)
-// and have NO cc-* row in email_send_log — i.e. the system never emailed them.
-// Legacy pre-flow users are excluded (they predate the email system entirely).
+// CountSignupsWithNoCCEmail counts users who signed up (older than graceMinutes,
+// so a just-now signup mid-send isn't falsely flagged) and have NO cc-* row in
+// email_send_log — i.e. the system never emailed them at all. Checked against
+// email_send_log (the authoritative send record), matched by email.
 func (s *PostgresStore) CountSignupsWithNoCCEmail(ctx context.Context, graceMinutes int) (int, error) {
 	var n int
 	err := s.db.QueryRowContext(ctx, `
 		SELECT COUNT(*) FROM "user" u
 		WHERE u.email <> ''
-		  AND u.created_at >= $2::date
 		  AND u.created_at <= NOW() - ($1 * INTERVAL '1 minute')
 		  AND NOT EXISTS (
 		    SELECT 1 FROM email_send_log l
 		    WHERE lower(l.email_to) = lower(u.email) AND l.template_name LIKE 'cc-%'
-		  )`, graceMinutes, ccFlowLaunch).Scan(&n)
+		  )`, graceMinutes).Scan(&n)
 	return n, err
 }
 
@@ -237,14 +230,13 @@ func (s *PostgresStore) ListSignupsWithNoCCEmail(ctx context.Context, graceMinut
 		SELECT u.id, u.email, COALESCE(u.name,''), to_char(u.created_at, 'YYYY-MM-DD HH24:MI')
 		FROM "user" u
 		WHERE u.email <> ''
-		  AND u.created_at >= $3::date
 		  AND u.created_at <= NOW() - ($1 * INTERVAL '1 minute')
 		  AND NOT EXISTS (
 		    SELECT 1 FROM email_send_log l
 		    WHERE lower(l.email_to) = lower(u.email) AND l.template_name LIKE 'cc-%'
 		  )
 		ORDER BY u.created_at DESC
-		LIMIT $2`, graceMinutes, limit, ccFlowLaunch)
+		LIMIT $2`, graceMinutes, limit)
 	if err != nil {
 		return nil, err
 	}
