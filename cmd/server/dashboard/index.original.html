@@ -93,83 +93,74 @@
       <span class="font-semibold text-white text-sm">Studojo Mail</span>
     </div>
 
-    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-      <!-- HOME (standalone, top) -->
-      <div @click="nav('home')"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='home' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='home'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
-        Home
-      </div>
-
-      <!-- INSIGHTS -->
-      <div class="px-4 pt-4 pb-1 text-[10px] font-bold tracking-widest text-slate-600 uppercase">Insights</div>
-      <div @click="nav('flows')"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='flows' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='flows'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
-        Flows
-      </div>
+    <nav class="flex-1 px-3 py-4 space-y-0.5">
       <div @click="nav('signups')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='signups' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='signups'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
         Signups
-      </div>
-      <div @click="nav('overview')"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='overview' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='overview'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        Overview
-      </div>
-      <div @click="nav('webinar')"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='webinar' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='webinar'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-        Webinar
       </div>
       <div @click="nav('behavioral')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='behavioral' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='behavioral'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
         Experiment
       </div>
-
-      <!-- DIRECTORY -->
-      <div class="px-4 pt-4 pb-1 text-[10px] font-bold tracking-widest text-slate-600 uppercase">Directory</div>
+      <div @click="nav('webinar')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='webinar' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        Webinar
+      </div>
+      <div @click="nav('flows')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='flows' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        Flows
+      </div>
+      <div @click="nav('overview')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='overview' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Overview
+      </div>
+      <div @click="nav('segments')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='segments' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
+        Segments
+      </div>
+      <div @click="nav('scheduled')"
+        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
+        :class="page==='scheduled' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span class="flex-1">Scheduled</span>
+        <span x-show="scheduledTotal > 0" class="flex-shrink-0 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
+      </div>
       <div @click="nav('users')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='users' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='users'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
         Users
       </div>
       <div @click="nav('logs')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='logs' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='logs'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
         Email Logs
-      </div>
-
-      <!-- ACTIONS -->
-      <div class="px-4 pt-4 pb-1 text-[10px] font-bold tracking-widest text-slate-600 uppercase">Actions</div>
-      <div @click="nav('trigger')"
-        class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='trigger' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='trigger'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        Send Email
       </div>
       <div @click="nav('templates')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
         :class="page==='templates' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='templates'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
         Templates
       </div>
-      <div @click="nav('scheduled')"
+      <div class="border-t border-slate-800 my-2"></div>
+      <div @click="nav('trigger')"
         class="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium cursor-pointer w-full transition-colors"
-        :class="page==='scheduled' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
-        <svg class="w-4 h-4 flex-shrink-0" :class="page==='scheduled'?'opacity-100':'opacity-60'" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span class="flex-1">Queue</span>
-        <span x-show="scheduledTotal > 0" class="flex-shrink-0 bg-amber-500 text-white text-xs rounded-full px-1.5 py-0.5 leading-none" x-text="scheduledTotal > 99 ? '99+' : scheduledTotal"></span>
+        :class="page==='trigger' ? 'text-white bg-violet-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'">
+        <svg class="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Fire Email
       </div>
     </nav>
 
@@ -212,103 +203,6 @@
     <!-- Page content -->
     <div class="flex-1 p-8">
 
-      <!-- ═══════════════════════════════════ HOME (at-a-glance) ═══════════════════════════════════ -->
-      <div x-show="page==='home'">
-
-        <!-- TODAY strip -->
-        <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">Today</div>
-        <div class="grid grid-cols-4 gap-4 mb-8">
-          <template x-for="c in [
-            {l:'SIGNUPS',         v:(signups&&signups.last_24h)||0,    sub:'new accounts today'},
-            {l:'EMAILED TODAY',   v:(stats&&stats.sent_today)||0,      sub:'cc emails sent today'},
-            {l:'NO EMAIL YET',    v:(missed&&missed.count)||0,         sub:'signed up, not emailed'},
-            {l:'IN QUEUE',        v:scheduledTotal||0,                 sub:'pending delivery'}
-          ]" :key="c.l">
-            <div class="bg-white rounded-xl border border-slate-200 p-5">
-              <div class="text-[11px] font-bold tracking-wide text-slate-500" x-text="c.l"></div>
-              <div class="text-3xl font-extrabold text-slate-900 mt-2" x-text="(c.v||0).toLocaleString()"></div>
-              <div class="text-[11px] text-slate-400 mt-1" x-text="c.sub"></div>
-            </div>
-          </template>
-        </div>
-
-        <!-- NEEDS ATTENTION (only renders if something is actually wrong) -->
-        <template x-if="((missed&&missed.count)||0)>0 || (scheduledTotal||0)>50 || !(webinar&&webinar.webinar_date)">
-          <div class="rounded-xl border-2 border-amber-300 bg-amber-50 p-5 mb-8">
-            <div class="text-[11px] font-bold tracking-widest text-amber-700 uppercase mb-3">Needs attention</div>
-            <div class="space-y-2 text-sm">
-              <div x-show="((missed&&missed.count)||0)>0" @click="nav('signups')" class="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-slate-900">
-                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-                <span><b x-text="(missed.count||0).toLocaleString()"></b> signup(s) never got an email</span>
-                <span class="text-xs text-slate-400 ml-1">→ Signups</span>
-              </div>
-              <div x-show="(scheduledTotal||0)>50" @click="nav('scheduled')" class="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-slate-900">
-                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                <span><b x-text="(scheduledTotal||0).toLocaleString()"></b> emails queued (large backlog)</span>
-                <span class="text-xs text-slate-400 ml-1">→ Queue</span>
-              </div>
-              <div x-show="!(webinar&&webinar.webinar_date)" @click="nav('webinar')" class="flex items-center gap-2 cursor-pointer text-slate-700 hover:text-slate-900">
-                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-                <span>No upcoming webinar date set</span>
-                <span class="text-xs text-slate-400 ml-1">→ Webinar</span>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <!-- THIS WEEK / ALL TIME -->
-        <div class="grid grid-cols-2 gap-6 mb-8">
-          <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-4">This week</div>
-            <div class="grid grid-cols-2 gap-y-4">
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="((signups&&signups.last_7d)||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">signups</div></div>
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="(replies||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">replies</div></div>
-            </div>
-          </div>
-          <div class="bg-white rounded-xl border border-slate-200 p-5">
-            <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-4">All time</div>
-            <div class="grid grid-cols-3 gap-y-4">
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="((stats&&stats.total_sent)||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">emails sent</div></div>
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="((stats&&stats.open_rate)||0)+'%'"></div><div class="text-[11px] text-slate-400">open rate</div></div>
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="(webinarsConducted||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">webinars done</div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- FLOW HEALTH summary (reuses flowGroups()) -->
-        <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">Flow health</div>
-        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50 text-slate-500 text-left text-xs">
-              <tr><th class="px-5 py-2.5 font-medium">Product</th><th class="px-5 py-2.5 font-medium text-right">Emails sent</th></tr>
-            </thead>
-            <tbody>
-              <template x-for="g in flowGroups()" :key="g.name">
-                <tr class="border-t border-slate-100 cursor-pointer hover:bg-slate-50" @click="nav('flows'); activeGroup=g.name; if(g.flows[0]) activeFlow=g.flows[0].id">
-                  <td class="px-5 py-2.5"><span class="inline-flex items-center gap-2"><span class="w-2 h-2 rounded-full" :style="'background:'+g.color"></span><span class="font-medium text-slate-800" x-text="g.name"></span></span></td>
-                  <td class="px-5 py-2.5 text-right font-bold text-slate-900" x-text="(g.sent||0).toLocaleString()"></td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 14-DAY VOLUME chart (reuses the same canvas id + drawChart) -->
-        <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2">Email volume · last 14 days</div>
-        <div class="bg-white rounded-xl border border-slate-200 p-5">
-          <canvas id="homeVolumeNote" style="display:none"></canvas>
-          <div class="text-xs text-slate-400" x-show="!(stats&&stats.daily&&stats.daily.length)">Open the Overview tab to load the volume chart.</div>
-          <div x-show="stats&&stats.daily&&stats.daily.length" class="flex items-end gap-1 h-32">
-            <template x-for="(d,i) in (stats&&stats.daily)||[]" :key="i">
-              <div class="flex-1 flex flex-col items-center justify-end h-full" :title="(d.date||'')+': '+(d.count||0)">
-                <div class="w-full bg-violet-500 rounded-t" :style="'height:'+Math.max(2, ((d.count||0)/Math.max(1,Math.max(...((stats&&stats.daily)||[{count:1}]).map(x=>x.count||0))))*100)+'%'"></div>
-              </div>
-            </template>
-          </div>
-        </div>
-
-      </div>
-
       <!-- ═══════════════════════════════════ SIGNUPS ═══════════════════════════════════ -->
       <div x-show="page==='signups'">
         <div x-show="signupsLoading && !signups" class="text-sm text-slate-500 py-10 text-center">Loading…</div>
@@ -344,7 +238,7 @@
           <!-- Stat cards: signups by window -->
           <div class="grid grid-cols-4 gap-4 mb-8">
             <template x-for="card in [{k:'last_24h',l:'LAST 24 HOURS'},{k:'last_7d',l:'LAST 7 DAYS'},{k:'last_30d',l:'LAST 30 DAYS'},{k:'total',l:'TOTAL (ALL TIME)'}]" :key="card.k">
-              <div class="stat-card">
+              <div class="bg-white rounded-2xl border-2 border-neutral-900 p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)]">
                 <div class="text-[11px] font-bold tracking-wide text-neutral-500" x-text="card.l"></div>
                 <div class="text-3xl font-extrabold text-neutral-900 mt-2" x-text="(signups[card.k]||0).toLocaleString()"></div>
               </div>
@@ -487,7 +381,7 @@
         <div class="max-w-2xl">
           <!-- Webinars conducted / upcoming summary -->
           <div class="flex flex-wrap gap-4 mb-6">
-            <div class="stat-card">
+            <div class="rounded-xl border-2 border-neutral-900 bg-white p-5 shadow-[4px_4px_0_0_rgba(23,23,23,1)]">
               <div class="text-[11px] font-bold tracking-wide text-neutral-500">WEBINARS CONDUCTED</div>
               <div class="text-3xl font-extrabold text-neutral-900 mt-1" x-text="(webinarsConducted||0).toLocaleString()"></div>
             </div>
@@ -577,10 +471,6 @@
                     :class="flowWindow===w.v ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400'"
                     x-text="w.l"></button>
           </template>
-          <button @click="nav('segments')"
-                  class="ml-auto text-xs font-semibold px-3 py-1 rounded-full border-2 border-neutral-200 bg-white text-neutral-600 hover:border-neutral-400 transition-all">
-            By volume (Segments) →
-          </button>
         </div>
 
         <!-- AT-A-GLANCE: every flow's status in one place, so you can tell what's working without clicking in -->
@@ -865,9 +755,8 @@
         </div>
       </div>
 
-      <!-- ═══════════════════════════════════ SEGMENTS (reached from Flows · By volume) ═══════════════════════════════════ -->
+      <!-- ═══════════════════════════════════ SEGMENTS ═══════════════════════════════════ -->
       <div x-show="page==='segments'">
-        <button @click="nav('flows')" class="text-xs font-semibold text-slate-500 hover:text-slate-800 mb-4 inline-flex items-center gap-1">← Back to Flows</button>
 
         <!-- Drill-down view -->
         <div x-show="segmentDrillType">
@@ -1446,7 +1335,7 @@ function app() {
     authed: false, authToken: '', authError: '', authLoading: false,
 
     // Nav
-    page: 'home',
+    page: 'flows',
 
     // Flows (funnel + choke points)
     flows: [], flowsLoading: false, activeGroup: null, activeFlow: null, flowWindow: '',
@@ -1664,18 +1553,10 @@ function app() {
 
     async nav(p) {
       this.page = p
-      if (p === 'home') {
-        // Home only arranges data already fetched by loadAll(); ensure the few
-        // pieces it shows are present (no new endpoints — existing loaders only).
-        if (!this.signups) await this.loadSignups()
-        if (!this.stats || !this.stats.daily) await this.loadStats()
-        if (!this.webinarsConducted && !this.webinar.webinar_date) await this.loadWebinar()
-        await this.loadScheduledCount()
-      }
       if (p === 'signups') { if (!this.flows.length) await this.loadFlows(); await this.loadSignups() }
       if (p === 'behavioral') { await this.loadBehavioral() }
       if (p === 'webinar') { await this.loadWebinar() }
-      if (p === 'flows') { await this.loadFlows(); if (!this.signups) await this.loadSignups(); if (!this.campaignGroups.length) await this.loadCampaignGroups() }
+      if (p === 'flows') { await this.loadFlows(); if (!this.signups) await this.loadSignups() }
       if (p === 'overview') { await this.loadStats() }
       if (p === 'segments') await this.loadCampaignGroups()
       if (p === 'scheduled') await this.loadScheduled()
@@ -2027,11 +1908,10 @@ function app() {
     },
 
     pageTitle() {
-      return { home:'Home', signups:'Signups', webinar:'Webinar', behavioral:'Behavioral Experiment', flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Send Email' }[this.page] || ''
+      return { signups:'Signups', webinar:'Webinar', behavioral:'Behavioral Experiment', flows:'Campaign Flows', overview:'Overview', segments:'Segments', scheduled:'Scheduled Queue', users:'Users', logs:'Email Logs', templates:'Templates', trigger:'Fire Email' }[this.page] || ''
     },
     pageSubtitle() {
-      return { home:'Everything at a glance — today, what needs attention, and the week so far',
-               behavioral:'Next-best-email routing experiment — variant vs control',
+      return { behavioral:'Next-best-email routing experiment — variant vs control',
                signups:'How many people signed up and which trigger flow they entered',
                flows:'Each flow at a glance — open one to see its workflow, opens, clicks, and any choke point', overview:'Send activity, open rates, and pending queue', segments:'Every email type — send volume, open rates, individual sends', scheduled:`${this.scheduledTotal} emails pending delivery`, users:'Who is getting how many emails', logs:'Every email sent, searchable', templates:`${this.templates.length} templates — click to preview`, trigger:'Send any template manually for testing' }[this.page] || ''
     },
