@@ -531,7 +531,7 @@
 
           <div class="bg-white rounded-xl border border-slate-200 p-6">
             <h3 class="font-bold text-neutral-900 mb-1">Webinar details</h3>
-            <p class="text-sm text-slate-500 mb-5">Set the join link for the <b>active</b> webinar. From then on, every new registrant gets the join link <b>the moment they register</b> — and saving here immediately sends it to anyone already registered who hasn't gotten it yet. Each person gets it once. No scheduling.</p>
+            <p class="text-sm text-slate-500 mb-5">Set the date + join link. The link email goes out automatically <b>1 day before</b> the date, to all registrants, once each. Leave the date blank to pause.</p>
             <div class="space-y-4">
               <div>
                 <label class="block text-sm font-medium text-slate-700 mb-1">Title</label>
@@ -557,7 +557,7 @@
               </button>
               <div x-show="webinarResult" :class="webinarOk ? 'text-emerald-700 bg-emerald-50' : 'text-red-700 bg-red-50'"
                 class="text-sm rounded-lg px-4 py-2.5" x-text="webinarResult"></div>
-              <p class="text-xs text-neutral-400">The join link sends automatically at registration for the active webinar, and saving here backfills anyone already registered. No cron, no manual blast.</p>
+              <p class="text-xs text-neutral-400">The link cron must be scheduled (daily) to actually fire the link email a day before — it calls <code class="bg-slate-100 px-1 rounded">/v1/email/webinar-link-cron</code>.</p>
             </div>
           </div>
         </div>
@@ -1634,7 +1634,7 @@ function app() {
           title: this.webinar.title || '', webinar_date: this.webinar.webinar_date || '',
           webinar_time: this.webinar.webinar_time || '', join_url: this.webinar.join_url || '',
         })
-        if (r.ok) { this.webinarOk = true; const j = await r.json().catch(() => ({})); const n = (j && typeof j.backfilled === 'number') ? j.backfilled : 0; this.webinarResult = 'Saved. New registrants get the link instantly' + (n > 0 ? '; sent the link now to ' + n + ' already-registered ' + (n === 1 ? 'person' : 'people') + '.' : '.') }
+        if (r.ok) { this.webinarOk = true; this.webinarResult = 'Saved. Confirmation goes out on registration; link fires 1 day before the date.' }
         else { this.webinarOk = false; this.webinarResult = 'Failed to save. Check the values.' }
       } finally { this.webinarSaving = false }
     },
