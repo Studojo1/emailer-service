@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your webinar toolkit + playbook</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #7c3aed; padding: 28px 40px; }
+    .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+    .body { padding: 40px 40px 32px; }
+    .tag { display: inline-block; background-color: #f3f0ff; color: #7c3aed; font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 100px; margin-bottom: 24px; border: 1.5px solid #7c3aed; }
+    .headline { font-size: 26px; font-weight: 800; color: #111111; line-height: 1.25; margin: 0 0 22px; }
+    .body-text { font-size: 16px; color: #444444; line-height: 1.75; margin: 0 0 18px; }
+    .divider { border: none; border-top: 1px solid #eeeeee; margin: 30px 0; }
+    .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+    .sign-off-name { font-weight: 700; }
+    .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+    .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header"><span class="header-logo">Studojo</span></div>
+    <div class="body">
+
+      <div class="tag">Before the webinar</div>
+
+      <h1 class="headline">You're set{{if .UserName}}, {{.UserName}}{{end}}. Here's everything you need.</h1>
+
+      <p class="body-text">The Studojo webinar{{if .WebinarTitle}} ({{.WebinarTitle}}){{end}} is{{if .WebinarWhen}} {{.WebinarWhen}}{{else}} coming up{{end}}. To get the most out of it, we've put together two things for you: the full toolkit and a playbook to follow along.</p>
+
+      <!-- Toolkit -->
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 14px;">
+        <tr>
+          <td style="background:#fafafa;border:1px solid #eeeeee;border-radius:14px;padding:22px 24px;">
+            <div style="font-size:17px;font-weight:700;color:#111111;margin-bottom:6px;">The Toolkit</div>
+            <div style="font-size:14px;color:#555555;line-height:1.6;margin-bottom:16px;">Every Studojo tool in one place — Career Coach, Internship Dojo and Resume Maker. See what each one does and pick what fits you before the webinar.</div>
+            <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/toolkit"}}{{else}}https://studojo.com/toolkit{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:13px 26px;border-radius:8px;font-size:15px;">Open the toolkit &rarr;</a>
+          </td>
+        </tr>
+      </table>
+
+      <!-- Playbook -->
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:0 0 8px;">
+        <tr>
+          <td style="background:#fafafa;border:1px solid #eeeeee;border-radius:14px;padding:22px 24px;">
+            <div style="font-size:17px;font-weight:700;color:#111111;margin-bottom:6px;">The Playbook</div>
+            <div style="font-size:14px;color:#555555;line-height:1.6;margin-bottom:16px;">A short PDF that walks you through exactly how to use the tools and what to do step by step. Download it and keep it open during the webinar.</div>
+            <a href="{{if .PlaybookURL}}{{.PlaybookURL}}{{else}}https://studojo.com/playbook.pdf{{end}}" style="background-color:#111111;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:13px 26px;border-radius:8px;font-size:15px;">Download the playbook &rarr;</a>
+          </td>
+        </tr>
+      </table>
+
+      <hr class="divider" />
+
+      <p class="body-text">And here's your link to join the webinar when it's time:</p>
+
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin:8px 0 8px;">
+        <tr>
+          <td align="center" style="background:#7c3aed;border-radius:10px;padding:0;">
+            <a href="{{if .JoinURL}}{{.JoinURL}}{{else}}https://meet.google.com/umu-vyfj-foc{{end}}" style="display:block;color:#ffffff;font-weight:800;font-size:17px;text-decoration:none;text-align:center;padding:18px 24px;">Join the webinar &rarr;</a>
+          </td>
+        </tr>
+      </table>
+
+      <p class="body-text" style="font-size:13px;color:#888888;">If the button doesn't open, paste this into your browser: <a href="{{if .JoinURL}}{{.JoinURL}}{{else}}https://meet.google.com/umu-vyfj-foc{{end}}" style="color:#7c3aed;">{{if .JoinURL}}{{.JoinURL}}{{else}}https://meet.google.com/umu-vyfj-foc{{end}}</a></p>
+
+      <div class="sign-off">
+        <p>See you there,<br /><span class="sign-off-name">Pranav</span><br />Co-founder, Studojo</p>
+      </div>
+    </div>
+    <div class="footer"><p class="footer-text">Studojo · studojo.com<br />You're receiving this because you registered for the Studojo webinar.{{if .UnsubscribeURL}} <a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe</a>{{end}}</p></div>
+  </div>
+{{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
+</body>
+</html>
