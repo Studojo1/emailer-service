@@ -998,10 +998,11 @@ func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
 }
 
-// HandleWebinarLinkCron sends the day-before webinar email (single template for
-// everyone — the toolkit + playbook + join-link email) to every registrant when
-// the webinar is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it
-// can run daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
+// HandleWebinarLinkCron is RETIRED. The join link is no longer sent on a daily
+// "one day before" schedule. Instead it goes out the instant a person registers
+// for the active webinar (see EventHandler.sendWebinarLinkNow), and the
+// dashboard "save details" action backfills anyone already registered. This
+// endpoint is kept only so the route stays valid; it sends nothing.
 func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1010,47 +1011,10 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 	if !requireInternalSecret(w, r) {
 		return
 	}
-	ctx := r.Context()
-	cfg, err := h.Store.GetWebinarConfig(ctx)
-	if err != nil || cfg == nil || cfg.WebinarDate == nil || cfg.JoinURL == "" {
-		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "no webinar configured"}, http.StatusOK)
-		return
-	}
-	// Send only when the webinar is tomorrow (date-only comparison, UTC).
-	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
-	webinarDay := cfg.WebinarDate.Format("2006-01-02")
-	if webinarDay != tomorrow {
-		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "not one day before", "webinar_date": webinarDay, "tomorrow": tomorrow}, http.StatusOK)
-		return
-	}
-
-	regs, err := h.Store.ListWebinarRegistrantsNeedingLink(ctx, webinarDay)
-	if err != nil {
-		writeError(w, "failed to list registrants", http.StatusInternalServerError)
-		return
-	}
-	when := webinarWhen(cfg)
-	sent, failed := 0, 0
-	for _, reg := range regs {
-		data := map[string]interface{}{
-			"UserName":     reg.FullName,
-			"WebinarTitle": cfg.Title,
-			"WebinarWhen":  when,
-			"JoinURL":      cfg.JoinURL,
-		}
-		// One email for everyone (no intent branching): the toolkit + playbook +
-		// join-link email. The toolkit button points to the all-tools landing page;
-		// the playbook button to the PDF; the join button to the meeting.
-		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-toolkit", data); serr != nil {
-			slog.Error("webinar toolkit: send failed", "email", reg.Email, "error", serr)
-			failed++
-			continue
-		}
-		_ = h.Store.MarkWebinarLinkSent(ctx, reg.Email, webinarDay)
-		sent++
-	}
-	slog.Info("webinar link cron", "sent", sent, "failed", failed, "webinar_date", webinarDay)
-	writeJSON(w, map[string]interface{}{"sent": sent, "failed": failed, "webinar_date": webinarDay}, http.StatusOK)
+	writeJSON(w, map[string]interface{}{
+		"sent":   0,
+		"reason": "retired: join link now sends at registration + backfills on save, not on a schedule",
+	}, http.StatusOK)
 }
 
 // HandleAdminWebinars (GET /v1/admin/webinars) returns the list of webinars with
@@ -1102,11 +1066,54 @@ func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 			writeError(w, "invalid body", http.StatusBadRequest)
 			return
 		}
+		// Keep the legacy single-row config in sync (used by the confirmation
+		// email enrichment), then bind the join link to the ACTIVE webinar and
+		// backfill the link to anyone already registered who hasn't gotten it.
 		if err := h.Store.SetWebinarConfig(ctx, req.Title, req.WebinarDate, req.WebinarTime, req.JoinURL); err != nil {
 			writeError(w, "failed to save: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		writeJSON(w, map[string]string{"status": "saved"}, http.StatusOK)
+		aw, _ := h.Store.GetActiveWebinar(ctx)
+		backfilled, backfillFailed := 0, 0
+		if aw != nil {
+			if err := h.Store.SetActiveWebinarJoinURL(ctx, aw.ID, req.JoinURL, req.WebinarDate, req.WebinarTime); err != nil {
+				writeError(w, "failed to save webinar link: "+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			// Backfill the join link to registrants of the active webinar who
+			// have not yet received it — in sequence — but only once a link is set.
+			if strings.TrimSpace(req.JoinURL) != "" {
+				// Re-read so When/Title reflect what we just saved.
+				aw, _ = h.Store.GetActiveWebinar(ctx)
+				regs, lerr := h.Store.ListActiveWebinarRegistrantsNeedingLink(ctx, aw.ID)
+				if lerr != nil {
+					slog.Error("webinar backfill: list failed", "webinar_id", aw.ID, "error", lerr)
+				}
+				for _, reg := range regs {
+					name := reg.FullName
+					if name == "" {
+						name = "there"
+					}
+					data := map[string]interface{}{
+						"UserName":     name,
+						"WebinarTitle": aw.Title,
+						"WebinarWhen":  aw.When,
+						"JoinURL":      aw.JoinURL,
+					}
+					if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-link", data); serr != nil {
+						slog.Error("webinar backfill: send failed", "email", reg.Email, "webinar_id", aw.ID, "error", serr)
+						backfillFailed++
+						continue
+					}
+					_ = h.Store.MarkWebinarLinkSentForWebinar(ctx, reg.Email, aw.ID)
+					backfilled++
+				}
+				slog.Info("webinar link backfill on save", "webinar_id", aw.ID, "sent", backfilled, "failed", backfillFailed)
+			}
+		}
+		writeJSON(w, map[string]interface{}{
+			"status": "saved", "backfilled": backfilled, "backfill_failed": backfillFailed,
+		}, http.StatusOK)
 	default:
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}

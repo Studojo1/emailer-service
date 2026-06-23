@@ -617,6 +617,14 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 	}
 	slog.Info("cc email sent", "routing_key", routingKey, "template", templateName, "email", recipientEmail)
 
+	// Webinar registration: immediately follow the confirmation with the join
+	// link if the active webinar has one set. No scheduling/cron — the link goes
+	// out the moment they register. Per-webinar dedup so they never get it twice.
+	// Best-effort: a link-send failure must not fail the confirmation.
+	if routingKey == "event.cc.webinar_registered" {
+		h.sendWebinarLinkNow(ctx, recipientEmail, recipientName)
+	}
+
 	if event.UserID != "" {
 		if err := h.Store.RecordSentEmail(ctx, event.UserID, templateName); err != nil {
 			slog.Error("cc email: failed to record", "template", templateName, "error", err)
@@ -647,6 +655,40 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 	}
 
 	return nil
+}
+
+// sendWebinarLinkNow sends the join-link email (cc-webinar-link) to one
+// registrant for the currently active webinar, immediately. No-op if there is
+// no active webinar or it has no join link set yet (in that case the link is
+// sent later by the backfill when the link is saved). Per-webinar dedup via
+// webinar_link_sent so a person never gets the link twice for the same webinar.
+// Best-effort: never returns an error so it can't fail the confirmation send.
+func (h *EventHandler) sendWebinarLinkNow(ctx context.Context, email, name string) {
+	if strings.TrimSpace(email) == "" {
+		return
+	}
+	aw, err := h.Store.GetActiveWebinar(ctx)
+	if err != nil || aw == nil || strings.TrimSpace(aw.JoinURL) == "" {
+		return // no active webinar or no link yet — backfill will handle it
+	}
+	if already, _ := h.Store.HasWebinarLinkSent(ctx, email, aw.ID); already {
+		return
+	}
+	if name == "" {
+		name = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":     name,
+		"WebinarTitle": aw.Title,
+		"WebinarWhen":  aw.When,
+		"JoinURL":      aw.JoinURL,
+	}
+	if serr := h.Sender.SendTemplateEmail(ctx, email, "cc-webinar-link", data); serr != nil {
+		slog.Error("webinar link (at registration): send failed", "email", email, "webinar_id", aw.ID, "error", serr)
+		return
+	}
+	_ = h.Store.MarkWebinarLinkSentForWebinar(ctx, email, aw.ID)
+	slog.Info("webinar link sent at registration", "email", email, "webinar_id", aw.ID)
 }
 
 // ContactFormEvent represents a contact form submission
