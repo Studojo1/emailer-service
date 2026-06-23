@@ -173,7 +173,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready",
 		"cc-dna-ready", "cc-roadmap-delivered",
-		"cc-webinar-confirm", "cc-webinar-link", "cc-webinar-toolkit",
+		"cc-webinar-confirm", "cc-webinar-link", "cc-webinar-toolkit", "cc-webinar-toolkit-recap",
 		// onboarding -> Primary (was welcome.studojo.pro -> Promotions)
 		"cc-welcome", "cc-welcome-new-user",
 		// webinar intent-funnel (the "second" webinar email) -> Primary
@@ -411,6 +411,8 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Your webinar link — it's tomorrow", nil
 	case "cc-webinar-toolkit":
 		return "Your webinar toolkit + playbook (and your join link)", nil
+	case "cc-webinar-toolkit-recap":
+		return "Your Studojo toolkit (and the next webinar)", nil
 	case "cc-webinar-funnel-all", "cc-webinar-funnel-coach", "cc-webinar-funnel-resume":
 		return "Before the webinar: a head start", nil
 	case "cc-webinar-funnel-outreach":
