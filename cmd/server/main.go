@@ -202,6 +202,19 @@ func main() {
 	}
 	sender.SetUnsubscribeSecret(unsubscribeSecret, trackingBaseURL)
 
+	// One-click "register for the next one too" link. Uses the public frontend
+	// base (where /webinar/quick-register lives) and the shared INTERNAL_SECRET
+	// the frontend verifies the token with. publicFrontendURL prefers an explicit
+	// PUBLIC_FRONTEND_URL, then EMAIL_FRONTEND_URL, defaulting to studojo.com.
+	publicFrontendURL := os.Getenv("PUBLIC_FRONTEND_URL")
+	if publicFrontendURL == "" {
+		publicFrontendURL = emailFrontendURL
+	}
+	if publicFrontendURL == "" || strings.Contains(publicFrontendURL, "localhost") {
+		publicFrontendURL = "https://studojo.com"
+	}
+	sender.SetQuickRegister(publicFrontendURL, os.Getenv("INTERNAL_SECRET"))
+
 	// Global ACS throttle. Sized to the same EMAIL_RATE_PER_HOUR the scheduler
 	// uses (default 180, just under the Azure free-tier 200/hr) so instant event
 	// sends and scheduled sends share one budget and can never exceed quota

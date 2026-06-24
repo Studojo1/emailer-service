@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -53,6 +54,10 @@ type Sender struct {
 
 	unsubscribeSecret  string
 	unsubscribeBaseURL string
+
+	// Quick-register ("register for the next one too") one-click link config.
+	quickRegSecret  string // HMAC secret, shared with the frontend (INTERNAL_SECRET)
+	quickRegBaseURL string // public frontend base, e.g. https://studojo.com
 
 	limiter *rateLimiter // global ACS throttle shared by instant + scheduled sends
 
@@ -224,6 +229,35 @@ func (s *Sender) SetUnsubscribeSecret(secret, baseURL string) {
 	s.unsubscribeBaseURL = strings.TrimSuffix(baseURL, "/")
 }
 
+// b64url encodes bytes as URL-safe base64 with no padding (matches the
+// frontend token codec).
+func b64url(b []byte) string {
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// SetQuickRegister configures the one-click "register for the next one too"
+// link: the public frontend base URL and the HMAC secret shared with the
+// frontend (which verifies the token). Call once at startup.
+func (s *Sender) SetQuickRegister(frontendURL, secret string) {
+	s.quickRegBaseURL = strings.TrimSuffix(frontendURL, "/")
+	s.quickRegSecret = secret
+}
+
+// quickRegisterURL builds the per-recipient one-click registration link. The
+// token is base64url(json{email,name}).base64url(hmacSHA256) — byte-identical
+// to what the frontend's verifyQuickRegToken expects. Returns "" if unconfigured.
+func (s *Sender) quickRegisterURL(email, name string) string {
+	if s.quickRegBaseURL == "" || s.quickRegSecret == "" || email == "" {
+		return ""
+	}
+	payload := fmt.Sprintf(`{"email":%q,"name":%q}`, email, name)
+	body := b64url([]byte(payload))
+	mac := hmac.New(sha256.New, []byte(s.quickRegSecret))
+	mac.Write([]byte(body))
+	sig := b64url(mac.Sum(nil))
+	return s.quickRegBaseURL + "/webinar/quick-register?t=" + body + "." + sig
+}
+
 // SetRateLimit installs the global ACS send throttle, sized to perHour sends.
 // Both instant event sends and the scheduler pass through it, so combined volume
 // can never exceed the provider quota. Call once at startup.
@@ -277,6 +311,16 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	uid, _ := ctx.Value(UserIDKey).(string)
 	unsubURL := s.unsubscribeURL(uid)
 	dataMap["UnsubscribeURL"] = unsubURL
+
+	// One-click "register for the next one too" link for webinar emails. Carries
+	// the recipient's email+name in a signed token so the frontend can register
+	// them with no form. Only set for the webinar toolkit templates.
+	if templateName == "cc-webinar-toolkit" || templateName == "cc-webinar-toolkit-recap" {
+		name, _ := dataMap["UserName"].(string)
+		if qr := s.quickRegisterURL(to, name); qr != "" {
+			dataMap["QuickRegisterURL"] = qr
+		}
+	}
 
 	// RFC 8058 one-click unsubscribe headers. Only set when we have a signed URL
 	// (i.e. a marketing/sequence send with a known user) — transactional mail with
