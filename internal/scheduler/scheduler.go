@@ -23,6 +23,15 @@ type Scheduler struct {
 	backoff        time.Duration // how long to pause the batch on a hard 429
 }
 
+// couponFallbackCode is the blanket coupon used only when minting a unique
+// per-recipient code fails. Preserves the historical DEFAULT_COUPON_CODE behavior.
+func couponFallbackCode() string {
+	if code := os.Getenv("DEFAULT_COUPON_CODE"); code != "" {
+		return code
+	}
+	return "STUDOJO20"
+}
+
 // ratePerHour returns the configured provider send cap per hour. Defaults to 180
 // (just under the Azure free-tier 200/hr), override with EMAIL_RATE_PER_HOUR.
 func ratePerHour() int {
@@ -300,12 +309,21 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 				"UserName":     user.Name,
 				"DashboardURL": sc.FrontendURL + "/",
 			}
-			if e.EmailType == "cc_outreach_coupon" || e.EmailType == "cc_coupon_unlock" {
-				code := os.Getenv("DEFAULT_COUPON_CODE")
-				if code == "" {
-					code = "STUDOJO20"
+			// Coupon emails that render a real code get a UNIQUE, single-use,
+			// user-bound code whose 10h clock starts on first open. The static
+			// DEFAULT_COUPON_CODE is only a fallback if minting fails.
+			tmpl := emailTypeToTemplate(e.EmailType)
+			if handlers.PerRecipientCouponTemplate(tmpl) {
+				code, err := sc.Store.CreatePerRecipientCoupon(ctx, "JEREMY", user.ID, user.Email, tmpl, handlers.FounderCouponPercent())
+				if err != nil {
+					slog.Error("scheduler: per-recipient coupon mint failed, using fallback", "type", e.EmailType, "user_id", e.UserID, "err", err)
+					code = couponFallbackCode()
 				}
 				templateData["CouponCode"] = code
+			} else if e.EmailType == "cc_coupon_unlock" {
+				// cc-coupon-unlock does not render a code, but keep the historical
+				// injection so any variant template that references it still works.
+				templateData["CouponCode"] = couponFallbackCode()
 			}
 		} else {
 			slog.Warn("scheduler: unknown email type, skipping", "type", e.EmailType)

@@ -354,6 +354,24 @@ func main() {
 			sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (email, webinar_date)
 		);
+		-- Per-recipient founder-coupon issuance. Maps a coupon email
+		-- (email_type) + recipient (email) to the UNIQUE code we minted into the
+		-- shared coupons table, so the open pixel can start the 10h expiry clock
+		-- on first open. One code per (email_type, email).
+		CREATE TABLE IF NOT EXISTS coupon_issuance (
+			email_type TEXT NOT NULL,
+			email TEXT NOT NULL,
+			code TEXT NOT NULL,
+			user_id TEXT NOT NULL DEFAULT '',
+			issued_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			PRIMARY KEY (email_type, email)
+		);
+		CREATE INDEX IF NOT EXISTS idx_coupon_issuance_code ON coupon_issuance (code);
+		-- Bind each minted code to the buyer. The coupons table is owned by
+		-- job-outreach-svc; guard the column here so the emailer's INSERT works
+		-- even if this service deploys before that migration lands. The actual
+		-- checkout enforcement of user_id lives in job-outreach-svc.
+		ALTER TABLE IF EXISTS coupons ADD COLUMN IF NOT EXISTS user_id TEXT;
 	`)
 	if err != nil {
 		slog.Error("failed to create tables", "error", err)

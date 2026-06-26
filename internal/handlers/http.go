@@ -758,6 +758,14 @@ func (h *Handler) HandleTrackOpen(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			h.Store.MarkEmailOpened(ctx, emailAddr, emailType)
 		}
+		// Coupon emails: start the 10h expiry clock on FIRST open. Idempotent —
+		// a second open does not extend the window. No-op if no code was issued
+		// for this (email_type, email).
+		if ok && PerRecipientCouponTemplate(emailType) {
+			if err := h.Store.ActivateCouponExpiryOnOpen(ctx, emailType, emailAddr, FounderCouponOpenTTL()); err != nil {
+				slog.Error("track-open: failed to start coupon expiry clock", "email_type", emailType, "email", emailAddr, "err", err)
+			}
+		}
 	}()
 
 	// 1x1 transparent GIF
