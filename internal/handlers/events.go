@@ -94,6 +94,47 @@ var ccRoutingKeyToTemplate = map[string]string{
 	// not here, so they are scheduled with a per-day spread instead of sent now.
 }
 
+// perRecipientCouponTemplates are the templates that render a real coupon code
+// ({{.CouponCode}}) and must therefore get a UNIQUE, single-use, user-bound code
+// whose 10h expiry starts when the recipient opens the email. cc-coupon-unlock is
+// intentionally NOT here: that email does not show a code, it tells the user to
+// log an action to unlock one later.
+var perRecipientCouponTemplates = map[string]bool{
+	"cc-outreach-coupon": true,
+	"cc-cart-goat":       true,
+}
+
+// PerRecipientCouponTemplate reports whether a template renders a real coupon
+// code and should therefore get a unique, user-bound, open-expiring code. Used by
+// the scheduler (which shares the same template list as instant sends).
+func PerRecipientCouponTemplate(templateName string) bool {
+	return perRecipientCouponTemplates[templateName]
+}
+
+// FounderCouponPercent is the discount carried by per-recipient founder coupons.
+// Matches the "10% off" copy baked into the templates. Override via
+// FOUNDER_COUPON_PERCENT.
+func FounderCouponPercent() float64 {
+	if v := strings.TrimSpace(os.Getenv("FOUNDER_COUPON_PERCENT")); v != "" {
+		if p, err := strconv.ParseFloat(v, 64); err == nil && p > 0 {
+			return p
+		}
+	}
+	return 10
+}
+
+// FounderCouponOpenTTL is the window a per-recipient founder coupon stays valid,
+// measured from the recipient's FIRST open. Override via
+// FOUNDER_COUPON_OPEN_TTL_HOURS.
+func FounderCouponOpenTTL() time.Duration {
+	if v := strings.TrimSpace(os.Getenv("FOUNDER_COUPON_OPEN_TTL_HOURS")); v != "" {
+		if h, err := strconv.Atoi(v); err == nil && h > 0 {
+			return time.Duration(h) * time.Hour
+		}
+	}
+	return 10 * time.Hour
+}
+
 // instantMarketingRoutingKeys are the instant-send routing keys that are
 // MARKETING and must therefore respect the user's unsubscribe (ProductEmails)
 // preference. Everything else in ccRoutingKeyToTemplate is transactional/expected
@@ -360,7 +401,11 @@ var ccDeferredStarters = map[string][]ccSequence{
 	// Reached the outreach payment page but did not pay yet.
 	"event.cc.outreach_payment_page": {
 		{"cc_outreach_payment_page", 2 * hour}, // abandoned-checkout nudge after a 2h buffer
-		{"cc_outreach_coupon", 6 * hour},        // founder coupon a few hours later
+		// DISABLED pending verification of the rebuilt founder-coupon email
+		// (styled HTML + per-recipient, 10h-from-open code). The old send went out
+		// as broken monospace text with a non-expiring blanket code. Re-enable this
+		// line once the new cc-outreach-coupon email is verified in staging.
+		// {"cc_outreach_coupon", 6 * hour}, // founder coupon a few hours later
 	},
 }
 
@@ -598,6 +643,19 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 		"UserName":     recipientName,
 		"DashboardURL": h.FrontendURL + "/",
 		"CouponCode":   event.CouponCode,
+	}
+
+	// Coupon emails get a UNIQUE, single-use, user-bound code instead of the
+	// blanket code in the event payload. valid_until is left NULL now; the open
+	// pixel starts the 10h clock on first open. If minting fails, fall back to the
+	// payload code (better a working blanket code than a broken email).
+	if perRecipientCouponTemplates[templateName] {
+		code, err := h.Store.CreatePerRecipientCoupon(ctx, "JEREMY", event.UserID, recipientEmail, templateName, FounderCouponPercent())
+		if err != nil {
+			slog.Error("cc email: per-recipient coupon mint failed, using payload code", "template", templateName, "email", recipientEmail, "err", err)
+		} else {
+			data["CouponCode"] = code
+		}
 	}
 
 	// Webinar confirmation: enrich with the admin-set title/when so the email

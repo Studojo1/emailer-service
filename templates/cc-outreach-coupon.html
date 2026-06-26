@@ -1,23 +1,67 @@
 <!DOCTYPE html>
-<html><body style="font-family:monospace;white-space:pre-wrap;font-size:14px;line-height:1.7;color:#333;padding:24px;">Hey {{.UserName}},
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { margin: 0; padding: 0; background-color: #f5f5f5; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+  .wrapper { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+  .header { background-color: #7c3aed; padding: 28px 40px; }
+  .header-logo { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
+  .body { padding: 40px 40px 32px; }
+  .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
+  .code-block { background-color: #f3f0ff; border-radius: 14px; padding: 26px; margin: 26px 0; text-align: center; }
+  .code-label { font-size: 12px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 12px; }
+  .code-value { font-size: 30px; font-weight: 800; color: #111111; letter-spacing: 2px; margin: 0 0 6px; }
+  .code-sub { font-size: 14px; color: #666666; margin: 0; }
+  .cta-wrap { text-align: center; margin: 8px 0 28px; }
+  .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 16px; font-weight: 700; padding: 15px 34px; border-radius: 8px; text-decoration: none; }
+  .divider { border: none; border-top: 1px solid #eeeeee; margin: 32px 0; }
+  .sign-off { font-size: 15px; color: #333333; line-height: 1.8; }
+  .sign-off-name { font-weight: 700; }
+  .footer { background-color: #fafafa; border-top: 1px solid #eeeeee; padding: 24px 40px; text-align: center; }
+  .footer-text { font-size: 12px; color: #aaaaaa; line-height: 1.7; margin: 0; }
+  .footer-text a { color: #999999; text-decoration: underline; }
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <div class="header-logo">Studojo</div>
+    </div>
+    <div class="body">
+      <p class="body-text">Hey {{.UserName}},</p>
+      <p class="body-text">You got to the payment page and didn't finish. I noticed.</p>
+      <p class="body-text">I'm not going to explain Outreach Dojo to you again. You already went through it. You know what it does.</p>
+      <p class="body-text">So I'll just make it easier. Here's a code from me personally:</p>
 
-You got to the payment page and didn't finish. I noticed.
+      <div class="code-block">
+        <p class="code-label">Your code</p>
+        <p class="code-value">{{.CouponCode}}</p>
+        <p class="code-sub">10% off, applied at checkout</p>
+      </div>
 
-I'm not going to explain Outreach Dojo to you again. You already went through it. You know what it does.
+      <div class="cta-wrap">
+        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
+      </div>
 
-So I'll just make it easier.
+      <p class="body-text">This one is just for you, and the clock starts the moment you open this email: it's good for the next 10 hours. After that it's gone.</p>
 
-Here's a code from me personally:
+      <p class="body-text">We built this for students who are serious. You clearly are. You don't make it to the payment page by accident.</p>
 
-{{.CouponCode}}
-
-Use it at checkout. No expiry, no catch.
-
-We built this for students who are serious. You clearly are. You don't make it to the payment page by accident.
-
-- Jeremy
-Co-founder, Studojo
-studojo.com{{if .UnsubscribeURL}}
-<a href="{{.UnsubscribeURL}}" style="color:#888;">Unsubscribe from marketing emails</a>{{end}}
+      <hr class="divider">
+      <p class="sign-off">
+        <span class="sign-off-name">Jeremy</span><br>
+        Co-founder, Studojo
+      </p>
+    </div>
+    <div class="footer">
+      <p class="footer-text">
+        Studojo &middot; <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com"}}{{else}}https://studojo.com{{end}}">studojo.com</a>
+        {{if .UnsubscribeURL}}<br><a href="{{.UnsubscribeURL}}">Unsubscribe from marketing emails</a>{{end}}
+      </p>
+    </div>
+  </div>
 {{if .TrackingPixelURL}}<img src="{{.TrackingPixelURL}}" width="1" height="1" border="0" alt="" style="display:block;width:1px;height:1px;border:0;" />{{end}}
-</body></html>
+</body>
+</html>

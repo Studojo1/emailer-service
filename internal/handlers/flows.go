@@ -42,7 +42,7 @@ var dashboardFlows = []flowDef{
 	}},
 	{ID: "abandoned", Title: "Abandoned checkout", Trigger: "event.cc.outreach_payment_page", Kind: "deferred", Steps: []flowStep{
 		{"Payment page", "cc-outreach-payment-page", "+2h"},
-		{"Founder coupon", "cc-outreach-coupon", "+6h"},
+		{"Founder coupon", "cc-outreach-coupon", "+6h (DISABLED — pending verify)"},
 	}},
 	{ID: "cc-welcome", Title: "Career Coach · not started", Trigger: "event.cc.welcome", Kind: "instant", Steps: []flowStep{
 		{"Welcome", "cc-welcome", "instant"},
