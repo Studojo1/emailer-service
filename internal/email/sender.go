@@ -422,7 +422,7 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Your payment is confirmed. You're all set.", nil
 	// ── Career Coach / new efficient flows ──
 	case "cc-welcome-new-user":
-		return "You're in the top 3%. Here's how we know.", nil
+		return "You're already ahead of most students. Here's why.", nil
 	case "cc-outreach-nudge-d1":
 		return "Did you get a chance to try Outreach Dojo?", nil
 	case "cc-outreach-nudge-d2":
@@ -430,7 +430,7 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 	case "cc-outreach-nudge-d3":
 		return "Here's exactly how to get started", nil
 	case "cc-outreach-nudge-d4":
-		return "The number that changes everything", nil
+		return "A quick number worth knowing before you apply again", nil
 	case "cc-outreach-push1":
 		return "You started. Here's what happens next", nil
 	case "cc-outreach-push2":
