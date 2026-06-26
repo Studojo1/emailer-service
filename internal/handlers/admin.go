@@ -155,6 +155,11 @@ var allTemplates = []string{
 	"welcome", "forgot-password", "resume-optimized", "internship-applied",
 	"password-changed", "contact-form", "payment-thankyou", "leads-ready",
 	"checkin-reminder", "service-update",
+	// Webinar flow
+	"cc-webinar-confirm", "cc-webinar-link",
+	"cc-webinar-toolkit", "cc-webinar-toolkit-recap",
+	"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+	"cc-webinar-funnel-coach", "cc-webinar-funnel-resume",
 	// New efficient flow (cc-)
 	"cc-welcome-new-user",
 	"cc-outreach-nudge-d1", "cc-outreach-nudge-d2", "cc-outreach-nudge-d3", "cc-outreach-nudge-d4",
