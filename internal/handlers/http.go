@@ -1126,6 +1126,51 @@ func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleWebinarTest sends the real day-before toolkit email (cc-webinar-toolkit)
+// to a single test address using the CURRENTLY SAVED webinar config — same Title,
+// WebinarWhen and JoinURL the cron would send to registrants. This is the only
+// faithful preview of what registrants get (the generic Send-Email path renders
+// the template's fallback JoinURL, not the saved one). It does NOT touch the
+// webinar_link_sent dedup table, so it never affects the real send.
+func (h *Handler) HandleWebinarTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		To   string `json:"to"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" {
+		writeError(w, "to is required", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	cfg, err := h.Store.GetWebinarConfig(ctx)
+	if err != nil || cfg == nil {
+		writeError(w, "no webinar configured", http.StatusBadRequest)
+		return
+	}
+	name := req.Name
+	if name == "" {
+		name = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":     name,
+		"WebinarTitle": cfg.Title,
+		"WebinarWhen":  webinarWhen(cfg),
+		"JoinURL":      cfg.JoinURL,
+	}
+	if serr := h.Sender.SendTemplateEmail(ctx, req.To, "cc-webinar-toolkit", data); serr != nil {
+		slog.Error("webinar test send failed", "to", req.To, "error", serr)
+		writeError(w, "send failed: "+serr.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"status": "sent", "to": req.To, "join_url": cfg.JoinURL,
+	}, http.StatusOK)
+}
+
 // requireInternalSecret enforces that the request carries the shared internal
 // secret. Returns true if the caller is authorised; otherwise it writes a 401
 // and returns false. Used by every service-to-service route so browser/client
