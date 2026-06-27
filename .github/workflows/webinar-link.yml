@@ -19,4 +19,7 @@ jobs:
             "https://email.studojo.com/v1/email/webinar-link-cron" \
             -H "X-Internal-Secret: ${{ secrets.INTERNAL_SECRET }}")
           echo "HTTP $code"; cat /tmp/out.json || true
-          test "$code" = "200"
+          # The endpoint now sends in the background and returns 202 Accepted
+          # immediately (the inline send loop used to 504 on large registrant lists).
+          # 200 is still returned for the no-op cases ("not one day before" etc).
+          test "$code" = "202" -o "$code" = "200"

@@ -1030,27 +1030,41 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	when := webinarWhen(cfg)
-	sent, failed := 0, 0
-	for _, reg := range regs {
-		data := map[string]interface{}{
-			"UserName":     reg.FullName,
-			"WebinarTitle": cfg.Title,
-			"WebinarWhen":  when,
-			"JoinURL":      cfg.JoinURL,
+
+	// Send in the background and return immediately. Sending is synchronous and
+	// rate-limited (~80/hr) inside SendTemplateEmail, so a loop over hundreds of
+	// registrants takes far longer than the gateway's request timeout — the old
+	// inline loop reliably 504'd partway through, leaving most registrants without
+	// the link. We detach the work onto context.Background() (the request ctx is
+	// cancelled the moment we respond) and dedup via webinar_link_sent so a partial
+	// run, a retry, or an overlapping cron tick never double-sends.
+	title, joinURL := cfg.Title, cfg.JoinURL
+	go func() {
+		bg := context.Background()
+		sent, failed := 0, 0
+		for _, reg := range regs {
+			data := map[string]interface{}{
+				"UserName":     reg.FullName,
+				"WebinarTitle": title,
+				"WebinarWhen":  when,
+				"JoinURL":      joinURL,
+			}
+			// One email for everyone (no intent branching): the toolkit + playbook +
+			// join-link email. The toolkit button points to the all-tools landing page;
+			// the playbook button to the PDF; the join button to the meeting.
+			if serr := h.Sender.SendTemplateEmail(bg, reg.Email, "cc-webinar-toolkit", data); serr != nil {
+				slog.Error("webinar toolkit: send failed", "email", reg.Email, "error", serr)
+				failed++
+				continue
+			}
+			_ = h.Store.MarkWebinarLinkSent(bg, reg.Email, webinarDay)
+			sent++
 		}
-		// One email for everyone (no intent branching): the toolkit + playbook +
-		// join-link email. The toolkit button points to the all-tools landing page;
-		// the playbook button to the PDF; the join button to the meeting.
-		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-toolkit", data); serr != nil {
-			slog.Error("webinar toolkit: send failed", "email", reg.Email, "error", serr)
-			failed++
-			continue
-		}
-		_ = h.Store.MarkWebinarLinkSent(ctx, reg.Email, webinarDay)
-		sent++
-	}
-	slog.Info("webinar link cron", "sent", sent, "failed", failed, "webinar_date", webinarDay)
-	writeJSON(w, map[string]interface{}{"sent": sent, "failed": failed, "webinar_date": webinarDay}, http.StatusOK)
+		slog.Info("webinar link cron complete", "sent", sent, "failed", failed, "webinar_date", webinarDay)
+	}()
+
+	slog.Info("webinar link cron started", "registrants", len(regs), "webinar_date", webinarDay)
+	writeJSON(w, map[string]interface{}{"status": "started", "registrants": len(regs), "webinar_date": webinarDay}, http.StatusAccepted)
 }
 
 // HandleAdminWebinars (GET /v1/admin/webinars) returns the list of webinars with
