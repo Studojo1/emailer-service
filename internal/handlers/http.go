@@ -1016,10 +1016,16 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "no webinar configured"}, http.StatusOK)
 		return
 	}
-	// Send only when the webinar is tomorrow (date-only comparison, UTC).
+	// Send only when the webinar is tomorrow (date-only comparison, UTC) — UNLESS
+	// ?force=true is passed. force is a manual one-off override (e.g. to re-send a
+	// corrected join link on the webinar day itself, after the normal day-before
+	// window has passed). It bypasses ONLY the date gate; dedup (webinar_link_sent)
+	// and the corrected saved JoinURL still apply, so it can't double-send and uses
+	// the right link.
+	force := r.URL.Query().Get("force") == "true"
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
 	webinarDay := cfg.WebinarDate.Format("2006-01-02")
-	if webinarDay != tomorrow {
+	if webinarDay != tomorrow && !force {
 		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "not one day before", "webinar_date": webinarDay, "tomorrow": tomorrow}, http.StatusOK)
 		return
 	}
@@ -1063,8 +1069,8 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 		slog.Info("webinar link cron complete", "sent", sent, "failed", failed, "webinar_date", webinarDay)
 	}()
 
-	slog.Info("webinar link cron started", "registrants", len(regs), "webinar_date", webinarDay)
-	writeJSON(w, map[string]interface{}{"status": "started", "registrants": len(regs), "webinar_date": webinarDay}, http.StatusAccepted)
+	slog.Info("webinar link cron started", "registrants", len(regs), "webinar_date", webinarDay, "forced", force)
+	writeJSON(w, map[string]interface{}{"status": "started", "registrants": len(regs), "webinar_date": webinarDay, "forced": force}, http.StatusAccepted)
 }
 
 // HandleAdminWebinars (GET /v1/admin/webinars) returns the list of webinars with
