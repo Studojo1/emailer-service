@@ -8,6 +8,11 @@ on:
   schedule:
     - cron: "30 4 * * *"    # 10:00 IST daily (before the re-engage cron)
   workflow_dispatch:         # allow manual runs
+    inputs:
+      force:
+        description: "Bypass the one-day-before date gate (one-off re-send on the webinar day itself). Dedup still applies; only registrants not yet emailed are sent."
+        type: boolean
+        default: false
 
 jobs:
   webinar-link:
@@ -15,8 +20,11 @@ jobs:
     steps:
       - name: Send webinar join link if it's one day before
         run: |
+          URL="https://email.studojo.com/v1/email/webinar-link-cron"
+          if [ "${{ inputs.force }}" = "true" ]; then URL="$URL?force=true"; fi
+          echo "POST $URL"
           code=$(curl -s -o /tmp/out.json -w "%{http_code}" -X POST \
-            "https://email.studojo.com/v1/email/webinar-link-cron" \
+            "$URL" \
             -H "X-Internal-Secret: ${{ secrets.INTERNAL_SECRET }}")
           echo "HTTP $code"; cat /tmp/out.json || true
           # The endpoint now sends in the background and returns 202 Accepted
