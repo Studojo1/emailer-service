@@ -550,6 +550,7 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("PUT /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("POST /v1/admin/webinar/test", httpHandler.HandleWebinarTest)
+	adminMux.HandleFunc("GET /v1/admin/webinar/link-stats", httpHandler.HandleWebinarLinkSentStats)
 	adminMux.HandleFunc("GET /v1/admin/webinars", httpHandler.HandleAdminWebinars)
 	adminMux.HandleFunc("GET /v1/admin/signups", httpHandler.HandleAdminSignups)
 	adminMux.HandleFunc("GET /v1/admin/templates/{name}/preview", httpHandler.HandleAdminTemplatePreview)

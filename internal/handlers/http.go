@@ -1171,6 +1171,42 @@ func (h *Handler) HandleWebinarTest(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// HandleWebinarLinkSentStats is a READ-ONLY admin check: for a webinar date and
+// a cutoff time, how many link emails went out before vs after the cutoff. Use
+// it to size a corrected-link re-send (before_cutoff = recipients who got the
+// OLD/broken link) without sending or deleting anything.
+//   GET /v1/admin/webinar/link-stats?date=2026-06-28&cutoff=2026-06-27T17:30:00Z
+// cutoff defaults to now if omitted.
+func (h *Handler) HandleWebinarLinkSentStats(w http.ResponseWriter, r *http.Request) {
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		if cfg, _ := h.Store.GetWebinarConfig(r.Context()); cfg != nil && cfg.WebinarDate != nil {
+			date = cfg.WebinarDate.Format("2006-01-02")
+		}
+	}
+	if date == "" {
+		writeError(w, "date is required (no webinar configured)", http.StatusBadRequest)
+		return
+	}
+	cutoff := time.Now().UTC()
+	if c := r.URL.Query().Get("cutoff"); c != "" {
+		parsed, err := time.Parse(time.RFC3339, c)
+		if err != nil {
+			writeError(w, "cutoff must be RFC3339 (e.g. 2026-06-27T17:30:00Z)", http.StatusBadRequest)
+			return
+		}
+		cutoff = parsed
+	}
+	stats, err := h.Store.GetWebinarLinkSentStats(r.Context(), date, cutoff)
+	if err != nil {
+		writeError(w, "failed to load stats: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"webinar_date": date, "cutoff": cutoff.Format(time.RFC3339), "stats": stats,
+	}, http.StatusOK)
+}
+
 // requireInternalSecret enforces that the request carries the shared internal
 // secret. Returns true if the caller is authorised; otherwise it writes a 401
 // and returns false. Used by every service-to-service route so browser/client

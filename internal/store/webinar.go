@@ -99,6 +99,39 @@ func (s *PostgresStore) MarkWebinarLinkSent(ctx context.Context, email, webinarD
 	return err
 }
 
+// WebinarLinkSentStats summarises how many link emails went out for a date,
+// split around a cutoff time. Read-only: used to size a corrected-link re-send
+// without touching anything.
+type WebinarLinkSentStats struct {
+	Total       int        `json:"total"`
+	BeforeCut   int        `json:"before_cutoff"`
+	AfterCut    int        `json:"after_cutoff"`
+	FirstSentAt *time.Time `json:"first_sent_at"`
+	LastSentAt  *time.Time `json:"last_sent_at"`
+}
+
+// GetWebinarLinkSentStats counts link-sent rows for a webinar date, partitioned
+// by a cutoff timestamp (e.g. when the join link was corrected). before_cutoff =
+// recipients who got the OLD link; after_cutoff = the corrected one. Pure SELECT.
+func (s *PostgresStore) GetWebinarLinkSentStats(ctx context.Context, webinarDate string, cutoff time.Time) (*WebinarLinkSentStats, error) {
+	st := &WebinarLinkSentStats{}
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			COUNT(*) AS total,
+			COUNT(*) FILTER (WHERE sent_at <  $2) AS before_cut,
+			COUNT(*) FILTER (WHERE sent_at >= $2) AS after_cut,
+			MIN(sent_at) AS first_at,
+			MAX(sent_at) AS last_at
+		FROM webinar_link_sent
+		WHERE webinar_date = $1::date`,
+		webinarDate, cutoff,
+	).Scan(&st.Total, &st.BeforeCut, &st.AfterCut, &st.FirstSentAt, &st.LastSentAt)
+	if err != nil {
+		return nil, err
+	}
+	return st, nil
+}
+
 // CountWebinarRegistrants returns the total distinct registrants (for the dashboard).
 func (s *PostgresStore) CountWebinarRegistrants(ctx context.Context) (int, error) {
 	var n int
