@@ -1326,6 +1326,18 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		"CouponCode":   req.CouponCode,
 	}
 	ctx := r.Context()
+	// For the webinar toolkit emails, inject the admin-set webinar config
+	// (title, when, join link) so a direct send renders the real meeting link
+	// instead of the template's fallback. Mirrors the cron/test-send path.
+	if req.Template == "cc-webinar-toolkit" || req.Template == "cc-webinar-toolkit-recap" {
+		if cfg, cerr := h.Store.GetWebinarConfig(ctx); cerr == nil && cfg != nil {
+			data["WebinarTitle"] = cfg.Title
+			data["WebinarWhen"] = webinarWhen(cfg)
+			if cfg.JoinURL != "" {
+				data["JoinURL"] = cfg.JoinURL
+			}
+		}
+	}
 	if err := h.Sender.SendTemplateEmail(ctx, req.To, req.Template, data); err != nil {
 		slog.Error("send-template failed", "to", req.To, "template", req.Template, "error", err)
 		writeError(w, "send failed", http.StatusInternalServerError)
