@@ -269,7 +269,7 @@
             <div class="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-4">All time</div>
             <div class="grid grid-cols-3 gap-y-4">
               <div><div class="text-2xl font-extrabold text-slate-900" x-text="((stats&&stats.total_sent)||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">emails sent</div></div>
-              <div><div class="text-2xl font-extrabold text-slate-900" x-text="((stats&&stats.open_rate)||0)+'%'"></div><div class="text-[11px] text-slate-400">open rate</div></div>
+              <div><div class="text-2xl font-extrabold text-slate-900" x-text="Math.min(100,Math.round((stats&&stats.open_rate)||0))+'%'"></div><div class="text-[11px] text-slate-400">open rate</div></div>
               <div><div class="text-2xl font-extrabold text-slate-900" x-text="(webinarsConducted||0).toLocaleString()"></div><div class="text-[11px] text-slate-400">webinars done</div></div>
             </div>
           </div>
