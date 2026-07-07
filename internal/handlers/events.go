@@ -401,11 +401,10 @@ var ccDeferredStarters = map[string][]ccSequence{
 	// Reached the outreach payment page but did not pay yet.
 	"event.cc.outreach_payment_page": {
 		{"cc_outreach_payment_page", 2 * hour}, // abandoned-checkout nudge after a 2h buffer
-		// DISABLED pending verification of the rebuilt founder-coupon email
-		// (styled HTML + per-recipient, 10h-from-open code). The old send went out
-		// as broken monospace text with a non-expiring blanket code. Re-enable this
-		// line once the new cc-outreach-coupon email is verified in staging.
-		// {"cc_outreach_coupon", 6 * hour}, // founder coupon a few hours later
+		// Re-enabled: the rebuilt founder-coupon email is verified — styled HTML,
+		// per-recipient unique code, 10h expiry starting on first open (not the old
+		// broken monospace text with a non-expiring blanket code).
+		{"cc_outreach_coupon", 6 * hour}, // founder coupon a few hours later
 	},
 }
 
