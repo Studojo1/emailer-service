@@ -82,16 +82,49 @@ func (s *PostgresStore) GetCampaign(ctx context.Context, id string) (*Campaign, 
 	return &c, nil
 }
 
-// IsUserPaid returns true if the user has a non-failed outreach order (i.e. has paid).
-// Fails soft — callers should log and proceed if this returns an error.
+// IsUserPaid reports whether the user has paid through ANY channel, so paying
+// customers are never nagged with "finish paying" / marketing sequences.
+//
+// Historically this only checked outreach_orders, so a student who paid through
+// any other channel kept receiving conversion email (audit J1) — the worst
+// possible audience for it. We now also check payment_orders when that table is
+// present. to_regclass makes the extra source optional: these tables belong to
+// the main platform's schema, so on a deployment where payment_orders does not
+// exist the check degrades to outreach_orders instead of erroring on every call.
+//
+// Fails soft — callers log and proceed if this returns an error.
+func (s *PostgresStore) IsUserPaid(ctx context.Context, userID string) (bool, error) {
+// The two sources are queried SEPARATELY on purpose: Postgres resolves every
+// table reference at parse time, so folding an optional table into one statement
+// would raise "relation does not exist" on deployments without it — turning this
+// into a permanent error and nagging paid users even harder.
 func (s *PostgresStore) IsUserPaid(ctx context.Context, userID string) (bool, error) {
 	var paid bool
-	err := s.db.QueryRowContext(ctx, `
+	if err := s.db.QueryRowContext(ctx, `
 		SELECT EXISTS (
 			SELECT 1 FROM outreach_orders
 			WHERE user_id = $1 AND status NOT IN ('created','failed')
-		)`, userID).Scan(&paid)
-	return paid, err
+		)`, userID).Scan(&paid); err != nil {
+		return false, err
+	}
+	if paid {
+		return true, nil
+	}
+
+	// Optional second source. Skipped entirely when the table is absent.
+	var hasTable bool
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT to_regclass('public.payment_orders') IS NOT NULL`).Scan(&hasTable); err != nil || !hasTable {
+		return false, nil // outreach_orders already said "not paid"
+	}
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM payment_orders
+			WHERE user_id = $1 AND status NOT IN ('created','failed')
+		)`, userID).Scan(&paid); err != nil {
+		return false, nil // optional source failed; trust the primary result
+	}
+	return paid, nil
 }
 
 // UpdateCampaignStatus updates status, sent_at, and recipient counts

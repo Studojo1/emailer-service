@@ -446,7 +446,10 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 	case "cc-outreach-coupon":
 		return "Something from me, Jeremy", nil
 	case "cc-cart-goat":
-		return "A code from me, GOAT10", nil
+		// Subject must not name a specific code: the body renders a UNIQUE
+		// per-recipient code (CreatePerRecipientCoupon), not the historical static
+		// "GOAT10", so promising GOAT10 in the subject contradicted the email.
+		return "A code from me", nil
 	case "cc-outreach-pricing":
 		return "New pricing for Outreach Dojo", nil
 	case "cc-webinar-confirm":

@@ -110,9 +110,11 @@ var dashboardFlows = []flowDef{
 		{"Funnel · coach", "cc-webinar-funnel-coach", "1 day before"},
 		{"Funnel · resume", "cc-webinar-funnel-resume", "1 day before"},
 	}},
-	// GOAT10 abandoned-cart blast (cc-cart-goat) — a one-off manual/admin send.
-	{ID: "cart-goat", Title: "Abandoned cart · GOAT10", Trigger: "event.cc.cart_goat", Kind: "instant", Steps: []flowStep{
-		{"GOAT10 offer", "cc-cart-goat", "instant"},
+	// Abandoned-cart founder-coupon blast (cc-cart-goat) — a one-off manual/admin
+	// send. Labelled by what it does, not by "GOAT10": the email now carries a
+	// unique per-recipient code, not the retired static GOAT10 code.
+	{ID: "cart-goat", Title: "Abandoned cart · founder coupon", Trigger: "event.cc.cart_goat", Kind: "instant", Steps: []flowStep{
+		{"Founder coupon offer", "cc-cart-goat", "instant"},
 	}},
 }
 
