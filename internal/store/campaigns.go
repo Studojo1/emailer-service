@@ -86,18 +86,18 @@ func (s *PostgresStore) GetCampaign(ctx context.Context, id string) (*Campaign, 
 // customers are never nagged with "finish paying" / marketing sequences.
 //
 // Historically this only checked outreach_orders, so a student who paid through
-// any other channel kept receiving conversion email (audit J1) — the worst
+// any other channel kept receiving conversion email (audit J1), the worst
 // possible audience for it. We now also check payment_orders when that table is
 // present. to_regclass makes the extra source optional: these tables belong to
 // the main platform's schema, so on a deployment where payment_orders does not
 // exist the check degrades to outreach_orders instead of erroring on every call.
 //
-// Fails soft — callers log and proceed if this returns an error.
-func (s *PostgresStore) IsUserPaid(ctx context.Context, userID string) (bool, error) {
 // The two sources are queried SEPARATELY on purpose: Postgres resolves every
 // table reference at parse time, so folding an optional table into one statement
-// would raise "relation does not exist" on deployments without it — turning this
+// would raise "relation does not exist" on deployments without it, turning this
 // into a permanent error and nagging paid users even harder.
+//
+// Fails soft — callers log and proceed if this returns an error.
 func (s *PostgresStore) IsUserPaid(ctx context.Context, userID string) (bool, error) {
 	var paid bool
 	if err := s.db.QueryRowContext(ctx, `
