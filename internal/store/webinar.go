@@ -57,11 +57,22 @@ type WebinarRegistrant struct {
 	LifeStage string
 }
 
-// ListWebinarRegistrantsNeedingLink returns registrants who have NOT yet been
-// sent the join link for the given webinar_date. Idempotent source for the cron.
-// DISTINCT ON (lower(email)) dedupes by email and keeps the most recent row so
-// we read a single, current life_stage per person.
+// ListWebinarRegistrantsNeedingLink returns registrants who have PAID and have
+// NOT yet been sent the join link for the given webinar_date. Idempotent source
+// for the cron. DISTINCT ON (lower(email)) dedupes by email and keeps the most
+// recent row so we read a single, current life_stage per person.
+//
+// The paid filter is what makes a ticketed webinar possible: without it this
+// query hands the join link to anyone who ever filled in the form, and a paid
+// webinar is free to everyone who does not pay. It is applied as
+// `COALESCE(r.paid, TRUE)` so a database that predates the column — where the
+// frontend has not yet run its ALTER TABLE — keeps the old behaviour of
+// emailing every registrant, rather than silently emailing nobody.
 func (s *PostgresStore) ListWebinarRegistrantsNeedingLink(ctx context.Context, webinarDate string) ([]WebinarRegistrant, error) {
+	paidFilter := "COALESCE(r.paid, TRUE)"
+	if !s.webinarHasPaidColumn(ctx) {
+		paidFilter = "TRUE"
+	}
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT DISTINCT ON (lower(r.email))
 		       lower(r.email) AS email,
@@ -69,6 +80,7 @@ func (s *PostgresStore) ListWebinarRegistrantsNeedingLink(ctx context.Context, w
 		       COALESCE(r.life_stage, '') AS life_stage
 		FROM webinar_registrations r
 		WHERE r.email <> ''
+		  AND `+paidFilter+`
 		  AND NOT EXISTS (
 			SELECT 1 FROM webinar_link_sent ls
 			WHERE lower(ls.email) = lower(r.email) AND ls.webinar_date = $1::date
@@ -86,6 +98,25 @@ func (s *PostgresStore) ListWebinarRegistrantsNeedingLink(ctx context.Context, w
 		}
 	}
 	return out, nil
+}
+
+// webinarHasPaidColumn reports whether webinar_registrations carries the `paid`
+// column yet. The column is created by the frontend service, so during a deploy
+// where this service ships first the column may not exist and referencing it
+// would make the whole cron error out. Checked per call rather than cached: the
+// cron runs once a day, so the catalogue lookup costs nothing, and caching a
+// false would keep the gate off until the next restart.
+func (s *PostgresStore) webinarHasPaidColumn(ctx context.Context) bool {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM information_schema.columns
+			WHERE table_name = 'webinar_registrations' AND column_name = 'paid'
+		)`).Scan(&exists)
+	if err != nil {
+		return false
+	}
+	return exists
 }
 
 // MarkWebinarLinkSent records that a registrant got the join link for a date.
