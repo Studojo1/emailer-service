@@ -73,7 +73,7 @@ func (tr *TemplateRenderer) Render(name string, data interface{}) (string, error
 func (tr *TemplateRenderer) LoadAllTemplates() error {
 	templates := []string{
 		// ── Transactional (kept; not part of the retired engagement flow) ──
-		"welcome", "forgot-password", "resume-optimized", "internship-applied",
+		"welcome", "forgot-password", "verify-email", "resume-optimized", "internship-applied",
 		"password-changed", "contact-form", "payment-thankyou", "service-update",
 		"leads-ready", "checkin-reminder",
 		// ── New efficient flow (cc- prefix) — replaces the old funnel/nurture flow ──
