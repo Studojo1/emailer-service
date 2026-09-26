@@ -71,6 +71,7 @@ type Sender struct {
 // or event burst can never exceed the provider quota.
 var transactionalTemplates = map[string]bool{
 	"forgot-password":    true,
+	"verify-email":       true,
 	"password-changed":   true,
 	"payment-thankyou":   true,
 	"resume-optimized":   true,
@@ -174,7 +175,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 	// through the trusted support.studojo.com (.com) domain so Gmail places them in
 	// PRIMARY, not Promotions. The .pro welcome/promotions subdomains were getting
 	// tabbed into Promotions; the time-sensitive + onboarding emails belong in Primary.
-	case "payment-thankyou", "password-changed", "forgot-password",
+	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready",
 		"cc-dna-ready", "cc-roadmap-delivered",
@@ -197,7 +198,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 func (s *Sender) getSenderForTemplate(templateName string) string {
 	switch templateName {
 	// Transactional — support domain signals "not marketing" to Gmail
-	case "payment-thankyou", "password-changed", "forgot-password",
+	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready",
 		// new-flow transactional sends (analysis/roadmap are not marketing)
@@ -407,6 +408,8 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "You just made a better decision than most students will this week.", nil
 	case "forgot-password":
 		return "Reset your Studojo password", nil
+	case "verify-email":
+		return "Confirm your Studojo email", nil
 	case "resume-optimized":
 		return "Your resume has been optimized", nil
 	case "internship-applied":
