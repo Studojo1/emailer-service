@@ -200,10 +200,11 @@ const OutreachWelcomeType = "cc-welcome-new-user"
 // ONLY if the user has not opened/clicked the welcome and has not used the tool.
 // Each chase email also re-checks engagement (by ChasePrefix) before sending.
 type ccGate struct {
-	GateType    string       // email_type of the placeholder gate row (no email sent)
-	WelcomeType string       // template whose open/click counts as engagement
-	ChasePrefix string       // prefix of the chase emails (for cancel/re-check)
-	Chase       []ccSequence // chase steps, delays measured from the gate firing
+	GateType    string        // email_type of the placeholder gate row (no email sent)
+	WelcomeType string        // template whose open/click counts as engagement
+	ChasePrefix string        // prefix of the chase emails (for cancel/re-check)
+	GateDelay   time.Duration // how long after the welcome the gate fires (default 7h)
+	Chase       []ccSequence  // chase steps, delays measured from the gate firing
 }
 
 // ccGates: every engagement-gated flow. The starter routing key triggers the
@@ -215,6 +216,9 @@ var ccGates = map[string]ccGate{
 		GateType:    "cc_gate_outreach_notused",
 		WelcomeType: "cc-welcome-new-user",
 		ChasePrefix: "cc_outreach_nudge",
+		// 91% of students who upload do it within an hour of signing up and the
+		// ones who stall almost never come back, so chase inside that hour.
+		GateDelay: 1 * hour,
 		Chase: []ccSequence{
 			{"cc_outreach_nudge_d1", 0},
 			{"cc_outreach_nudge_d2", 24 * hour},
@@ -269,10 +273,10 @@ func GateByType(t string) (gateType, welcomeType, chasePrefix string, chase []cc
 
 // toolFlow describes one tool's used-flow + the not-used artefacts to clear.
 type toolFlow struct {
-	Name          string       // tool label for logs
-	GatePrefix    string       // not-used gate row prefix to cancel
-	ChasePrefix   string       // not-used chase prefix to cancel
-	UsedStarter   string       // routing key whose instant email starts the used-flow
+	Name        string // tool label for logs
+	GatePrefix  string // not-used gate row prefix to cancel
+	ChasePrefix string // not-used chase prefix to cancel
+	UsedStarter string // routing key whose instant email starts the used-flow
 }
 
 // toolFlows: registry of every tool's used-routing. Keyed by the "used" routing key.
@@ -690,12 +694,16 @@ func (h *EventHandler) handleInstant(ctx context.Context, routingKey string, eve
 			}
 		}
 		// Engagement-gated chase: the welcome was just sent. For any gated flow,
-		// schedule a single gate check (+7h) instead of the chase. When the gate
+		// schedule a single gate check (GateDelay, default +7h) instead of the chase. When the gate
 		// comes due the scheduler enrols the chase only if the user has NOT
 		// opened/clicked the welcome (and, for outreach, not used the tool).
 		// Non-gated flows schedule their follow-up steps immediately as before.
 		if gate, gated := ccGates[routingKey]; gated {
-			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, gate.GateType, time.Now().UTC().Add(7*hour)); err != nil {
+			delay := gate.GateDelay
+			if delay == 0 {
+				delay = 7 * hour
+			}
+			if err := h.Store.CreateScheduledEmail(ctx, event.UserID, gate.GateType, time.Now().UTC().Add(delay)); err != nil {
 				slog.Error("cc email: failed to schedule engagement gate", "user_id", event.UserID, "gate", gate.GateType, "error", err)
 			}
 		} else if steps, ok := ccSequenceStarters[routingKey]; ok {
@@ -818,11 +826,11 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	ctx = context.WithValue(ctx, email.UserIDKey, user.ID)
 	ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "internship-applied", map[string]interface{}{
-		"UserName":          user.Name,
-		"InternshipTitle":   event.InternshipTitle,
-		"CompanyName":       event.CompanyName,
-		"ResumeID":          event.ResumeID,
-		"Timestamp":         event.Timestamp,
+		"UserName":           user.Name,
+		"InternshipTitle":    event.InternshipTitle,
+		"CompanyName":        event.CompanyName,
+		"ResumeID":           event.ResumeID,
+		"Timestamp":          event.Timestamp,
 		"ViewApplicationURL": h.FrontendURL + "/my-applications",
 	})
 	if err != nil {
