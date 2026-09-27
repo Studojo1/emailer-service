@@ -1353,6 +1353,19 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "send failed", http.StatusInternalServerError)
 		return
 	}
+	// Log successes too. Only failures were logged, so a quiet log could mean
+	// "sending fine" or "never called" and nobody could tell which: the 27 Sep
+	// check could not confirm verify-email delivery for exactly this reason.
+	slog.Info("send-template sent", "template", req.Template, "to_domain", emailDomain(req.To))
 	writeJSON(w, map[string]string{"status": "sent", "to": req.To, "template": req.Template}, http.StatusOK)
 }
 
+
+// emailDomain returns the part after "@", so logs can show where a send went
+// without recording the full address.
+func emailDomain(addr string) string {
+	if i := strings.LastIndex(addr, "@"); i >= 0 {
+		return addr[i+1:]
+	}
+	return ""
+}
