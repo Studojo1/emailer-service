@@ -38,3 +38,14 @@ func (s *PostgresStore) HasEngagedWithWelcome(ctx context.Context, email, welcom
 	}
 	return eng.EngagedWithType(welcomeType), nil
 }
+
+// HasUploadedResume reports whether the user has uploaded a resume to Outreach
+// Dojo (any candidate row). Used by the outreach not-used gate: opening the
+// welcome email is not using the tool.
+func (s *PostgresStore) HasUploadedResume(ctx context.Context, userID string) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM candidates WHERE user_id = $1)`, userID,
+	).Scan(&exists)
+	return exists, err
+}

@@ -190,6 +190,25 @@ func isCCMarketingType(emailType string) bool {
 	return strings.HasPrefix(emailType, "cc_")
 }
 
+// chaseEngaged reports whether the user has engaged enough that a gated chase
+// should not (or should no longer) go out. Both the gate and the per-step
+// re-check use it, so they cannot disagree: a gate that enrols the chase while
+// the re-check cancels it would send nothing.
+func (sc *Scheduler) chaseEngaged(ctx context.Context, userID, email, welcomeType, emailType string) (bool, error) {
+	opened, err := sc.Store.HasEngagedWithWelcome(ctx, email, welcomeType)
+	if err != nil || !opened {
+		return false, err
+	}
+	if !handlers.GateNeedsUpload(emailType) {
+		return true, nil
+	}
+	uploaded, err := sc.Store.HasUploadedResume(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	return uploaded, nil
+}
+
 // send attempts to send a single scheduled email.
 // Returns true if ACS rate-limited us (caller should pause the batch).
 func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimited bool) {
@@ -205,7 +224,7 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	// outreach, hasn't used the tool — that cancels the gate in the handler).
 	// Works for every gated flow via the gate registry.
 	if _, welcomeType, _, chase, ok := handlers.GateByType(e.EmailType); ok {
-		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, welcomeType)
+		engaged, err := sc.chaseEngaged(ctx, user.ID, user.Email, welcomeType, e.EmailType)
 		if err != nil {
 			// A transient DB error is NOT a signal that the user engaged. Marking
 			// the gate sent here drops the user out of the chase forever on a hiccup
@@ -234,7 +253,7 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	// the user has since engaged with that flow's welcome. Each gate's chase has
 	// a known prefix and welcome template.
 	if prefix, welcomeType, found := handlers.ChaseFor(e.EmailType); found {
-		engaged, err := sc.Store.HasEngagedWithWelcome(ctx, user.Email, welcomeType)
+		engaged, err := sc.chaseEngaged(ctx, user.ID, user.Email, welcomeType, e.EmailType)
 		if err == nil && engaged {
 			slog.Info("scheduler: user engaged since enrol, cancelling remaining chase", "user_id", e.UserID, "prefix", prefix)
 			_, _ = sc.Store.CancelPendingEmailsByPrefix(ctx, e.UserID, prefix)
