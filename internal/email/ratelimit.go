@@ -18,14 +18,32 @@ type rateLimiter struct {
 	last         time.Time
 }
 
-// newRateLimiter builds a bucket sized to perHour sends, starting full so a
-// fresh process can absorb an initial burst up to the hourly cap.
+// newRateLimiter builds a bucket sized to perHour sends.
+//
+// The bucket starts with a SMALL initial allowance, not full. Starting full
+// meant every pod restart (i.e. every deploy) handed the sender a fresh hour's
+// worth of tokens at once; a deploy during an active bulk/flow send then fired
+// that whole burst into ACS and tripped the provider's real
+// PerSubscriptionPerHourLimitExceeded cap (HTTP 429), throttling ALL sends for
+// ~an hour. ACS enforces a rolling hourly window on its side, so our bucket must
+// not assume a clean slate on restart. A small warm-up allowance lets a fresh
+// pod send a little immediately, then it refills at the steady perHour rate.
 func newRateLimiter(perHour int) *rateLimiter {
 	if perHour <= 0 {
 		perHour = 180
 	}
+	// Warm-up allowance: at most ~1 minute's worth of tokens (perHour/60), capped
+	// low. Enough to not stall a quiet pod, small enough that a restart mid-send
+	// cannot burst past the ACS hourly window.
+	initial := float64(perHour) / 60.0
+	if initial > 5 {
+		initial = 5
+	}
+	if initial < 1 {
+		initial = 1
+	}
 	return &rateLimiter{
-		tokens:       float64(perHour),
+		tokens:       initial,
 		maxTokens:    float64(perHour),
 		refillPerSec: float64(perHour) / 3600.0,
 		last:         time.Now(),

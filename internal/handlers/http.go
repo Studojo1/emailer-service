@@ -1006,9 +1006,10 @@ func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Reque
 	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
 }
 
-// HandleWebinarLinkCron sends the join link to every registrant when the webinar
-// is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it can run
-// daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
+// HandleWebinarLinkCron sends the day-before webinar email (single template for
+// everyone — the toolkit + playbook + join-link email) to every registrant when
+// the webinar is exactly ONE DAY away. Idempotent (webinar_link_sent dedup) so it
+// can run daily and safely re-run. Secret-gated; driven by a scheduled GitHub Action.
 func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -1023,10 +1024,16 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "no webinar configured"}, http.StatusOK)
 		return
 	}
-	// Send only when the webinar is tomorrow (date-only comparison, UTC).
+	// Send only when the webinar is tomorrow (date-only comparison, UTC) — UNLESS
+	// ?force=true is passed. force is a manual one-off override (e.g. to re-send a
+	// corrected join link on the webinar day itself, after the normal day-before
+	// window has passed). It bypasses ONLY the date gate; dedup (webinar_link_sent)
+	// and the corrected saved JoinURL still apply, so it can't double-send and uses
+	// the right link.
+	force := r.URL.Query().Get("force") == "true"
 	tomorrow := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
 	webinarDay := cfg.WebinarDate.Format("2006-01-02")
-	if webinarDay != tomorrow {
+	if webinarDay != tomorrow && !force {
 		writeJSON(w, map[string]interface{}{"sent": 0, "reason": "not one day before", "webinar_date": webinarDay, "tomorrow": tomorrow}, http.StatusOK)
 		return
 	}
@@ -1037,24 +1044,64 @@ func (h *Handler) HandleWebinarLinkCron(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	when := webinarWhen(cfg)
-	sent, failed := 0, 0
-	for _, reg := range regs {
-		data := map[string]interface{}{
-			"UserName":     reg.FullName,
-			"WebinarTitle": cfg.Title,
-			"WebinarWhen":  when,
-			"JoinURL":      cfg.JoinURL,
+
+	// Send in the background and return immediately. Sending is synchronous and
+	// rate-limited (~80/hr) inside SendTemplateEmail, so a loop over hundreds of
+	// registrants takes far longer than the gateway's request timeout — the old
+	// inline loop reliably 504'd partway through, leaving most registrants without
+	// the link. We detach the work onto context.Background() (the request ctx is
+	// cancelled the moment we respond) and dedup via webinar_link_sent so a partial
+	// run, a retry, or an overlapping cron tick never double-sends.
+	title, joinURL := cfg.Title, cfg.JoinURL
+	go func() {
+		bg := context.Background()
+		sent, failed := 0, 0
+		for _, reg := range regs {
+			data := map[string]interface{}{
+				"UserName":     reg.FullName,
+				"WebinarTitle": title,
+				"WebinarWhen":  when,
+				"JoinURL":      joinURL,
+			}
+			// One email for everyone (no intent branching): the toolkit + playbook +
+			// join-link email. The toolkit button points to the all-tools landing page;
+			// the playbook button to the PDF; the join button to the meeting.
+			if serr := h.Sender.SendTemplateEmail(bg, reg.Email, "cc-webinar-toolkit", data); serr != nil {
+				slog.Error("webinar toolkit: send failed", "email", reg.Email, "error", serr)
+				failed++
+				continue
+			}
+			_ = h.Store.MarkWebinarLinkSent(bg, reg.Email, webinarDay)
+			sent++
 		}
-		if serr := h.Sender.SendTemplateEmail(ctx, reg.Email, "cc-webinar-link", data); serr != nil {
-			slog.Error("webinar link: send failed", "email", reg.Email, "error", serr)
-			failed++
-			continue
-		}
-		_ = h.Store.MarkWebinarLinkSent(ctx, reg.Email, webinarDay)
-		sent++
+		slog.Info("webinar link cron complete", "sent", sent, "failed", failed, "webinar_date", webinarDay)
+	}()
+
+	slog.Info("webinar link cron started", "registrants", len(regs), "webinar_date", webinarDay, "forced", force)
+	writeJSON(w, map[string]interface{}{"status": "started", "registrants": len(regs), "webinar_date": webinarDay, "forced": force}, http.StatusAccepted)
+}
+
+// HandleAdminWebinars (GET /v1/admin/webinars) returns the list of webinars with
+// per-webinar registrant counts + how many are conducted vs upcoming. Powers the
+// dashboard "webinars conducted" view.
+func (h *Handler) HandleAdminWebinars(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	list, err := h.Store.ListWebinars(ctx)
+	if err != nil {
+		writeError(w, "failed to list webinars", http.StatusInternalServerError)
+		return
 	}
-	slog.Info("webinar link cron", "sent", sent, "failed", failed, "webinar_date", webinarDay)
-	writeJSON(w, map[string]interface{}{"sent": sent, "failed": failed, "webinar_date": webinarDay}, http.StatusOK)
+	conducted, upcoming, _ := h.Store.CountWebinarsByStatus(ctx)
+	totalReg, _ := h.Store.CountWebinarRegistrants(ctx)
+	if list == nil {
+		list = []store.Webinar{}
+	}
+	writeJSON(w, map[string]interface{}{
+		"webinars":            list,
+		"conducted":           conducted,
+		"upcoming":            upcoming,
+		"total_registrations": totalReg,
+	}, http.StatusOK)
 }
 
 // HandleWebinarConfig is the admin GET/PUT for the webinar date + join link.
@@ -1091,6 +1138,87 @@ func (h *Handler) HandleWebinarConfig(w http.ResponseWriter, r *http.Request) {
 	default:
 		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+// HandleWebinarTest sends the real day-before toolkit email (cc-webinar-toolkit)
+// to a single test address using the CURRENTLY SAVED webinar config — same Title,
+// WebinarWhen and JoinURL the cron would send to registrants. This is the only
+// faithful preview of what registrants get (the generic Send-Email path renders
+// the template's fallback JoinURL, not the saved one). It does NOT touch the
+// webinar_link_sent dedup table, so it never affects the real send.
+func (h *Handler) HandleWebinarTest(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var req struct {
+		To   string `json:"to"`
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.To == "" {
+		writeError(w, "to is required", http.StatusBadRequest)
+		return
+	}
+	ctx := r.Context()
+	cfg, err := h.Store.GetWebinarConfig(ctx)
+	if err != nil || cfg == nil {
+		writeError(w, "no webinar configured", http.StatusBadRequest)
+		return
+	}
+	name := req.Name
+	if name == "" {
+		name = "there"
+	}
+	data := map[string]interface{}{
+		"UserName":     name,
+		"WebinarTitle": cfg.Title,
+		"WebinarWhen":  webinarWhen(cfg),
+		"JoinURL":      cfg.JoinURL,
+	}
+	if serr := h.Sender.SendTemplateEmail(ctx, req.To, "cc-webinar-toolkit", data); serr != nil {
+		slog.Error("webinar test send failed", "to", req.To, "error", serr)
+		writeError(w, "send failed: "+serr.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"status": "sent", "to": req.To, "join_url": cfg.JoinURL,
+	}, http.StatusOK)
+}
+
+// HandleWebinarLinkSentStats is a READ-ONLY admin check: for a webinar date and
+// a cutoff time, how many link emails went out before vs after the cutoff. Use
+// it to size a corrected-link re-send (before_cutoff = recipients who got the
+// OLD/broken link) without sending or deleting anything.
+//   GET /v1/admin/webinar/link-stats?date=2026-06-28&cutoff=2026-06-27T17:30:00Z
+// cutoff defaults to now if omitted.
+func (h *Handler) HandleWebinarLinkSentStats(w http.ResponseWriter, r *http.Request) {
+	date := r.URL.Query().Get("date")
+	if date == "" {
+		if cfg, _ := h.Store.GetWebinarConfig(r.Context()); cfg != nil && cfg.WebinarDate != nil {
+			date = cfg.WebinarDate.Format("2006-01-02")
+		}
+	}
+	if date == "" {
+		writeError(w, "date is required (no webinar configured)", http.StatusBadRequest)
+		return
+	}
+	cutoff := time.Now().UTC()
+	if c := r.URL.Query().Get("cutoff"); c != "" {
+		parsed, err := time.Parse(time.RFC3339, c)
+		if err != nil {
+			writeError(w, "cutoff must be RFC3339 (e.g. 2026-06-27T17:30:00Z)", http.StatusBadRequest)
+			return
+		}
+		cutoff = parsed
+	}
+	stats, err := h.Store.GetWebinarLinkSentStats(r.Context(), date, cutoff)
+	if err != nil {
+		writeError(w, "failed to load stats: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{
+		"webinar_date": date, "cutoff": cutoff.Format(time.RFC3339), "stats": stats,
+	}, http.StatusOK)
 }
 
 // requireInternalSecret enforces that the request carries the shared internal
@@ -1208,6 +1336,18 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		data["ActionURL"] = req.ActionURL
 	}
 	ctx := r.Context()
+	// For the webinar toolkit emails, inject the admin-set webinar config
+	// (title, when, join link) so a direct send renders the real meeting link
+	// instead of the template's fallback. Mirrors the cron/test-send path.
+	if req.Template == "cc-webinar-toolkit" || req.Template == "cc-webinar-toolkit-recap" {
+		if cfg, cerr := h.Store.GetWebinarConfig(ctx); cerr == nil && cfg != nil {
+			data["WebinarTitle"] = cfg.Title
+			data["WebinarWhen"] = webinarWhen(cfg)
+			if cfg.JoinURL != "" {
+				data["JoinURL"] = cfg.JoinURL
+			}
+		}
+	}
 	if err := h.Sender.SendTemplateEmail(ctx, req.To, req.Template, data); err != nil {
 		slog.Error("send-template failed", "to", req.To, "template", req.Template, "error", err)
 		writeError(w, "send failed", http.StatusInternalServerError)

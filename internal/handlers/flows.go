@@ -103,7 +103,18 @@ var dashboardFlows = []flowDef{
 	// by the daily webinar-link cron one day before the webinar.
 	{ID: "webinar", Title: "Webinar", Trigger: "event.cc.webinar_registered", Kind: "instant", Steps: []flowStep{
 		{"Registration confirmed", "cc-webinar-confirm", "instant"},
-		{"Join link", "cc-webinar-link", "1 day before"},
+		// The second email (1 day before) is the intent-funnel: the cron picks one
+		// of these four by the registrant's life_stage. All four carry the join link.
+		{"Funnel · all 3 tools", "cc-webinar-funnel-all", "1 day before"},
+		{"Funnel · outreach", "cc-webinar-funnel-outreach", "1 day before"},
+		{"Funnel · coach", "cc-webinar-funnel-coach", "1 day before"},
+		{"Funnel · resume", "cc-webinar-funnel-resume", "1 day before"},
+	}},
+	// Abandoned-cart founder-coupon blast (cc-cart-goat) — a one-off manual/admin
+	// send. Labelled by what it does, not by "GOAT10": the email now carries a
+	// unique per-recipient code, not the retired static GOAT10 code.
+	{ID: "cart-goat", Title: "Abandoned cart · founder coupon", Trigger: "event.cc.cart_goat", Kind: "instant", Steps: []flowStep{
+		{"Founder coupon offer", "cc-cart-goat", "instant"},
 	}},
 }
 

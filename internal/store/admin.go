@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -323,10 +324,16 @@ func (s *PostgresStore) GetCampaignGroups(ctx context.Context) ([]CampaignGroup,
 	for rows.Next() {
 		var g CampaignGroup
 		if err := rows.Scan(&g.EmailType, &g.TotalSent, &g.FirstSent, &g.LastSent); err == nil {
-			// Enrich with open count
+			// Open count. scheduled_emails.email_type is the UNDERSCORE event name
+			// (cc_outreach_nudge_d1), but opens/sends are recorded under the DASH
+			// TEMPLATE name (cc-outreach-nudge-d1). Without translating, the lookup
+			// matched nothing and every segment showed 0 opens. Convert _ -> - so the
+			// open count actually lines up with the template. Opens are counted as
+			// DISTINCT openers from email_opens (the authoritative open table).
+			tmpl := strings.ReplaceAll(g.EmailType, "_", "-")
 			_ = s.db.QueryRowContext(ctx,
-				`SELECT COUNT(*) FROM email_send_log WHERE template_name = $1 AND opened_at IS NOT NULL`,
-				g.EmailType).Scan(&g.TotalOpened)
+				`SELECT COUNT(DISTINCT email) FROM email_opens WHERE email_type = $1`,
+				tmpl).Scan(&g.TotalOpened)
 			if g.TotalSent > 0 {
 				g.OpenRate = float64(g.TotalOpened) / float64(g.TotalSent) * 100
 			}

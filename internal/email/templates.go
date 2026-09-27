@@ -87,6 +87,14 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"cc-outreach-pricing",
 		// Webinar flow
 		"cc-webinar-confirm", "cc-webinar-link",
+		// Day-before webinar email (single template for everyone): toolkit + playbook + join
+		"cc-webinar-toolkit",
+		// Recap variant (no join button) for a past webinar's attendees: toolkit + register-next
+		"cc-webinar-toolkit-recap",
+		// Legacy intent-funnel templates (kept registered for previews / re-sends; no longer
+		// auto-sent — the cron now sends cc-webinar-toolkit to everyone)
+		"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+		"cc-webinar-funnel-coach", "cc-webinar-funnel-resume",
 		// Career Coach flow
 		"cc-welcome",
 		"cc-nudge-1", "cc-nudge-2", "cc-nudge-3",

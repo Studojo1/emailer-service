@@ -202,6 +202,19 @@ func main() {
 	}
 	sender.SetUnsubscribeSecret(unsubscribeSecret, trackingBaseURL)
 
+	// One-click "register for the next one too" link. Uses the public frontend
+	// base (where /webinar/quick-register lives) and the shared INTERNAL_SECRET
+	// the frontend verifies the token with. publicFrontendURL prefers an explicit
+	// PUBLIC_FRONTEND_URL, then EMAIL_FRONTEND_URL, defaulting to studojo.com.
+	publicFrontendURL := os.Getenv("PUBLIC_FRONTEND_URL")
+	if publicFrontendURL == "" {
+		publicFrontendURL = emailFrontendURL
+	}
+	if publicFrontendURL == "" || strings.Contains(publicFrontendURL, "localhost") {
+		publicFrontendURL = "https://studojo.com"
+	}
+	sender.SetQuickRegister(publicFrontendURL, os.Getenv("INTERNAL_SECRET"))
+
 	// Global ACS throttle. Sized to the same EMAIL_RATE_PER_HOUR the scheduler
 	// uses (default 180, just under the Azure free-tier 200/hr) so instant event
 	// sends and scheduled sends share one budget and can never exceed quota
@@ -354,6 +367,19 @@ func main() {
 			sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 			PRIMARY KEY (email, webinar_date)
 		);
+		-- Multi-webinar tracking: each webinar is a row here. status is
+		-- 'upcoming' or 'conducted'. Registrations link to a webinar via webinar_id.
+		CREATE TABLE IF NOT EXISTS webinars (
+			id SERIAL PRIMARY KEY,
+			title TEXT NOT NULL DEFAULT '',
+			webinar_date DATE,
+			webinar_time TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'upcoming',   -- 'upcoming' | 'conducted'
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		-- Link each registration to a specific webinar (NULL = legacy/unassigned).
+		ALTER TABLE webinar_registrations ADD COLUMN IF NOT EXISTS webinar_id INT;
+		CREATE INDEX IF NOT EXISTS idx_webinar_registrations_webinar_id ON webinar_registrations (webinar_id);
 		-- Per-recipient founder-coupon issuance. Maps a coupon email
 		-- (email_type) + recipient (email) to the UNIQUE code we minted into the
 		-- shared coupons table, so the open pixel can start the 10h expiry clock
@@ -389,6 +415,17 @@ func main() {
 	//    CreateScheduledEmail and RecordSentEmail both use ON CONFLICT DO NOTHING,
 	//    so callers never see an error from a harmless duplicate attempt.
 	for _, stmt := range []string{
+		// Seed "Webinar 1" (the first/already-run webinar) if no webinar exists yet,
+		// then backfill every existing registration to it. Idempotent: only inserts
+		// when the table is empty, only backfills rows with no webinar_id.
+		`INSERT INTO webinars (title, status)
+		 SELECT 'Webinar 1', 'conducted'
+		 WHERE NOT EXISTS (SELECT 1 FROM webinars)`,
+
+		`UPDATE webinar_registrations
+		 SET webinar_id = (SELECT MIN(id) FROM webinars)
+		 WHERE webinar_id IS NULL`,
+
 		`UPDATE scheduled_emails SET email_type = 'funnel-segmentation-v1'
 		 WHERE email_type = 'event.funnel.segmentation_v1'`,
 
@@ -530,6 +567,9 @@ func main() {
 	adminMux.HandleFunc("POST /v1/admin/pricing-blast", httpHandler.HandleAdminPricingBlast)
 	adminMux.HandleFunc("GET /v1/admin/webinar", httpHandler.HandleWebinarConfig)
 	adminMux.HandleFunc("PUT /v1/admin/webinar", httpHandler.HandleWebinarConfig)
+	adminMux.HandleFunc("POST /v1/admin/webinar/test", httpHandler.HandleWebinarTest)
+	adminMux.HandleFunc("GET /v1/admin/webinar/link-stats", httpHandler.HandleWebinarLinkSentStats)
+	adminMux.HandleFunc("GET /v1/admin/webinars", httpHandler.HandleAdminWebinars)
 	adminMux.HandleFunc("GET /v1/admin/signups", httpHandler.HandleAdminSignups)
 	adminMux.HandleFunc("GET /v1/admin/templates/{name}/preview", httpHandler.HandleAdminTemplatePreview)
 
