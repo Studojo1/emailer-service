@@ -77,6 +77,7 @@ var transactionalTemplates = map[string]bool{
 	"resume-optimized":   true,
 	"internship-applied": true,
 	"contact-form":       true,
+	"ops-alert":          true,
 }
 
 // LastRetryAfter returns the Retry-After duration the provider asked for on the
@@ -177,7 +178,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 	// tabbed into Promotions; the time-sensitive + onboarding emails belong in Primary.
 	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
-		"welcome", "leads-ready",
+		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
 		"cc-dna-ready", "cc-roadmap-delivered",
 		"cc-webinar-confirm", "cc-webinar-link", "cc-webinar-toolkit", "cc-webinar-toolkit-recap",
 		// onboarding -> Primary (was welcome.studojo.pro -> Promotions)
@@ -200,7 +201,7 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 	// Transactional — support domain signals "not marketing" to Gmail
 	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
-		"welcome", "leads-ready",
+		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
 		// new-flow transactional sends (analysis/roadmap are not marketing)
 		"cc-dna-ready", "cc-roadmap-delivered":
 		if s.supportSender != "" {
@@ -402,6 +403,13 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "A note on service continuity", nil
 	case "leads-ready":
 		return "Your leads are ready.", nil
+	case "outreach-launch-nudge":
+		return "Your campaign is paid for but not launched yet", nil
+	case "ops-alert":
+		if subj, ok := data["Subject"].(string); ok && subj != "" {
+			return "[Studojo ops] " + subj, nil
+		}
+		return "[Studojo ops] alert", nil
 	case "checkin-reminder":
 		return "Your weekly check-in is due", nil
 	case "welcome":
