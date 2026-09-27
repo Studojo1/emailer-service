@@ -205,6 +205,9 @@ type ccGate struct {
 	ChasePrefix string        // prefix of the chase emails (for cancel/re-check)
 	GateDelay   time.Duration // how long after the welcome the gate fires (default 7h)
 	Chase       []ccSequence  // chase steps, delays measured from the gate firing
+	// NeedsUpload: opening the welcome only counts as engagement once the
+	// user has also uploaded a resume. See outreach gate below.
+	NeedsUpload bool
 }
 
 // ccGates: every engagement-gated flow. The starter routing key triggers the
@@ -219,6 +222,11 @@ var ccGates = map[string]ccGate{
 		// 91% of students who upload do it within an hour of signing up and the
 		// ones who stall almost never come back, so chase inside that hour.
 		GateDelay: 1 * hour,
+		// Reading the welcome is not using the tool. Without this, a student who
+		// opened the welcome and then stalled before uploading was treated as
+		// engaged and got no nudge at all, which is exactly the student the
+		// first-hour chase exists for (signup audit Q20, still open on 27 Sep).
+		NeedsUpload: true,
 		Chase: []ccSequence{
 			{"cc_outreach_nudge_d1", 0},
 			{"cc_outreach_nudge_d2", 24 * hour},
@@ -333,6 +341,20 @@ func ScheduleCCChase(ctx context.Context, s *store.PostgresStore, userID string,
 // ChaseFor resolves a chase email_type to its gate's ChasePrefix + WelcomeType,
 // so the scheduler can re-check engagement before each chase send. Matches by the
 // gate's ChasePrefix.
+// GateNeedsUpload reports whether a gate row or chase email belongs to a flow
+// whose engagement also requires an uploaded resume.
+func GateNeedsUpload(emailType string) bool {
+	for _, g := range ccGates {
+		if !g.NeedsUpload {
+			continue
+		}
+		if emailType == g.GateType || (g.ChasePrefix != "" && strings.HasPrefix(emailType, g.ChasePrefix)) {
+			return true
+		}
+	}
+	return false
+}
+
 func ChaseFor(emailType string) (prefix, welcomeType string, ok bool) {
 	for _, g := range ccGates {
 		if g.ChasePrefix != "" && strings.HasPrefix(emailType, g.ChasePrefix) {
