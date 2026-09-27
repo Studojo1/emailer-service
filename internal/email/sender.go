@@ -370,6 +370,7 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	if err != nil {
 		return fmt.Errorf("failed to render template: %w", err)
 	}
+	htmlContent = tagEmailLinks(htmlContent, templateName)
 
 	subject, err := s.getSubject(templateName, dataMap)
 	if err != nil {
