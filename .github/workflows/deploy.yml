@@ -90,6 +90,7 @@ jobs:
             ADMIN_SECRET="${{ secrets.ADMIN_SECRET }}" \
             UNSUBSCRIBE_SECRET="${{ secrets.UNSUBSCRIBE_SECRET }}" \
             INTERNAL_SECRET="${{ secrets.EMAILER_INTERNAL_SECRET }}" \
+            TRACKING_BASE_URL="https://email.studojo.com" \
             EMAIL_RATE_PER_HOUR="80"
 
       - name: Apply mail.studojo.com ingress

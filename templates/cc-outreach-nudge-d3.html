@@ -12,9 +12,9 @@
     .body { padding: 40px 40px 32px; }
     .body-text { font-size: 16px; color: #444444; line-height: 1.8; margin: 0 0 18px; }
     .steps-wrapper { background-color: #fafafa; border: 2px solid #e5e5e5; border-radius: 14px; padding: 8px 24px 16px; margin: 24px 0; }
-    .step-row { display: flex; align-items: flex-start; padding: 18px 0 6px; border-bottom: 1px solid #eeeeee; }
+    .step-row { display:block; align-items: flex-start; padding: 18px 0 6px; border-bottom: 1px solid #eeeeee; }
     .step-row:last-child { border-bottom: none; }
-    .step-num { flex-shrink: 0; width: 34px; height: 34px; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 800; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 16px; margin-top: 2px; }
+    .step-num { flex-shrink: 0; width: 34px; height: 34px; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 800; border-radius: 50%; display:block; align-items: center; justify-content: center; margin-right: 16px; margin-top: 2px; }
     .step-title { font-size: 15px; font-weight: 800; color: #111111; margin: 0 0 5px; }
     .step-desc { font-size: 14px; color: #555555; line-height: 1.7; margin: 0; }
     .cta-button { display: inline-block; background-color: #7c3aed; color: #ffffff; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; text-decoration: none; margin: 8px 0 24px; }
@@ -37,39 +37,27 @@
       <p class="body-text">Here's exactly what happens when you use Outreach Dojo, every step:</p>
 
       <div class="steps-wrapper">
-        <div class="step-row">
-          <div class="step-num">1</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">1</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="step-title">Tell us the role and companies you want</div>
-            <div class="step-desc">Type the job title. Tell us the kind of companies you're targeting, size, sector, anything specific. You don't need to upload a resume to get started. Just the role.</div>
-          </div>
+            <div class="step-desc">Type the job title. Tell us the kind of companies you're targeting, size, sector, anything specific. You don't need to upload a resume to get started. Just the role.</td></tr></table>
         </div>
-        <div class="step-row">
-          <div class="step-num">2</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">2</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="step-title">We find the right hiring managers</div>
-            <div class="step-desc">Not HR email addresses. The actual people who decide who gets interviewed: engineering leads, team managers, founders at startups. We find them on LinkedIn so you're reaching the person with real authority to open a door for you.</div>
-          </div>
+            <div class="step-desc">Not HR email addresses. The actual people who decide who gets interviewed: engineering leads, team managers, founders at startups. We find them on LinkedIn so you're reaching the person with real authority to open a door for you.</td></tr></table>
         </div>
-        <div class="step-row">
-          <div class="step-num">3</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">3</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="step-title">We write a personalised note for each one</div>
-            <div class="step-desc">Each message references that specific person's team, their company's work, and why you are reaching out. It reads like you spent an hour writing it. Because we do.</div>
-          </div>
+            <div class="step-desc">Each message references that specific person's team, their company's work, and why you are reaching out. It reads like you spent an hour writing it. Because we do.</td></tr></table>
         </div>
-        <div class="step-row">
-          <div class="step-num">4</div>
-          <div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:14px;"><tr><td valign="top" width="38" style="padding-right:12px;"><div style="width:26px;height:26px;background:#7c3aed;border-radius:50%;text-align:center;line-height:26px;font-size:11px;font-weight:800;color:#ffffff;">4</div></td><td valign="top" style="font-size:15px;color:#333333;line-height:1.6;">
             <div class="step-title">You review and it goes out</div>
-            <div class="step-desc">You see every message before it's sent. Nothing goes out without your sign-off. Then you wait for replies, usually within the first week.</div>
-          </div>
+            <div class="step-desc">You see every message before it's sent. Nothing goes out without your sign-off. Then you wait for replies, usually within the first week.</td></tr></table>
         </div>
       </div>
 
       <p class="body-text">No resume required to start. No complicated setup. The whole thing takes about 3 minutes.</p>
 
-      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="">Get started now &rarr;</a>
+      <a class="cta-button" href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" style="background-color:#7c3aed;color:#ffffff;font-weight:700;text-decoration:none;display:inline-block;padding:14px 28px;border-radius:8px;">Get started now &rarr;</a>
 
       <hr class="divider" />
       <div class="sign-off">

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
@@ -53,6 +54,10 @@ type Sender struct {
 
 	unsubscribeSecret  string
 	unsubscribeBaseURL string
+
+	// Quick-register ("register for the next one too") one-click link config.
+	quickRegSecret  string // HMAC secret, shared with the frontend (INTERNAL_SECRET)
+	quickRegBaseURL string // public frontend base, e.g. https://studojo.com
 
 	limiter *rateLimiter // global ACS throttle shared by instant + scheduled sends
 
@@ -145,11 +150,46 @@ func (s *Sender) nextSender(templateName string) string {
 	if templateName == "cc-cart-goat" && s.welcomeSender != "" {
 		return s.welcomeSender
 	}
+	// Transactional / confirmation / onboarding emails must ALWAYS use their
+	// correct domain (support or welcome), never the round-robin pool. Sending a
+	// webinar confirmation, payment receipt, or analysis email from the
+	// promotions domain is what pushes them into Gmail's Promotions tab. The
+	// round-robin (volume spreading) is only for marketing/engagement sends.
+	if fixedSender := s.fixedSenderForTemplate(templateName); fixedSender != "" {
+		return fixedSender
+	}
 	if len(s.senderPool) > 0 {
 		idx := atomic.AddUint64(&s.senderIndex, 1) - 1
 		return s.senderPool[int(idx)%len(s.senderPool)]
 	}
 	return s.getSenderForTemplate(templateName)
+}
+
+// fixedSenderForTemplate returns a non-pool sender for templates whose Gmail
+// category placement matters (transactional/confirmation -> support domain,
+// onboarding -> welcome domain). Returns "" for marketing/engagement sends,
+// which then go through the round-robin pool.
+func (s *Sender) fixedSenderForTemplate(templateName string) string {
+	switch templateName {
+	// Transactional + confirmations + analysis + onboarding + webinar — all routed
+	// through the trusted support.studojo.com (.com) domain so Gmail places them in
+	// PRIMARY, not Promotions. The .pro welcome/promotions subdomains were getting
+	// tabbed into Promotions; the time-sensitive + onboarding emails belong in Primary.
+	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
+		"resume-optimized", "internship-applied", "contact-form",
+		"welcome", "leads-ready",
+		"cc-dna-ready", "cc-roadmap-delivered",
+		"cc-webinar-confirm", "cc-webinar-link", "cc-webinar-toolkit", "cc-webinar-toolkit-recap",
+		// onboarding -> Primary (was welcome.studojo.pro -> Promotions)
+		"cc-welcome", "cc-welcome-new-user",
+		// webinar intent-funnel (the "second" webinar email) -> Primary
+		"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+		"cc-webinar-funnel-coach", "cc-webinar-funnel-resume":
+		if s.supportSender != "" {
+			return s.supportSender
+		}
+	}
+	return ""
 }
 
 // getSenderForTemplate returns the right from address for a given template.
@@ -188,6 +228,35 @@ func (s *Sender) SetTrackingURL(baseURL string) {
 func (s *Sender) SetUnsubscribeSecret(secret, baseURL string) {
 	s.unsubscribeSecret = secret
 	s.unsubscribeBaseURL = strings.TrimSuffix(baseURL, "/")
+}
+
+// b64url encodes bytes as URL-safe base64 with no padding (matches the
+// frontend token codec).
+func b64url(b []byte) string {
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// SetQuickRegister configures the one-click "register for the next one too"
+// link: the public frontend base URL and the HMAC secret shared with the
+// frontend (which verifies the token). Call once at startup.
+func (s *Sender) SetQuickRegister(frontendURL, secret string) {
+	s.quickRegBaseURL = strings.TrimSuffix(frontendURL, "/")
+	s.quickRegSecret = secret
+}
+
+// quickRegisterURL builds the per-recipient one-click registration link. The
+// token is base64url(json{email,name}).base64url(hmacSHA256) — byte-identical
+// to what the frontend's verifyQuickRegToken expects. Returns "" if unconfigured.
+func (s *Sender) quickRegisterURL(email, name string) string {
+	if s.quickRegBaseURL == "" || s.quickRegSecret == "" || email == "" {
+		return ""
+	}
+	payload := fmt.Sprintf(`{"email":%q,"name":%q}`, email, name)
+	body := b64url([]byte(payload))
+	mac := hmac.New(sha256.New, []byte(s.quickRegSecret))
+	mac.Write([]byte(body))
+	sig := b64url(mac.Sum(nil))
+	return s.quickRegBaseURL + "/webinar/quick-register?t=" + body + "." + sig
 }
 
 // SetRateLimit installs the global ACS send throttle, sized to perHour sends.
@@ -243,6 +312,16 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	uid, _ := ctx.Value(UserIDKey).(string)
 	unsubURL := s.unsubscribeURL(uid)
 	dataMap["UnsubscribeURL"] = unsubURL
+
+	// One-click "register for the next one too" link for webinar emails. Carries
+	// the recipient's email+name in a signed token so the frontend can register
+	// them with no form. Only set for the webinar toolkit templates.
+	if templateName == "cc-webinar-toolkit" || templateName == "cc-webinar-toolkit-recap" {
+		name, _ := dataMap["UserName"].(string)
+		if qr := s.quickRegisterURL(to, name); qr != "" {
+			dataMap["QuickRegisterURL"] = qr
+		}
+	}
 
 	// RFC 8058 one-click unsubscribe headers. Only set when we have a signed URL
 	// (i.e. a marketing/sequence send with a known user) — transactional mail with
@@ -370,13 +449,24 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 	case "cc-outreach-coupon":
 		return "Something from me, Jeremy", nil
 	case "cc-cart-goat":
-		return "A code from me, GOAT10", nil
+		// Subject must not name a specific code: the body renders a UNIQUE
+		// per-recipient code (CreatePerRecipientCoupon), not the historical static
+		// "GOAT10", so promising GOAT10 in the subject contradicted the email.
+		return "A code from me", nil
 	case "cc-outreach-pricing":
 		return "New pricing for Outreach Dojo", nil
 	case "cc-webinar-confirm":
 		return "You're registered. Here's what happens next.", nil
 	case "cc-webinar-link":
 		return "Your webinar link — it's tomorrow", nil
+	case "cc-webinar-toolkit":
+		return "Your webinar toolkit + playbook (and your join link)", nil
+	case "cc-webinar-toolkit-recap":
+		return "Your Studojo toolkit (and the next webinar)", nil
+	case "cc-webinar-funnel-all", "cc-webinar-funnel-coach", "cc-webinar-funnel-resume":
+		return "Before the webinar: a head start", nil
+	case "cc-webinar-funnel-outreach":
+		return "Before the webinar: see how replies actually happen", nil
 	case "cc-welcome":
 		return "You asked for an honest look. Good.", nil
 	case "cc-nudge-1":
