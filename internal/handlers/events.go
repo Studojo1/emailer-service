@@ -744,6 +744,17 @@ type ContactFormEvent struct {
 	Message string `json:"message"`
 }
 
+// SenseiContactEvent is a demo request or contact message from the Sensei site.
+type SenseiContactEvent struct {
+	Name         string `json:"name"`
+	Email        string `json:"email"`
+	Organisation string `json:"organisation"`
+	Topic        string `json:"topic"`
+	TeamSize     string `json:"team_size"`
+	Message      string `json:"message"`
+	Source       string `json:"source"`
+}
+
 // InternshipAppliedEvent represents an internship application event
 type InternshipAppliedEvent struct {
 	UserID          string `json:"user_id"`
@@ -867,6 +878,63 @@ func (h *EventHandler) HandleInternshipApplied(ctx context.Context, event *Inter
 	return nil
 }
 
+// HandleSenseiContact emails every Sensei demo request / contact message to the
+// founders. Recipients are fixed server-side (SENSEI_CONTACT_RECIPIENTS) and are
+// never taken from the event, so the public form cannot be used to mail others.
+func (h *EventHandler) HandleSenseiContact(ctx context.Context, event *SenseiContactEvent) error {
+	list := os.Getenv("SENSEI_CONTACT_RECIPIENTS")
+	if strings.TrimSpace(list) == "" {
+		list = "jeremy.zac@gmail.com,businessconnect.pranav@gmail.com"
+	}
+	kind := "Demo request"
+	if event.Source == "sensei-contact" {
+		kind = "Contact message"
+	}
+	subject := "Sensei " + strings.ToLower(kind)
+	if event.Topic != "" {
+		subject += ": " + event.Topic
+	}
+	if event.Organisation != "" {
+		subject += " (" + event.Organisation + ")"
+	}
+	body := event.Message
+	extra := []string{}
+	if event.Organisation != "" {
+		extra = append(extra, "Organisation: "+event.Organisation)
+	}
+	if event.TeamSize != "" {
+		extra = append(extra, "Team size: "+event.TeamSize)
+	}
+	if event.Source != "" {
+		extra = append(extra, "Source: "+event.Source)
+	}
+	if len(extra) > 0 {
+		body = strings.Join(extra, "\n") + "\n\n" + body
+	}
+	var firstErr error
+	for _, to := range strings.Split(list, ",") {
+		to = strings.TrimSpace(to)
+		if to == "" {
+			continue
+		}
+		err := h.Sender.SendTemplateEmail(ctx, to, "contact-form", map[string]interface{}{
+			"Name":    event.Name,
+			"Email":   event.Email,
+			"Subject": subject,
+			"Message": body,
+		})
+		if err != nil {
+			slog.Error("failed to send sensei contact email", "error", err, "to", to, "from", event.Email)
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		slog.Info("sensei contact email sent", "to", to, "from", event.Email, "kind", kind)
+	}
+	return firstErr
+}
+
 // HandleContactForm handles contact form submission events
 func (h *EventHandler) HandleContactForm(ctx context.Context, event *ContactFormEvent) error {
 	adminEmail := "admin@studojo.com"
@@ -985,6 +1053,13 @@ func (h *EventHandler) ProcessEvent(ctx context.Context, routingKey string, body
 			return err
 		}
 		return h.HandleInternshipApplied(ctx, &event)
+
+	case "event.sensei.contact":
+		var event SenseiContactEvent
+		if err := json.Unmarshal(body, &event); err != nil {
+			return err
+		}
+		return h.HandleSenseiContact(ctx, &event)
 
 	case "event.contact.form-submitted":
 		var event ContactFormEvent
