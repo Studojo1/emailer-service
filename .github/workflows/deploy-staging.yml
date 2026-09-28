@@ -3,6 +3,8 @@ name: Build and Deploy (Staging)
 on:
   push:
     branches: [staging]
+  # Manual re-run for when GitHub drops a push event (it did for #31).
+  workflow_dispatch:
 
 permissions:
   id-token: write
