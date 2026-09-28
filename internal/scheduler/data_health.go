@@ -37,8 +37,22 @@ func (sc *Scheduler) checkDataHealth(ctx context.Context) {
 		if !isProductionFrontend(sc.FrontendURL) || sc.dataHealthAlerted[c.Name] == day {
 			continue
 		}
+		// Claim today's alert in the database first, so a restart or a second
+		// replica cannot page twice. If the table is unavailable, fall back to
+		// the in-memory note rather than going silent.
+		claimed, err := sc.Store.ClaimDataHealthAlert(ctx, c.Name, n)
+		if err != nil {
+			slog.Warn("data-health: alert claim failed, using in-memory dedupe", "check", c.Name, "error", err)
+			claimed = true
+		}
+		if !claimed {
+			sc.dataHealthAlerted[c.Name] = day // already paged today (maybe before a restart)
+			continue
+		}
 		if sc.sendDataHealthAlert(ctx, c, n) {
 			sc.dataHealthAlerted[c.Name] = day
+		} else if err == nil {
+			_ = sc.Store.ReleaseDataHealthAlert(ctx, c.Name)
 		}
 	}
 }
