@@ -179,6 +179,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
+		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled", "outreach-campaign-finished",
 		"cc-dna-ready", "cc-roadmap-delivered",
 		"cc-webinar-confirm", "cc-webinar-link", "cc-webinar-toolkit", "cc-webinar-toolkit-recap",
 		// onboarding -> Primary (was welcome.studojo.pro -> Promotions)
@@ -202,6 +203,7 @@ func (s *Sender) getSenderForTemplate(templateName string) string {
 	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
+		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled", "outreach-campaign-finished",
 		// new-flow transactional sends (analysis/roadmap are not marketing)
 		"cc-dna-ready", "cc-roadmap-delivered":
 		if s.supportSender != "" {
@@ -406,6 +408,14 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Your leads are ready.", nil
 	case "outreach-launch-nudge":
 		return "Your campaign is paid for but not launched yet", nil
+	case "outreach-gmail-reconnect":
+		return "Reconnect Gmail to keep your campaign going", nil
+	case "outreach-campaign-paused":
+		return "Your campaign is paused with emails still waiting", nil
+	case "outreach-campaign-stalled":
+		return "Your campaign hasn't sent anything for 3 days", nil
+	case "outreach-campaign-finished":
+		return "Your campaign has finished: here's what it did", nil
 	case "ops-alert":
 		if subj, ok := data["Subject"].(string); ok && subj != "" {
 			return "[Studojo ops] " + subj, nil
