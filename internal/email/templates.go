@@ -76,6 +76,9 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		"welcome", "forgot-password", "verify-email", "resume-optimized", "internship-applied",
 		"password-changed", "contact-form", "payment-thankyou", "service-update",
 		"leads-ready", "checkin-reminder",
+		// Outreach Dojo post-payment: paid but never launched (job-outreach-svc sweep),
+		// and the plain-text founders' alert that goes with it.
+		"outreach-launch-nudge", "ops-alert",
 		// ── New efficient flow (cc- prefix) — replaces the old funnel/nurture flow ──
 		// Outreach Dojo flow
 		"cc-welcome-new-user",

@@ -1300,6 +1300,11 @@ type SendTemplateRequest struct {
 	// ActionURL is the button link for transactional templates (verify-email).
 	// Only Studojo URLs are accepted, so the endpoint cannot mail arbitrary links.
 	ActionURL string `json:"action_url"`
+	// Credits fills outreach-launch-nudge ("your N credits are ready").
+	Credits int `json:"credits"`
+	// Subject and Message fill ops-alert, a plain-text founders' alert.
+	Subject string `json:"subject"`
+	Message string `json:"message"`
 }
 
 // HandleSendTemplate sends any registered template by name. Internal
@@ -1327,6 +1332,9 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		"UserName":     req.UserName,
 		"DashboardURL": "https://studojo.com/",
 		"CouponCode":   req.CouponCode,
+		"Credits":      req.Credits,
+		"Subject":      req.Subject,
+		"Message":      req.Message,
 	}
 	if req.ActionURL != "" {
 		if !strings.HasPrefix(req.ActionURL, "https://studojo.com/") && !strings.HasPrefix(req.ActionURL, "https://studojo.pro/") {
