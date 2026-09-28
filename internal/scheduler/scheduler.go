@@ -21,6 +21,8 @@ type Scheduler struct {
 	rateLimitUntil time.Time     // circuit breaker: stop sending until quota resets
 	sendInterval   time.Duration // gap between sends, derived from the per-hour cap
 	backoff        time.Duration // how long to pause the batch on a hard 429
+	// data-health check name -> IST day it last paged ops (one alert per day)
+	dataHealthAlerted map[string]string
 }
 
 // couponFallbackCode is the blanket coupon used only when minting a unique
@@ -69,6 +71,8 @@ func NewScheduler(s *store.PostgresStore, sender *email.Sender, frontendURL stri
 		FrontendURL:  frontendURL,
 		sendInterval: interval,
 		backoff:      65 * time.Minute,
+
+		dataHealthAlerted: map[string]string{},
 	}
 }
 
@@ -82,6 +86,10 @@ func (sc *Scheduler) Run(ctx context.Context) {
 	behavioralTicker := time.NewTicker(30 * time.Minute)
 	// Apollo credit-burn tripwire — cheap DB read, paged at most once/day.
 	burnTicker := time.NewTicker(15 * time.Minute)
+	// Data-health invariants (locked-out sign-ups, missing profiles, duplicate
+	// candidates, quizzes completed with no roles) — hourly counts.
+	healthTicker := time.NewTicker(1 * time.Hour)
+	defer healthTicker.Stop()
 	defer ticker.Stop()
 	defer catchupTicker.Stop()
 	defer behavioralTicker.Stop()
@@ -91,6 +99,7 @@ func (sc *Scheduler) Run(ctx context.Context) {
 	sc.processDue(ctx)
 	sc.runCatchup(ctx)
 	sc.checkApolloBurn(ctx)
+	sc.checkDataHealth(ctx)
 
 	for {
 		select {
@@ -102,6 +111,8 @@ func (sc *Scheduler) Run(ctx context.Context) {
 			sc.runBehavioral(ctx)
 		case <-burnTicker.C:
 			sc.checkApolloBurn(ctx)
+		case <-healthTicker.C:
+			sc.checkDataHealth(ctx)
 		case <-ctx.Done():
 			return
 		}
