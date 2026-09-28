@@ -127,4 +127,3 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 	}
 	return nil
 }
-

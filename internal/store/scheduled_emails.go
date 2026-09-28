@@ -243,13 +243,13 @@ func (s *PostgresStore) ListQuizCompletedWithoutEmail(ctx context.Context, email
 
 // PendingScheduledEmail is a scheduled_emails row with denormalised user info.
 type PendingScheduledEmail struct {
-	ID          uuid.UUID  `json:"id"`
-	UserID      string     `json:"user_id"`
-	UserName    string     `json:"user_name"`
-	UserEmail   string     `json:"user_email"`
-	EmailType   string     `json:"email_type"`
-	ScheduledAt time.Time  `json:"scheduled_at"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	UserID      string    `json:"user_id"`
+	UserName    string    `json:"user_name"`
+	UserEmail   string    `json:"user_email"`
+	EmailType   string    `json:"email_type"`
+	ScheduledAt time.Time `json:"scheduled_at"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // ListPendingScheduledEmails returns unsent scheduled emails with user info, newest first.

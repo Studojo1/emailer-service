@@ -17,23 +17,23 @@ import (
 	"time"
 
 	"bytes"
-	"io"
-	"strconv"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/studojo/emailer-service/internal/auth"
 	"github.com/studojo/emailer-service/internal/email"
 	"github.com/studojo/emailer-service/internal/store"
+	"golang.org/x/crypto/bcrypt"
+	"io"
+	"strconv"
 )
 
 // Handler holds HTTP handlers for emailer service
 type Handler struct {
-	Store               *store.PostgresStore
-	Sender              *email.Sender
-	TokenStore          *auth.TokenStore
-	EventHandler        *EventHandler
-	FrontendURL         string // For internal service-to-service calls (e.g., http://frontend:3000)
-	EmailFrontendURL    string // For email links that users click (e.g., http://localhost:3000)
-	UnsubscribeSecret   string // HMAC secret for signing unsubscribe tokens
+	Store             *store.PostgresStore
+	Sender            *email.Sender
+	TokenStore        *auth.TokenStore
+	EventHandler      *EventHandler
+	FrontendURL       string // For internal service-to-service calls (e.g., http://frontend:3000)
+	EmailFrontendURL  string // For email links that users click (e.g., http://localhost:3000)
+	UnsubscribeSecret string // HMAC secret for signing unsubscribe tokens
 }
 
 // ForgotPasswordRequest represents a forgot password request
@@ -49,7 +49,7 @@ type ResetPasswordRequest struct {
 
 // ChangePasswordRequest represents a password change request (for logged-in users)
 type ChangePasswordRequest struct {
-	UserID         string `json:"user_id"`
+	UserID          string `json:"user_id"`
 	CurrentPassword string `json:"current_password"`
 	NewPassword     string `json:"new_password"`
 }
@@ -123,7 +123,7 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		"Token":     token,
 		"ExpiresIn": "1 hour",
 	}
-	
+
 	// Add flag for OAuth users (creating password for first time)
 	if !hasPassword {
 		emailData["IsOAuthUser"] = true
@@ -132,7 +132,7 @@ func (h *Handler) HandleForgotPassword(w http.ResponseWriter, r *http.Request) {
 		emailData["IsOAuthUser"] = false
 		emailData["Message"] = "Click the button below to reset your password."
 	}
-	
+
 	slog.Info("sending password reset email", "user_id", user.ID, "email", user.Email, "has_password", hasPassword)
 	err = h.Sender.SendTemplateEmail(ctx, user.Email, "forgot-password", emailData)
 	if err != nil {
@@ -266,8 +266,8 @@ func (h *Handler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
 			go func() {
 				emailCtx := context.Background()
 				_ = h.Sender.SendTemplateEmail(emailCtx, user.Email, "password-changed", map[string]interface{}{
-					"UserName":  user.Name,
-					"Timestamp": time.Now().UTC().Format(time.RFC3339),
+					"UserName":    user.Name,
+					"Timestamp":   time.Now().UTC().Format(time.RFC3339),
 					"SettingsURL": h.EmailFrontendURL + "/settings",
 				})
 			}()
@@ -445,8 +445,8 @@ func (h *Handler) HandleChangePassword(w http.ResponseWriter, r *http.Request) {
 		go func() {
 			emailCtx := context.Background()
 			_ = h.Sender.SendTemplateEmail(emailCtx, user.Email, "password-changed", map[string]interface{}{
-				"UserName":  user.Name,
-				"Timestamp": time.Now().UTC().Format(time.RFC3339),
+				"UserName":    user.Name,
+				"Timestamp":   time.Now().UTC().Format(time.RFC3339),
 				"SettingsURL": h.FrontendURL + "/settings",
 			})
 		}()
@@ -665,18 +665,18 @@ func (h *Handler) buildTemplateData(emailType string, user *store.User) (string,
 func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
 	// Try to use Better Auth's hash-password endpoint
 	hashURL := fmt.Sprintf("%s/api/auth/hash-password", h.FrontendURL)
-	
+
 	reqBody, err := json.Marshal(map[string]string{"password": password})
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
-	
+
 	req, err := http.NewRequest("POST", hashURL, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	
+
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -689,7 +689,7 @@ func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
 		return string(hash), nil
 	}
 	defer resp.Body.Close()
-	
+
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		// Fallback to local bcrypt if Better Auth endpoint returns error
@@ -700,7 +700,7 @@ func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
 		}
 		return string(hash), nil
 	}
-	
+
 	var result struct {
 		Hash string `json:"hash"`
 	}
@@ -713,7 +713,7 @@ func (h *Handler) hashPasswordWithBetterAuth(password string) (string, error) {
 		}
 		return string(hash), nil
 	}
-	
+
 	return result.Hash, nil
 }
 
@@ -1189,7 +1189,9 @@ func (h *Handler) HandleWebinarTest(w http.ResponseWriter, r *http.Request) {
 // a cutoff time, how many link emails went out before vs after the cutoff. Use
 // it to size a corrected-link re-send (before_cutoff = recipients who got the
 // OLD/broken link) without sending or deleting anything.
-//   GET /v1/admin/webinar/link-stats?date=2026-06-28&cutoff=2026-06-27T17:30:00Z
+//
+//	GET /v1/admin/webinar/link-stats?date=2026-06-28&cutoff=2026-06-27T17:30:00Z
+//
 // cutoff defaults to now if omitted.
 func (h *Handler) HandleWebinarLinkSentStats(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
@@ -1367,7 +1369,6 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 	slog.Info("send-template sent", "template", req.Template, "to_domain", emailDomain(req.To))
 	writeJSON(w, map[string]string{"status": "sent", "to": req.To, "template": req.Template}, http.StatusOK)
 }
-
 
 // emailDomain returns the part after "@", so logs can show where a send went
 // without recording the full address.
