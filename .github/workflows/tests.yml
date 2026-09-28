@@ -1,0 +1,21 @@
+# Runs on every pull request and every push to main/staging. Required to pass
+# before merging (branch protection).
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main, staging]
+
+jobs:
+  test:
+    name: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go build ./...
+      - run: go vet ./internal/...
+      - run: go test ./...
