@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your campaign has finished</title>
+<style>
+  body { margin:0; padding:0; background:#ffffff; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:16px; line-height:1.6; color:#1a1a1a; }
+  .wrap { max-width:560px; margin:0 auto; padding:40px 24px; }
+  p { margin:0 0 18px 0; color:#1a1a1a; }
+  a.btn { display:inline-block; margin:8px 0 24px; padding:12px 28px; background:#8b5cf6; color:#ffffff !important; text-decoration:none; border-radius:8px; font-weight:600; font-size:15px; }
+  .sig { margin-top:32px; padding-top:20px; border-top:1px solid #e5e5e5; color:#555; font-size:15px; }
+  .footer { margin-top:40px; font-size:12px; color:#999; }
+  .footer a { color:#999; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<p>Hi {{.UserName}},</p>
+
+<p>Hi {{.UserName}},</p>
+
+<p>Your campaign has finished. Here's what it did:</p>
+
+<p>
+  <strong>{{.Delivered}} of {{.Total}}</strong> emails delivered to hiring managers<br>
+  <strong>{{.Replied}}</strong> replies so far{{if .Credits}}<br>
+  <strong>{{.Credits}}</strong> unused credits returned to your account{{end}}
+</p>
+
+<p>Emails that didn't go out were contacts with no verified email address, and you weren't charged for those. Replies can still arrive over the next few weeks.</p>
+
+<a href="{{.ActionURL}}" class="btn">See replies</a>
+
+<div class="sig">
+  <p style="margin:0;font-weight:600;">Pranav</p>
+  <p style="margin:0;color:#777;">Studojo</p>
+</div>
+
+<div class="footer">
+  <p style="margin:0;">&copy; 2026 Studojo &middot; <a href="https://studojo.com">studojo.com</a></p>
+</div>
+
+</div>
+</body>
+</html>

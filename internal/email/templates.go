@@ -79,6 +79,9 @@ func (tr *TemplateRenderer) LoadAllTemplates() error {
 		// Outreach Dojo post-payment: paid but never launched (job-outreach-svc sweep),
 		// and the plain-text founders' alert that goes with it.
 		"outreach-launch-nudge", "ops-alert",
+		// Campaign lifecycle notices (job-outreach-svc services/campaign_notices.py).
+		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled",
+		"outreach-campaign-finished",
 		// ── New efficient flow (cc- prefix) — replaces the old funnel/nurture flow ──
 		// Outreach Dojo flow
 		"cc-welcome-new-user",

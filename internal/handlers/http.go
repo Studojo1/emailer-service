@@ -1304,6 +1304,10 @@ type SendTemplateRequest struct {
 	ActionURL string `json:"action_url"`
 	// Credits fills outreach-launch-nudge ("your N credits are ready").
 	Credits int `json:"credits"`
+	// Delivered, Total and Replied fill outreach-campaign-finished.
+	Delivered int `json:"delivered"`
+	Total     int `json:"total"`
+	Replied   int `json:"replied"`
 	// Subject and Message fill ops-alert, a plain-text founders' alert.
 	Subject string `json:"subject"`
 	Message string `json:"message"`
@@ -1335,6 +1339,9 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		"DashboardURL": "https://studojo.com/",
 		"CouponCode":   req.CouponCode,
 		"Credits":      req.Credits,
+		"Delivered":    req.Delivered,
+		"Total":        req.Total,
+		"Replied":      req.Replied,
 		"Subject":      req.Subject,
 		"Message":      req.Message,
 	}

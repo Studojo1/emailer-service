@@ -30,3 +30,32 @@ func TestNewTemplatesRender(t *testing.T) {
 		t.Fatalf("ops-alert must escape: %v\n%s", err, html)
 	}
 }
+
+// Campaign lifecycle notices must parse and fill their numbers.
+func TestCampaignNoticeTemplatesRender(t *testing.T) {
+	tr, err := NewTemplateRenderer("../../templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]string{
+		"outreach-gmail-reconnect":   "40 emails still waiting",
+		"outreach-campaign-paused":   "40 emails you paid for",
+		"outreach-campaign-stalled":  "40 still waiting",
+		"outreach-campaign-finished": "180 of 200",
+	}
+	for name, want := range cases {
+		if err := tr.LoadTemplate(name); err != nil {
+			t.Fatalf("load %s: %v", name, err)
+		}
+		html, err := tr.Render(name, map[string]interface{}{
+			"UserName": "Asha", "Credits": 40, "ActionURL": "https://studojo.com/outreach/campaign/dashboard",
+			"Delivered": 180, "Total": 200, "Replied": 7,
+		})
+		if name == "outreach-campaign-finished" {
+			want = "180 of 200"
+		}
+		if err != nil || !strings.Contains(html, want) || !strings.Contains(html, "Asha") {
+			t.Fatalf("%s: %v (want %q)", name, err, want)
+		}
+	}
+}
