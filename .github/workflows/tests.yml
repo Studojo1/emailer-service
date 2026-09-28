@@ -20,7 +20,13 @@ jobs:
       # Formatting, vet and staticcheck were all clean when added, so any
       # finding is new and fails the check.
       - name: gofmt
-        run: test -z "$(gofmt -l .)" || { gofmt -l .; echo "run: gofmt -w ."; exit 1; }
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            echo "These files need gofmt -w"
+            exit 1
+          fi
       - run: go vet ./...
       - run: go run honnef.co/go/tools/cmd/staticcheck@2025.1.1 ./...
       - run: go test ./...
