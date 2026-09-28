@@ -489,7 +489,7 @@ func (h *Handler) HandleAdminSendOneOff(w http.ResponseWriter, r *http.Request) 
 		req.UserName = "there"
 	}
 	data := map[string]interface{}{
-		"UserName":    req.UserName,
+		"UserName":     req.UserName,
 		"DashboardURL": "https://studojo.com/",
 	}
 	ctx := context.Background()

@@ -22,24 +22,24 @@ type EmailLog struct {
 
 // CampaignGroup groups all sends of a given email_type together
 type CampaignGroup struct {
-	EmailType  string     `json:"email_type"`
-	TotalSent  int        `json:"total_sent"`
-	TotalOpened int       `json:"total_opened"`
-	OpenRate   float64    `json:"open_rate"`
-	FirstSent  *time.Time `json:"first_sent"`
-	LastSent   *time.Time `json:"last_sent"`
+	EmailType   string     `json:"email_type"`
+	TotalSent   int        `json:"total_sent"`
+	TotalOpened int        `json:"total_opened"`
+	OpenRate    float64    `json:"open_rate"`
+	FirstSent   *time.Time `json:"first_sent"`
+	LastSent    *time.Time `json:"last_sent"`
 }
 
 // EmailStats is the top-level stats object for the admin dashboard
 type EmailStats struct {
-	TotalSent    int              `json:"total_sent"`
-	TotalOpened  int              `json:"total_opened"`
-	OpenRate     float64          `json:"open_rate"`
-	SentToday    int              `json:"sent_today"`
-	SentThisWeek int              `json:"sent_this_week"`
-	TotalUsers   int              `json:"total_users"`
-	TopTemplates []TemplateStats  `json:"top_templates"`
-	DailyVolume  []DailyVolume    `json:"daily_volume"`
+	TotalSent    int             `json:"total_sent"`
+	TotalOpened  int             `json:"total_opened"`
+	OpenRate     float64         `json:"open_rate"`
+	SentToday    int             `json:"sent_today"`
+	SentThisWeek int             `json:"sent_this_week"`
+	TotalUsers   int             `json:"total_users"`
+	TopTemplates []TemplateStats `json:"top_templates"`
+	DailyVolume  []DailyVolume   `json:"daily_volume"`
 }
 
 // TemplateStats holds per-template send/open counts
