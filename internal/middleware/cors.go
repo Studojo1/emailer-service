@@ -22,7 +22,7 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 			allowed := origins[origin] ||
 				(allowLocalhost && origin != "" &&
 					(strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")))
-			
+
 			// Handle preflight OPTIONS requests
 			if r.Method == http.MethodOptions {
 				if allowed && origin != "" {
@@ -35,7 +35,7 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			
+
 			// For actual requests, set CORS headers
 			if allowed && origin != "" {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
@@ -43,9 +43,8 @@ func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 			}
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Correlation-ID")
-			
+
 			next.ServeHTTP(w, r)
 		})
 	}
 }
-

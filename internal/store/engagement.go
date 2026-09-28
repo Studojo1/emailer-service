@@ -11,14 +11,14 @@ import (
 // than each re-deriving "engaged" with its own ad-hoc query. Keyed on email,
 // which is the identity the pixel/click/used paths all carry.
 type Engagement struct {
-	Email          string            `json:"email"`
-	OpenedTypes    map[string]bool   `json:"opened_types"`    // email_type -> opened
-	ClickedTypes   map[string]bool   `json:"clicked_types"`   // email_type -> clicked
-	ToolsUsed      map[string]string `json:"tools_used"`      // tool -> source ("email"|"direct")
-	AnyOpen        bool              `json:"any_open"`
-	AnyClick       bool              `json:"any_click"`
-	AnyToolUsed    bool              `json:"any_tool_used"`
-	AnyReply       bool              `json:"any_reply"` // replied to ANY email — highest intent
+	Email        string            `json:"email"`
+	OpenedTypes  map[string]bool   `json:"opened_types"`  // email_type -> opened
+	ClickedTypes map[string]bool   `json:"clicked_types"` // email_type -> clicked
+	ToolsUsed    map[string]string `json:"tools_used"`    // tool -> source ("email"|"direct")
+	AnyOpen      bool              `json:"any_open"`
+	AnyClick     bool              `json:"any_click"`
+	AnyToolUsed  bool              `json:"any_tool_used"`
+	AnyReply     bool              `json:"any_reply"` // replied to ANY email — highest intent
 }
 
 // GetEngagement assembles a user's full engagement state from the signal tables

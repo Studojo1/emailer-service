@@ -177,8 +177,8 @@ type Webinar struct {
 	Title       string     `json:"title"`
 	WebinarDate *time.Time `json:"webinar_date"`
 	WebinarTime string     `json:"webinar_time"`
-	Status      string     `json:"status"`       // 'upcoming' | 'conducted'
-	Registrants int        `json:"registrants"`  // distinct registrants for this webinar
+	Status      string     `json:"status"`      // 'upcoming' | 'conducted'
+	Registrants int        `json:"registrants"` // distinct registrants for this webinar
 	CreatedAt   *time.Time `json:"created_at"`
 }
 

@@ -13,10 +13,10 @@ import (
 
 // Config holds RabbitMQ configuration
 type Config struct {
-	RabbitMQURL      string
-	EventsExchange   string
-	EventsQueue      string
-	EventsBindKey    string
+	RabbitMQURL    string
+	EventsExchange string
+	EventsQueue    string
+	EventsBindKey  string
 }
 
 // DefaultConfig returns default messaging configuration
@@ -121,4 +121,3 @@ func RunWithRetry(ctx context.Context, consumer *Consumer, backoff time.Duration
 		}
 	}
 }
-

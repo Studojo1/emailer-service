@@ -39,7 +39,7 @@ func (s *PostgresStore) CreateDefaultPreferences(ctx context.Context, userID str
 	id := uuid.New()
 	now := time.Now().UTC()
 	prefs := &EmailPreferences{
-		ID:              id,
+		ID:               id,
 		UserID:           userID,
 		ProductEmails:    true,
 		ResumeEmails:     true,
@@ -327,4 +327,3 @@ func (s *PostgresStore) HasPasswordAccount(ctx context.Context, userID string) (
 	).Scan(&count)
 	return count > 0, err
 }
-

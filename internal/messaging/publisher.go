@@ -73,4 +73,3 @@ func (p *EventPublisher) Close() error {
 	_ = p.ch.Close()
 	return p.conn.Close()
 }
-
