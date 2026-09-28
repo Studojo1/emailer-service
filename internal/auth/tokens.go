@@ -33,7 +33,7 @@ func GenerateToken() (string, error) {
 }
 
 // CreatePasswordResetToken creates a new password reset token
-// It stores the token in both our password_reset_tokens table (for tracking) 
+// It stores the token in both our password_reset_tokens table (for tracking)
 // and Better Auth's verification table (for Better Auth API compatibility)
 func (ts *TokenStore) CreatePasswordResetToken(ctx context.Context, userID string, expiresIn time.Duration) (string, error) {
 	token, err := GenerateToken()
@@ -161,7 +161,7 @@ func (ts *TokenStore) UpdateUserPassword(ctx context.Context, userID, passwordHa
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		accountID, userEmail, "credential", userID, passwordHash, now, now,
 	)
-	
+
 	// If INSERT fails (e.g., due to race condition), try UPDATE again
 	if err != nil {
 		// Account might have been created by another process, try update again

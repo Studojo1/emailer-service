@@ -12,7 +12,7 @@ type Campaign struct {
 	ID              string     `json:"id"`
 	Name            string     `json:"name"`
 	TemplateName    string     `json:"template_name"`
-	Status          string     `json:"status"` // draft | running | completed | failed
+	Status          string     `json:"status"`      // draft | running | completed | failed
 	FilterDays      int        `json:"filter_days"` // 0 = all users
 	TotalRecipients int        `json:"total_recipients"`
 	SentCount       int        `json:"sent_count"`

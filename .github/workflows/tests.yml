@@ -17,5 +17,16 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go build ./...
-      - run: go vet ./internal/...
+      # Formatting, vet and staticcheck were all clean when added, so any
+      # finding is new and fails the check.
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "$unformatted"
+            echo "These files need gofmt -w"
+            exit 1
+          fi
+      - run: go vet ./...
+      - run: go run honnef.co/go/tools/cmd/staticcheck@2025.1.1 ./...
       - run: go test ./...

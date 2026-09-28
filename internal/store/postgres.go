@@ -20,14 +20,14 @@ func NewPostgresStore(db *sql.DB) *PostgresStore {
 
 // EmailPreferences represents user email preferences
 type EmailPreferences struct {
-	ID             uuid.UUID
-	UserID         string
-	ProductEmails  bool
-	ResumeEmails   bool
+	ID               uuid.UUID
+	UserID           string
+	ProductEmails    bool
+	ResumeEmails     bool
 	InternshipEmails bool
-	SecurityEmails bool
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	SecurityEmails   bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // PasswordResetToken represents a password reset token
@@ -46,4 +46,3 @@ type User struct {
 	Email string
 	Name  string
 }
-

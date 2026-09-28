@@ -90,7 +90,7 @@ func main() {
 	if frontendURL == "" {
 		frontendURL = "http://frontend:3000" // Default to service name for Docker
 	}
-	
+
 	// Frontend URL for email links that users click (e.g., http://localhost:3000)
 	emailFrontendURL := os.Getenv("EMAIL_FRONTEND_URL")
 	if emailFrontendURL == "" {
