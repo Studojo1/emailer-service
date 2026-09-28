@@ -66,3 +66,28 @@ func (s *PostgresStore) CountDataHealthViolations(ctx context.Context, c DataHea
 	err := s.db.QueryRowContext(ctx, c.query).Scan(&n)
 	return n, err
 }
+
+// ClaimDataHealthAlert records that ops are being paged for this check today
+// (IST) and reports whether this caller won the claim. The primary key on
+// (check_name, day) makes it atomic, so a restart or a second replica cannot
+// page twice for the same problem on the same day (migration 050).
+func (s *PostgresStore) ClaimDataHealthAlert(ctx context.Context, check string, count int) (bool, error) {
+	res, err := s.db.ExecContext(ctx, `
+		INSERT INTO data_health_alerts (check_name, day, count)
+		VALUES ($1, (now() AT TIME ZONE 'Asia/Kolkata')::date, $2)
+		ON CONFLICT (check_name, day) DO NOTHING`, check, count)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n == 1, err
+}
+
+// ReleaseDataHealthAlert undoes a claim whose alert could not be sent, so the
+// next hourly run tries again instead of staying silent for the rest of the day.
+func (s *PostgresStore) ReleaseDataHealthAlert(ctx context.Context, check string) error {
+	_, err := s.db.ExecContext(ctx, `
+		DELETE FROM data_health_alerts
+		WHERE check_name = $1 AND day = (now() AT TIME ZONE 'Asia/Kolkata')::date`, check)
+	return err
+}
