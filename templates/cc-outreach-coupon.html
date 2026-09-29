@@ -42,7 +42,7 @@
       </div>
 
       <div class="cta-wrap">
-        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery "https://studojo.com/outreach"}}{{else}}https://studojo.com/outreach{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
+        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery (printf "https://studojo.com/outreach?coupon=%s" .CouponCode)}}{{else}}https://studojo.com/outreach?coupon={{urlquery .CouponCode}}{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
       </div>
 
       <p class="body-text">This one is just for you, and the clock starts the moment you open this email: it's good for the next 10 hours. After that it's gone.</p>

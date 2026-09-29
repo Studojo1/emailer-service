@@ -75,6 +75,11 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
+          # Staging-only env (audit ST-N13): the ingress already sends CORS
+          # headers, so the app must not add a second set (prod sets no
+          # CORS_ORIGINS either), and reset/verify links must point at
+          # studojo.pro, not production.
+          kubectl set env deployment/${{ env.SERVICE_NAME }} -n staging CORS_ORIGINS- EMAIL_FRONTEND_URL=https://studojo.pro
           kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n staging
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n staging --timeout=10m || {
             echo "Rollout failed or timed out. Checking pod status..."
