@@ -304,14 +304,16 @@ func (s *PostgresStore) CountUsersBySignupDate(ctx context.Context, withinDays i
 	return count, err
 }
 
-// UnsubscribeUser sets all marketing email preferences to false for a user.
-// Uses upsert so it works even when no preferences row exists yet.
+// UnsubscribeUser switches off marketing (product) email for a user. Uses upsert
+// so it works even when no preferences row exists yet. It used to switch off
+// resume and internship emails too, which silently stopped service
+// confirmations for anyone who clicked "unsubscribe" on a marketing email.
 func (s *PostgresStore) UnsubscribeUser(ctx context.Context, userID string) error {
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO email_preferences (id, user_id, product_emails, resume_emails, internship_emails, security_emails, created_at, updated_at)
-		VALUES (gen_random_uuid(), $1, false, false, false, true, NOW(), NOW())
+		VALUES (gen_random_uuid(), $1, false, true, true, true, NOW(), NOW())
 		ON CONFLICT (user_id) DO UPDATE
-		SET product_emails = false, resume_emails = false, internship_emails = false, updated_at = NOW()`,
+		SET product_emails = false, updated_at = NOW()`,
 		userID,
 	)
 	return err
