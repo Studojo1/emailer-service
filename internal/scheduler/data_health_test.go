@@ -17,7 +17,9 @@ func TestDataHealthChecksAreWellFormed(t *testing.T) {
 		}
 		seen[c.Name] = true
 	}
-	for _, want := range []string{"users_without_login", "resumes_without_profile", "duplicate_unused_candidates", "quiz_completed_without_roles"} {
+	for _, want := range []string{"users_without_login", "resumes_without_profile", "duplicate_unused_candidates", "quiz_completed_without_roles",
+		"sends_outside_window", "campaign_over_paid_credits", "emails_stuck_sending", "followup_after_reply",
+		"reply_check_stale", "unpaid_campaign_setup", "fresh_campaigns_low_reply_rate"} {
 		if !seen[want] {
 			t.Errorf("check %q was removed; it guards a failure that reached real students", want)
 		}
