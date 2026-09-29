@@ -55,21 +55,13 @@ spec:
                 configMapKeyRef:
                   name: app-config
                   key: HTTP_PORT_EMAILER
-            - name: CORS_ORIGINS
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: CORS_ORIGINS
             - name: FRONTEND_URL
               valueFrom:
                 configMapKeyRef:
                   name: app-config
                   key: FRONTEND_URL
             - name: EMAIL_FRONTEND_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: app-config
-                  key: EMAIL_FRONTEND_URL
+              value: https://studojo.pro
             - name: TEMPLATE_DIR
               value: /app/templates
           livenessProbe:
