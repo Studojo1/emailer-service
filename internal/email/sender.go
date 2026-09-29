@@ -476,7 +476,7 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 	case "cc-webinar-confirm":
 		return "You're registered. Here's what happens next.", nil
 	case "cc-webinar-link":
-		return "Your webinar link — it's tomorrow", nil
+		return "Your webinar link: it's tomorrow", nil
 	case "cc-webinar-toolkit":
 		return "Your webinar toolkit + playbook (and your join link)", nil
 	case "cc-webinar-toolkit-recap":
