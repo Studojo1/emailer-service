@@ -273,15 +273,19 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 		}
 	}
 
-	prefs, err := sc.Store.GetEmailPreferences(ctx, e.UserID)
-	if err != nil {
-		slog.Error("scheduler: failed to get preferences", "user_id", e.UserID)
-		return false
-	}
-	if !prefs.ProductEmails {
-		slog.Info("scheduler: skipping email, product emails disabled", "user_id", e.UserID, "type", e.EmailType)
-		_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
-		return false
+	// Marketing opt-out: drop the row. Service emails (e.g. policy-update) are
+	// never skipped here; the classification lives in email.IsMarketingTemplate.
+	if email.IsMarketingTemplate(emailTypeToTemplate(e.EmailType)) {
+		out, err := sc.Store.IsMarketingOptedOut(ctx, e.UserID, user.Email)
+		if err != nil {
+			slog.Error("scheduler: opt-out check failed, leaving row pending", "user_id", e.UserID, "err", err)
+			return false
+		}
+		if out {
+			slog.Info("scheduler: skipping marketing email, user unsubscribed", "user_id", e.UserID, "type", e.EmailType)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
+		}
 	}
 
 	// Suppress cc marketing sequences for paid users — silently drain the row
@@ -325,10 +329,22 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 	}
 
 	var templateData map[string]interface{}
-	switch e.EmailType {
-	case "leads_ready":
+	switch {
+	case strings.HasPrefix(e.EmailType, handlers.PolicyUpdateTypePrefix):
+		effective, ok := handlers.ParsePolicyUpdateEmailType(e.EmailType)
+		if !ok {
+			slog.Warn("scheduler: bad policy-update type, skipping", "type", e.EmailType)
+			_ = sc.Store.MarkScheduledEmailSent(ctx, e.ID)
+			return false
+		}
+		templateData = map[string]interface{}{
+			"UserName":      user.Name,
+			"FirstName":     handlers.FirstName(user.Name),
+			"EffectiveDate": handlers.FormatEffectiveDate(effective),
+		}
+	case e.EmailType == "leads_ready":
 		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
-	case "welcome":
+	case e.EmailType == "welcome":
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:
 		// Accept both cc_ (sequence types) and cc- (template names queued by
@@ -385,9 +401,11 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 }
 
 func emailTypeToTemplate(emailType string) string {
-	switch emailType {
-	case "leads_ready":
+	switch {
+	case emailType == "leads_ready":
 		return "leads-ready"
+	case strings.HasPrefix(emailType, handlers.PolicyUpdateTypePrefix):
+		return "policy-update"
 	default:
 		// cc_* sequence types map 1:1 to cc-* templates (underscore -> hyphen).
 		if strings.HasPrefix(emailType, "cc_") {
