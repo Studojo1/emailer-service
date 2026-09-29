@@ -482,7 +482,7 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		}
 		return "New Contact Form Submission", nil
 	case "payment-thankyou":
-		return "Your payment is confirmed. You're all set.", nil
+		return "Payment confirmed: your Studojo receipt", nil
 	// ── Career Coach / new efficient flows ──
 	case "cc-welcome-new-user":
 		return "You're already ahead of most students. Here's why.", nil
