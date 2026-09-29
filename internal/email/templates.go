@@ -69,61 +69,65 @@ func (tr *TemplateRenderer) Render(name string, data interface{}) (string, error
 	return buf.String(), nil
 }
 
+// RegisteredTemplates are the templates loaded at startup (and so sendable).
+var RegisteredTemplates = []string{
+	// ── Transactional (kept; not part of the retired engagement flow) ──
+	"welcome", "forgot-password", "verify-email", "resume-optimized", "internship-applied",
+	"password-changed", "contact-form", "payment-thankyou", "service-update",
+	"leads-ready", "checkin-reminder",
+	// Outreach Dojo post-payment: paid but never launched (job-outreach-svc sweep),
+	// and the plain-text founders' alert that goes with it.
+	"outreach-launch-nudge", "ops-alert",
+	// Campaign lifecycle notices (job-outreach-svc services/campaign_notices.py).
+	"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled",
+	"outreach-campaign-finished",
+	// Policy change notice (Terms §22 / Privacy §20), queued by POST /v1/email/policy-update.
+	"policy-update",
+	// ── New efficient flow (cc- prefix) — replaces the old funnel/nurture flow ──
+	// Outreach Dojo flow
+	"cc-welcome-new-user",
+	"cc-outreach-nudge-d1", "cc-outreach-nudge-d2", "cc-outreach-nudge-d3", "cc-outreach-nudge-d4",
+	"cc-outreach-push1", "cc-outreach-push2", "cc-outreach-push3",
+	"cc-outreach-convert1", "cc-outreach-convert2",
+	"cc-outreach-payment-page", "cc-outreach-coupon",
+	// One-off pricing announcement (bulk send to recent users)
+	"cc-outreach-pricing",
+	// Webinar flow
+	"cc-webinar-confirm", "cc-webinar-link",
+	// Day-before webinar email (single template for everyone): toolkit + playbook + join
+	"cc-webinar-toolkit",
+	// Recap variant (no join button) for a past webinar's attendees: toolkit + register-next
+	"cc-webinar-toolkit-recap",
+	// Legacy intent-funnel templates (kept registered for previews / re-sends; no longer
+	// auto-sent — the cron now sends cc-webinar-toolkit to everyone)
+	"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
+	"cc-webinar-funnel-coach", "cc-webinar-funnel-resume",
+	// Career Coach flow
+	"cc-welcome",
+	"cc-nudge-1", "cc-nudge-2", "cc-nudge-3",
+	"cc-profiling-idle-1", "cc-profiling-idle-2", "cc-profiling-idle-3",
+	"cc-dna-ready", "cc-dna-confirm-nudge", "cc-roadmap-delivered",
+	"cc-checkin-1", "cc-checkin-2", "cc-checkin-3",
+	"cc-upskill-nudge", "cc-coupon-unlock", "cc-dormant",
+	"cc-to-outreach",
+	"cc-returning-1", "cc-returning-2", "cc-returning-3",
+	// Resume Maker flow
+	"cc-rm-strong-1", "cc-rm-strong-2", "cc-rm-strong-3",
+	"cc-rm-weak-1", "cc-rm-weak-2", "cc-rm-weak-3",
+	// Internship Dojo flow
+	"cc-id-two-tools", "cc-id-reengage-1", "cc-id-reengage-2",
+	// Old / dormant user flow (tool-neutral: 3 stages + 3 CTA variants)
+	"cc-old-s1-1", "cc-old-s1-2", "cc-old-s1-3",
+	"cc-old-s2-1", "cc-old-s2-2", "cc-old-s2-3",
+	"cc-old-s3-1", "cc-old-s3-2", "cc-old-s3-3",
+	"cc-old-cta-outreach", "cc-old-cta-coach", "cc-old-cta-two-tool",
+	// One-shot abandoned-cart coupon blast (GOAT10)
+	"cc-cart-goat",
+}
+
 // LoadAllTemplates loads all email templates
 func (tr *TemplateRenderer) LoadAllTemplates() error {
-	templates := []string{
-		// ── Transactional (kept; not part of the retired engagement flow) ──
-		"welcome", "forgot-password", "verify-email", "resume-optimized", "internship-applied",
-		"password-changed", "contact-form", "payment-thankyou", "service-update",
-		"leads-ready", "checkin-reminder",
-		// Outreach Dojo post-payment: paid but never launched (job-outreach-svc sweep),
-		// and the plain-text founders' alert that goes with it.
-		"outreach-launch-nudge", "ops-alert",
-		// Campaign lifecycle notices (job-outreach-svc services/campaign_notices.py).
-		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled",
-		"outreach-campaign-finished",
-		// ── New efficient flow (cc- prefix) — replaces the old funnel/nurture flow ──
-		// Outreach Dojo flow
-		"cc-welcome-new-user",
-		"cc-outreach-nudge-d1", "cc-outreach-nudge-d2", "cc-outreach-nudge-d3", "cc-outreach-nudge-d4",
-		"cc-outreach-push1", "cc-outreach-push2", "cc-outreach-push3",
-		"cc-outreach-convert1", "cc-outreach-convert2",
-		"cc-outreach-payment-page", "cc-outreach-coupon",
-		// One-off pricing announcement (bulk send to recent users)
-		"cc-outreach-pricing",
-		// Webinar flow
-		"cc-webinar-confirm", "cc-webinar-link",
-		// Day-before webinar email (single template for everyone): toolkit + playbook + join
-		"cc-webinar-toolkit",
-		// Recap variant (no join button) for a past webinar's attendees: toolkit + register-next
-		"cc-webinar-toolkit-recap",
-		// Legacy intent-funnel templates (kept registered for previews / re-sends; no longer
-		// auto-sent — the cron now sends cc-webinar-toolkit to everyone)
-		"cc-webinar-funnel-all", "cc-webinar-funnel-outreach",
-		"cc-webinar-funnel-coach", "cc-webinar-funnel-resume",
-		// Career Coach flow
-		"cc-welcome",
-		"cc-nudge-1", "cc-nudge-2", "cc-nudge-3",
-		"cc-profiling-idle-1", "cc-profiling-idle-2", "cc-profiling-idle-3",
-		"cc-dna-ready", "cc-dna-confirm-nudge", "cc-roadmap-delivered",
-		"cc-checkin-1", "cc-checkin-2", "cc-checkin-3",
-		"cc-upskill-nudge", "cc-coupon-unlock", "cc-dormant",
-		"cc-to-outreach",
-		"cc-returning-1", "cc-returning-2", "cc-returning-3",
-		// Resume Maker flow
-		"cc-rm-strong-1", "cc-rm-strong-2", "cc-rm-strong-3",
-		"cc-rm-weak-1", "cc-rm-weak-2", "cc-rm-weak-3",
-		// Internship Dojo flow
-		"cc-id-two-tools", "cc-id-reengage-1", "cc-id-reengage-2",
-		// Old / dormant user flow (tool-neutral: 3 stages + 3 CTA variants)
-		"cc-old-s1-1", "cc-old-s1-2", "cc-old-s1-3",
-		"cc-old-s2-1", "cc-old-s2-2", "cc-old-s2-3",
-		"cc-old-s3-1", "cc-old-s3-2", "cc-old-s3-3",
-		"cc-old-cta-outreach", "cc-old-cta-coach", "cc-old-cta-two-tool",
-		// One-shot abandoned-cart coupon blast (GOAT10)
-		"cc-cart-goat",
-	}
-	for _, name := range templates {
+	for _, name := range RegisteredTemplates {
 		if err := tr.LoadTemplate(name); err != nil {
 			return fmt.Errorf("failed to load template %s: %w", name, err)
 		}

@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/studojo/emailer-service/internal/email"
 )
 
 // AdminMiddleware checks for a valid admin JWT or ADMIN_SECRET.
@@ -274,11 +276,6 @@ func (h *Handler) HandleAdminCampaignSend(w http.ResponseWriter, r *http.Request
 
 		sent := 0
 		for _, user := range users {
-			prefs, _ := h.Store.GetEmailPreferences(ctx, user.ID)
-			if prefs != nil && !prefs.ProductEmails {
-				continue
-			}
-
 			already, err := h.Store.HasReceivedEmail(ctx, user.ID, campaign.TemplateName)
 			if err != nil {
 				slog.Error("campaign send: dedup check failed", "user_id", user.ID, "error", err)
@@ -287,7 +284,11 @@ func (h *Handler) HandleAdminCampaignSend(w http.ResponseWriter, r *http.Request
 				continue
 			}
 
-			if err := h.Sender.SendTemplateEmail(ctx, user.Email, campaign.TemplateName, map[string]interface{}{
+			// The Sender skips marketing for anyone who unsubscribed and adds the
+			// signed unsubscribe link, keyed by this user id.
+			uctx := context.WithValue(ctx, email.UserIDKey, user.ID)
+			uctx = context.WithValue(uctx, email.UserNameKey, user.Name)
+			if err := h.Sender.SendTemplateEmail(uctx, user.Email, campaign.TemplateName, map[string]interface{}{
 				"UserName": user.Name,
 			}); err != nil {
 				slog.Error("campaign send: failed", "user_id", user.ID, "error", err)
@@ -356,7 +357,8 @@ func (h *Handler) HandleAdminSendToUser(w http.ResponseWriter, r *http.Request) 
 	}
 
 	go func() {
-		ctx := context.Background()
+		ctx := context.WithValue(context.Background(), email.UserIDKey, user.ID)
+		ctx = context.WithValue(ctx, email.UserNameKey, user.Name)
 		_, data := h.buildTemplateData(req.TemplateName, user)
 		if err := h.Sender.SendTemplateEmail(ctx, user.Email, req.TemplateName, data); err != nil {
 			slog.Error("admin send to user failed", "user_id", userID, "template", req.TemplateName, "error", err)
