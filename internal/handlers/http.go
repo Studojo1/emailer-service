@@ -852,7 +852,7 @@ func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unsubscribe — Studojo</title>
+<title>Unsubscribe | Studojo</title>
 <style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
 .card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
 h1{font-size:24px;font-weight:700;margin:0 0 12px;}
@@ -880,7 +880,7 @@ a{display:inline-block;margin-top:16px;color:#8b5cf6;text-decoration:none;font-w
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprint(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unsubscribed — Studojo</title>
+<title>Unsubscribed | Studojo</title>
 <style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
 .card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
 h1{font-size:24px;font-weight:700;margin:0 0 12px;}
