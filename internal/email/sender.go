@@ -5,10 +5,8 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -23,6 +21,9 @@ type SendLogger interface {
 	// IsEmailSuppressed reports whether an address has hard-bounced or complained
 	// and must never be emailed again.
 	IsEmailSuppressed(ctx context.Context, email string) (bool, error)
+	// IsMarketingOptedOut reports whether this user id or address has opted out
+	// of marketing email. Only consulted for marketing templates.
+	IsMarketingOptedOut(ctx context.Context, userID, email string) (bool, error)
 }
 
 // ContextKey is a typed key for values stored in a send context.
@@ -116,6 +117,11 @@ func (s *Sender) RenderPreview(name string) (string, error) {
 		"Subject":             "Preview subject",
 		"Message":             "This is a preview message body.",
 		"TrackingPixelURL":    "",
+		"EffectiveDate":       "1 November 2026",
+	}
+	if IsMarketingTemplate(name) {
+		sample["MarketingEmail"] = true
+		sample["UnsubscribeURL"] = "https://email.studojo.com" + UnsubscribePath + "?uid=preview&t=preview"
 	}
 	if err := s.renderer.LoadTemplate(name); err != nil {
 		return "", fmt.Errorf("template not found: %w", err)
@@ -269,33 +275,12 @@ func (s *Sender) SetRateLimit(perHour int) {
 	s.limiter = newRateLimiter(perHour)
 }
 
-// unsubscribeURL returns a signed one-click unsubscribe URL for the given user ID.
-func (s *Sender) unsubscribeURL(userID string) string {
-	if userID == "" || s.unsubscribeSecret == "" {
-		return ""
-	}
-	mac := hmac.New(sha256.New, []byte(s.unsubscribeSecret))
-	mac.Write([]byte(userID))
-	token := hex.EncodeToString(mac.Sum(nil))
-	return s.unsubscribeBaseURL + "/v1/email/unsubscribe?uid=" + url.QueryEscape(userID) + "&t=" + token
-}
-
-// SendTemplateEmail sends an email using a template
-func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string, data interface{}) error {
-	// Suppression gate: never send to an address that has hard-bounced or filed a
-	// spam complaint. Continuing to mail dead/complained addresses is what wrecks
-	// sender-domain reputation (audit R1). A suppression-store error is logged but
-	// does not block the send (fail-open on the check, not on the suppression).
-	if s.logger != nil {
-		if suppressed, err := s.logger.IsEmailSuppressed(ctx, to); err != nil {
-			slog.Warn("suppression check failed, sending anyway", "to", to, "err", err)
-		} else if suppressed {
-			slog.Info("skipping send to suppressed address", "to", to, "template", templateName)
-			return nil
-		}
-	}
-
-	// Inject tracking pixel URL into template data
+// prepareSend is the pure part of SendTemplateEmail: it fills the tracking,
+// unsubscribe and quick-register fields into the template data and returns the
+// custom headers for the send. Marketing templates get a signed unsubscribe
+// link, MarketingEmail=true (base.html shows the footer on it) and the RFC 8058
+// List-Unsubscribe headers. Service templates get none of these.
+func (s *Sender) prepareSend(to, uid, templateName string, data interface{}) (map[string]interface{}, map[string]string) {
 	dataMap, ok := data.(map[string]interface{})
 	if !ok {
 		dataMap = map[string]interface{}{}
@@ -312,10 +297,6 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		dataMap["ClickBase"] = ""
 	}
 
-	uid, _ := ctx.Value(UserIDKey).(string)
-	unsubURL := s.unsubscribeURL(uid)
-	dataMap["UnsubscribeURL"] = unsubURL
-
 	// One-click "register for the next one too" link for webinar emails. Carries
 	// the recipient's email+name in a signed token so the frontend can register
 	// them with no form. Only set for the webinar toolkit templates.
@@ -326,17 +307,64 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		}
 	}
 
-	// RFC 8058 one-click unsubscribe headers. Only set when we have a signed URL
-	// (i.e. a marketing/sequence send with a known user) — transactional mail with
-	// no uid gets no header, which is correct. Gmail/Yahoo require these to show a
-	// native unsubscribe button and to keep bulk-sender reputation healthy.
-	var sendHeaders map[string]string
-	if unsubURL != "" {
-		sendHeaders = map[string]string{
-			"List-Unsubscribe":      "<" + unsubURL + ">",
-			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+	if !IsMarketingTemplate(templateName) {
+		// Service email: no unsubscribe link, footer or header, even if the
+		// caller's data carried one.
+		delete(dataMap, "UnsubscribeURL")
+		dataMap["MarketingEmail"] = false
+		return dataMap, nil
+	}
+
+	dataMap["MarketingEmail"] = true
+	unsubURL := UnsubscribeURL(s.unsubscribeBaseURL, s.unsubscribeSecret, uid, to)
+	dataMap["UnsubscribeURL"] = unsubURL
+	if unsubURL == "" {
+		slog.Warn("marketing send without an unsubscribe link (UNSUBSCRIBE_SECRET unset?)", "template", templateName)
+		return dataMap, nil
+	}
+	// RFC 8058 one-click unsubscribe. Gmail and Yahoo require these on bulk
+	// marketing to show their native unsubscribe button; both ACS and Resend
+	// pass them through as custom headers.
+	return dataMap, map[string]string{
+		"List-Unsubscribe":      "<" + unsubURL + ">",
+		"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+	}
+}
+
+// SendTemplateEmail sends an email using a template
+func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string, data interface{}) error {
+	uid, _ := ctx.Value(UserIDKey).(string)
+
+	// Suppression gate: never send to an address that has hard-bounced or filed a
+	// spam complaint. Continuing to mail dead/complained addresses is what wrecks
+	// sender-domain reputation (audit R1). A suppression-store error is logged but
+	// does not block the send (fail-open on the check, not on the suppression).
+	if s.logger != nil {
+		if suppressed, err := s.logger.IsEmailSuppressed(ctx, to); err != nil {
+			slog.Warn("suppression check failed, sending anyway", "to", to, "err", err)
+		} else if suppressed {
+			slog.Info("skipping send to suppressed address", "to", to, "template", templateName)
+			return nil
 		}
 	}
+
+	// Marketing opt-out gate. Every marketing send passes through here, whatever
+	// path queued it (scheduler, instant event, bulk, admin, internal API), so an
+	// opted-out person can never get tips or offers. Fails closed: if we cannot
+	// tell, we do not send, and the error lets the caller retry later. Service
+	// templates never reach this check.
+	if s.logger != nil && IsMarketingTemplate(templateName) {
+		optedOut, err := s.logger.IsMarketingOptedOut(ctx, uid, to)
+		if err != nil {
+			return fmt.Errorf("marketing opt-out check failed, not sending %s: %w", templateName, err)
+		}
+		if optedOut {
+			slog.Info("skipping marketing send: recipient unsubscribed", "template", templateName, "user_id", uid, "to_domain", domainOf(to))
+			return nil
+		}
+	}
+
+	dataMap, sendHeaders := s.prepareSend(to, uid, templateName, data)
 
 	htmlContent, err := s.renderer.Render(templateName, dataMap)
 	if err != nil {
@@ -377,7 +405,6 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 		err := s.client.SendEmailFromWithHeaders(ctx, fromAddr, to, subject, htmlContent, sendHeaders)
 		if err == nil {
 			if s.logger != nil {
-				uid, _ := ctx.Value(UserIDKey).(string)
 				uname, _ := ctx.Value(UserNameKey).(string)
 				go func(addr, uid, uname string) {
 					_ = s.logger.LogEmailSent(context.Background(), uid, uname, to, templateName, addr)
@@ -399,11 +426,25 @@ func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string,
 	return fmt.Errorf("failed to send email after %d attempts: %w", maxRetries, lastErr)
 }
 
+// domainOf returns the part after "@" so logs can say where a send went without
+// recording the full address.
+func domainOf(addr string) string {
+	if i := strings.LastIndex(addr, "@"); i >= 0 {
+		return addr[i+1:]
+	}
+	return ""
+}
+
 // getSubject returns the email subject based on template name
 func (s *Sender) getSubject(templateName string, data map[string]interface{}) (string, error) {
 	switch templateName {
 	case "service-update":
 		return "A note on service continuity", nil
+	case "policy-update":
+		if d, ok := data["EffectiveDate"].(string); ok && d != "" {
+			return "We're updating our policies on " + d, nil
+		}
+		return "We're updating our policies", nil
 	case "leads-ready":
 		return "Your leads are ready.", nil
 	case "outreach-launch-nudge":

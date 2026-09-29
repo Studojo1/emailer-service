@@ -2,10 +2,7 @@ package handlers
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html"
@@ -361,7 +358,9 @@ func (h *Handler) HandleUpdateEmailPreferences(w http.ResponseWriter, r *http.Re
 	}
 
 	// Update only provided fields
+	resubscribed := false
 	if req.ProductEmails != nil {
+		resubscribed = *req.ProductEmails && !prefs.ProductEmails
 		prefs.ProductEmails = *req.ProductEmails
 	}
 	if req.ResumeEmails != nil {
@@ -380,6 +379,15 @@ func (h *Handler) HandleUpdateEmailPreferences(w http.ResponseWriter, r *http.Re
 		slog.Error("failed to update email preferences", "error", err)
 		writeError(w, "internal server error", http.StatusInternalServerError)
 		return
+	}
+	// Switching product emails back on in settings undoes an earlier
+	// unsubscribe-link opt-out, which would otherwise keep blocking marketing.
+	if resubscribed {
+		if err := h.Store.ClearMarketingOptOut(ctx, userID); err != nil {
+			slog.Error("failed to clear marketing opt-out", "user_id", userID, "error", err)
+			writeError(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	writeJSON(w, prefs, http.StatusOK)
@@ -820,39 +828,61 @@ func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusFound)
 }
 
-// HandleUnsubscribe handles GET and POST /v1/email/unsubscribe?uid=<userID>&t=<hmac>.
+// HandleUnsubscribe handles GET and POST /v1/email/unsubscribe.
+//
+//	?uid=<user id>&t=<hex HMAC-SHA256(UNSUBSCRIBE_SECRET, uid)>
+//	?e=<email>&t=<hex HMAC-SHA256(UNSUBSCRIBE_SECRET, "email:"+email)>
 //
 // Public endpoint, signed-token protected. RFC 8058 one-click unsubscribe:
-//   - POST performs the opt-out. Gmail/Yahoo's native button (driven by the
+//   - POST records the opt-out. Gmail/Yahoo's native button (driven by the
 //     List-Unsubscribe-Post header) POSTs here, as does the confirm button below.
 //   - GET only renders a confirmation page and mutates NOTHING. This is deliberate:
 //     mail scanners, SafeLinks, and image/link prefetchers issue GET requests to
 //     every URL in an email, so performing the opt-out on GET would unsubscribe
 //     users who never clicked. The page POSTs back to this same URL to confirm.
+//
+// Only marketing (tips, reminders and offers) stops. Service email is unaffected.
 func (h *Handler) HandleUnsubscribe(w http.ResponseWriter, r *http.Request) {
-	uid := r.URL.Query().Get("uid")
-	token := r.URL.Query().Get("t")
-	if uid == "" || token == "" {
+	q := r.URL.Query()
+	uid, addr, token := q.Get("uid"), q.Get("e"), q.Get("t")
+	if !email.VerifyUnsubscribeToken(h.UnsubscribeSecret, uid, addr, token) {
 		http.Error(w, "invalid unsubscribe link", http.StatusBadRequest)
 		return
 	}
 
-	// Verify HMAC (constant-time) before doing anything else.
-	mac := hmac.New(sha256.New, []byte(h.UnsubscribeSecret))
-	mac.Write([]byte(uid))
-	expected := hex.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(token), []byte(expected)) {
-		http.Error(w, "invalid unsubscribe link", http.StatusBadRequest)
-		return
-	}
-
-	// GET: show a confirmation page only — never mutate (prefetch/scanner safe).
+	// GET: show a confirmation page only. Never mutate (prefetch/scanner safe).
 	if r.Method == http.MethodGet {
 		action := html.EscapeString(r.URL.RequestURI())
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+		fmt.Fprintf(w, unsubscribePage, "Unsubscribe | Studojo", "Unsubscribe from tips and offers?",
+			`<p>You'll stop getting tips, reminders and offers from Studojo. Service emails about your account, like receipts, campaign updates and security notices, will still arrive.</p>
+<form method="POST" action="`+action+`"><button type="submit">Unsubscribe</button></form>
+<a href="https://studojo.com">No, keep them coming</a>`)
+		return
+	}
+
+	source := "link"
+	if r.ParseForm() == nil && r.PostForm.Get("List-Unsubscribe") == "One-Click" {
+		source = "one_click"
+	}
+	if err := h.Store.RecordMarketingOptOut(r.Context(), uid, addr, source); err != nil {
+		slog.Error("unsubscribe: failed to record opt-out", "user_id", uid, "error", err)
+		http.Error(w, "something went wrong, please try again", http.StatusInternalServerError)
+		return
+	}
+	slog.Info("marketing opt-out recorded", "user_id", uid, "by_email", addr != "", "source", source)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, unsubscribePage, "Unsubscribed | Studojo", "You're unsubscribed.",
+		`<p>You won't get tips, reminders or offers from Studojo any more. Service emails about your account will still arrive. You can turn marketing emails back on in Settings.</p>
+<p><a href="https://studojo.com">Back to Studojo</a></p>`)
+}
+
+// unsubscribePage is the shell for the unsubscribe pages: title, heading, body.
+const unsubscribePage = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unsubscribe | Studojo</title>
+<meta name="robots" content="noindex">
+<title>%s</title>
 <style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
 .card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
 h1{font-size:24px;font-weight:700;margin:0 0 12px;}
@@ -860,38 +890,9 @@ p{color:#525252;font-size:15px;line-height:1.7;margin:0 0 24px;}
 button{background:#171717;color:#fff;border:none;border-radius:12px;padding:14px 28px;font-size:15px;font-weight:600;cursor:pointer;}
 a{display:inline-block;margin-top:16px;color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
 </head><body><div class="card">
-<h1>Unsubscribe from marketing emails?</h1>
-<p>You'll stop receiving marketing emails from Studojo. Transactional emails (password resets, payment confirmations) will still come through.</p>
-<form method="POST" action="%s"><button type="submit">Confirm unsubscribe</button></form>
-<a href="https://studojo.com">No, keep me subscribed</a>
-</div></body></html>`, action)
-		return
-	}
-
-	// POST: perform the opt-out.
-	if err := h.Store.UnsubscribeUser(r.Context(), uid); err != nil {
-		slog.Error("unsubscribe: failed to update preferences", "user_id", uid, "error", err)
-		http.Error(w, "something went wrong, please try again", http.StatusInternalServerError)
-		return
-	}
-
-	slog.Info("user unsubscribed", "user_id", uid)
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Unsubscribed | Studojo</title>
-<style>body{margin:0;padding:40px 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f5;color:#171717;display:flex;align-items:center;justify-content:center;min-height:80vh;}
-.card{max-width:480px;background:#fff;border:2px solid #171717;border-radius:24px;padding:40px 36px;box-shadow:6px 6px 0 #171717;text-align:center;}
-h1{font-size:24px;font-weight:700;margin:0 0 12px;}
-p{color:#525252;font-size:15px;line-height:1.7;margin:0 0 20px;}
-a{color:#8b5cf6;text-decoration:none;font-weight:600;}</style>
-</head><body><div class="card">
-<h1>You're unsubscribed.</h1>
-<p>You won't receive marketing emails from Studojo anymore. Transactional emails (password resets, payment confirmations) will still come through.</p>
-<p><a href="https://studojo.com">Back to Studojo</a></p>
-</div></body></html>`)
-}
+<h1>%s</h1>
+%s
+</div></body></html>`
 
 // HandleInbound records an inbound reply (the highest-intent signal a user can
 // give) and cancels all their pending marketing chases. Secret-gated; meant to

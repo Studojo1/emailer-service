@@ -200,6 +200,10 @@ func main() {
 	if unsubscribeSecret == "" {
 		unsubscribeSecret = adminSecret
 	}
+	if unsubscribeSecret == "" {
+		// Marketing email would go out with no unsubscribe link or header.
+		slog.Error("UNSUBSCRIBE_SECRET and ADMIN_SECRET are both unset: marketing email will have no unsubscribe link")
+	}
 	sender.SetUnsubscribeSecret(unsubscribeSecret, trackingBaseURL)
 
 	// One-click "register for the next one too" link. Uses the public frontend
@@ -349,6 +353,23 @@ func main() {
 			reason TEXT NOT NULL DEFAULT '',         -- 'hard_bounce' | 'complaint' | ...
 			suppressed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
+		-- Marketing opt-outs (Privacy Policy v2.0 §14). Written by the signed
+		-- one-click unsubscribe link; every marketing send checks it (service
+		-- email never does). Keyed by user id and/or normalised address so people
+		-- we only know by email can opt out too. At most one row per user id and
+		-- one per address; inserts use ON CONFLICT DO NOTHING.
+		CREATE TABLE IF NOT EXISTS marketing_opt_outs (
+			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+			user_id TEXT NOT NULL DEFAULT '',
+			email TEXT NOT NULL DEFAULT '',
+			source TEXT NOT NULL DEFAULT '',         -- 'one_click' | 'link'
+			opted_out_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			CONSTRAINT marketing_opt_outs_has_key CHECK (user_id <> '' OR email <> '')
+		);
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_marketing_opt_outs_user
+			ON marketing_opt_outs (user_id) WHERE user_id <> '';
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_marketing_opt_outs_email
+			ON marketing_opt_outs (email) WHERE email <> '';
 		-- Single-row webinar config (the admin sets date + join link here).
 		CREATE TABLE IF NOT EXISTS webinar_config (
 			id INT PRIMARY KEY DEFAULT 1,
@@ -541,6 +562,10 @@ func main() {
 	// email.studojo.com ingress carries no secret, so it cannot trigger a send.
 	mux.HandleFunc("GET /v1/email/bulk-send/preview", httpHandler.HandleBulkSendPreview)
 	mux.HandleFunc("POST /v1/email/bulk-send", httpHandler.HandleBulkSend)
+	// Policy-update notice to every verified user for one effective date. Same
+	// X-Internal-Secret gate as bulk-send; deduplicated per (user, date).
+	// Body: {"effective_date":"YYYY-MM-DD"} (at least 7 days out).
+	mux.HandleFunc("POST /v1/email/policy-update", httpHandler.HandlePolicyUpdate)
 
 	// Admin API routes (JWT or ADMIN_SECRET protected)
 	adminMux := http.NewServeMux()
