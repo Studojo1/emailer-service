@@ -1312,6 +1312,11 @@ type SendTemplateRequest struct {
 	// Subject and Message fill ops-alert, a plain-text founders' alert.
 	Subject string `json:"subject"`
 	Message string `json:"message"`
+	// PlanName, Amount and OrderID fill payment-thankyou, the outreach
+	// receipt (audit PS-N10). Amount is display text, e.g. "Rs 1,825".
+	PlanName string `json:"plan_name"`
+	Amount   string `json:"amount"`
+	OrderID  string `json:"order_id"`
 }
 
 // HandleSendTemplate sends any registered template by name. Internal
@@ -1345,6 +1350,9 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		"Replied":      req.Replied,
 		"Subject":      req.Subject,
 		"Message":      req.Message,
+		"PlanName":     req.PlanName,
+		"Amount":       req.Amount,
+		"OrderID":      req.OrderID,
 	}
 	if req.ActionURL != "" {
 		if !strings.HasPrefix(req.ActionURL, "https://studojo.com/") && !strings.HasPrefix(req.ActionURL, "https://studojo.pro/") {
