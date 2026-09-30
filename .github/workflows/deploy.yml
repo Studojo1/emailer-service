@@ -73,23 +73,46 @@ jobs:
             --name ${{ secrets.AKS_CLUSTER_NAME }} \
             --overwrite-existing
 
-      - name: Patch Kubernetes secrets
+      - name: Secrets as secretKeyRef (audit ST-N07)
+        env:
+          ACS_EMAIL_CONNECTION_STRING: ${{ secrets.ACS_EMAIL_CONNECTION_STRING }}
+          ACS_EMAIL_CONNECTION_STRING_2: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_2 }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          UNSUBSCRIBE_SECRET: ${{ secrets.UNSUBSCRIBE_SECRET }}
         run: |
-          kubectl patch secret app-secrets -n studojo -p "{\"stringData\":{\"acs-email-connection-string\":\"${{ secrets.ACS_EMAIL_CONNECTION_STRING }}\"}}"
+          # Every secret lives in app-secrets and reaches the pod through
+          # secretKeyRef, never as a literal value in the Deployment spec, where
+          # anyone who can read Deployments or old ReplicaSets sees it.
+          # scripts/ci/secret_env.sh explains; scripts/ci/check_no_literal_secrets.sh
+          # fails CI if a workflow writes one back. GitHub secrets are stored (an
+          # empty one changes nothing), hand-set literals adopted once.
+          export NS=studojo DEP=${{ env.SERVICE_NAME }}
+          . scripts/ci/secret_env.sh
+          secret_put acs-email-connection-string "$ACS_EMAIL_CONNECTION_STRING"
+          secret_put acs-email-connection-string-2 "$ACS_EMAIL_CONNECTION_STRING_2"
+          secret_put emailer-admin-secret "$ADMIN_SECRET"
+          secret_put unsubscribe-secret "$UNSUBSCRIBE_SECRET"
+          secret_adopt AZURE_EMAIL_CONNECTION_STRING acs-email-connection-string
+          secret_adopt AZURE_EMAIL_CONNECTION_STRING_2 acs-email-connection-string-2
+          secret_adopt AZURE_EMAIL_CONNECTION_STRING_3 acs-email-connection-string-3
+          secret_adopt ADMIN_SECRET emailer-admin-secret
+          secret_adopt UNSUBSCRIBE_SECRET unsubscribe-secret
+          # INTERNAL_SECRET is shared by the frontend, control-plane,
+          # job-outreach-svc and cc-backend through app-secrets/emailer-internal-secret.
+          # It is not written from a GitHub secret here: pods read secretKeyRef at
+          # start, so changing it from one repo would split the services until
+          # every one restarted. Rotate it in app-secrets and restart them together.
+          secret_adopt INTERNAL_SECRET emailer-internal-secret
+          secret_audit
 
       - name: Ensure ACS email env in deployment
         run: |
           kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
             RESEND_API_KEY- \
-            AZURE_EMAIL_CONNECTION_STRING="${{ secrets.ACS_EMAIL_CONNECTION_STRING }}" \
-            AZURE_EMAIL_CONNECTION_STRING_2="${{ secrets.ACS_EMAIL_CONNECTION_STRING_2 }}" \
             AZURE_EMAIL_SENDER_ADDRESS="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_SUPPORT="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_WELCOME="Jeremy from Studojo <jeremy@welcome.studojo.pro>" \
             EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>" \
-            ADMIN_SECRET="${{ secrets.ADMIN_SECRET }}" \
-            UNSUBSCRIBE_SECRET="${{ secrets.UNSUBSCRIBE_SECRET }}" \
-            INTERNAL_SECRET="${{ secrets.EMAILER_INTERNAL_SECRET }}" \
             TRACKING_BASE_URL="https://email.studojo.com" \
             EMAIL_RATE_PER_HOUR="80"
 
