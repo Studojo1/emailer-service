@@ -917,28 +917,19 @@ func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Reque
 
 		// 2) Delivery report — suppress on a permanent failure or complaint.
 		if ev.EventType == "Microsoft.Communication.EmailDeliveryReportReceived" {
-			var dr struct {
-				Recipient      string `json:"recipient"`
-				DeliveryStatus string `json:"deliveryStatus"`
-			}
-			if err := json.Unmarshal(ev.Data, &dr); err != nil || dr.Recipient == "" {
+			dr, ok := parseDeliveryReport(ev.Data)
+			if !ok {
 				continue
 			}
-			// ACS statuses: Delivered, Bounced, Failed, Quarantined, Suppressed,
-			// FilteredSpam. Treat permanent-failure / complaint signals as suppressible;
-			// transient/Delivered are ignored.
-			reason := ""
-			switch strings.ToLower(dr.DeliveryStatus) {
-			case "bounced":
-				reason = "hard_bounce"
-			case "quarantined", "filteredspam", "suppressed":
-				reason = "complaint"
+			if err := h.Store.RecordDeliveryReport(ctx, dr.MessageID, dr.Status); err != nil {
+				slog.Error("delivery-report: record failed", "message_id", dr.MessageID, "err", err)
 			}
+			reason := deliveryReportSuppressReason(dr.Status)
 			if reason == "" {
 				continue
 			}
 			if err := h.Store.SuppressEmail(ctx, dr.Recipient, reason); err != nil {
-				slog.Error("delivery-report: suppress failed", "recipient", dr.Recipient, "err", err)
+				slog.Error("delivery-report: suppress failed", "message_id", dr.MessageID, "err", err)
 				continue
 			}
 			// Also stop any pending marketing chases to this person.
@@ -946,10 +937,55 @@ func (h *Handler) HandleEmailDeliveryReport(w http.ResponseWriter, r *http.Reque
 				_, _ = h.Store.CancelPendingCCMarketingEmails(ctx, u.ID)
 			}
 			suppressed++
-			slog.Info("delivery-report: address suppressed", "recipient", dr.Recipient, "reason", reason, "status", dr.DeliveryStatus)
+			slog.Info("delivery-report: address suppressed", "message_id", dr.MessageID, "reason", reason, "status", dr.Status)
 		}
 	}
 	writeJSON(w, map[string]interface{}{"status": "ok", "suppressed": suppressed}, http.StatusOK)
+}
+
+// deliveryReport is the part of an ACS EmailDeliveryReportReceived event we use.
+type deliveryReport struct {
+	Recipient string
+	MessageID string
+	Status    string
+}
+
+// parseDeliveryReport reads an ACS delivery report's data. ACS names the
+// outcome "status"; this handler used to read "deliveryStatus", which ACS
+// never sends, so no report could ever have suppressed an address (audit
+// AR-A03). "deliveryStatus" is still accepted in case a proxy renames it.
+func parseDeliveryReport(data json.RawMessage) (deliveryReport, bool) {
+	var raw struct {
+		Recipient      string `json:"recipient"`
+		MessageID      string `json:"messageId"`
+		Status         string `json:"status"`
+		DeliveryStatus string `json:"deliveryStatus"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil || raw.Recipient == "" {
+		return deliveryReport{}, false
+	}
+	status := raw.Status
+	if status == "" {
+		status = raw.DeliveryStatus
+	}
+	if status == "" {
+		return deliveryReport{}, false
+	}
+	return deliveryReport{Recipient: raw.Recipient, MessageID: raw.MessageID, Status: status}, true
+}
+
+// deliveryReportSuppressReason maps an ACS status to a suppression reason, or
+// "" when the address must stay mailable. ACS statuses: Delivered, Expanded,
+// Bounced, Suppressed, FilteredSpam, Quarantined, Failed. Failed (for example
+// MessageExpired) is transient and is not suppressed.
+func deliveryReportSuppressReason(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "bounced":
+		return "hard_bounce"
+	case "quarantined", "filteredspam", "suppressed":
+		return "complaint"
+	}
+	return ""
 }
 
 // HandleWebinarLinkCron sends the day-before webinar email (single template for
