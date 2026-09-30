@@ -99,10 +99,13 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          # Use maxSurge=0 so the old pod is terminated before the new one starts,
-          # preventing CPU-capacity failures on a fully-loaded cluster.
+          # Start the new pod before stopping the old one (audit IN-N03). With
+          # one replica, maxSurge=0 made every deploy a hard outage for
+          # unsubscribe/click links and in-flight sends. The pod requests 100m
+          # CPU, so one extra pod for ~30s fits. The scheduler elects a leader
+          # via a Postgres advisory lock, so the overlap cannot double-send.
           kubectl patch deployment/${{ env.SERVICE_NAME }} -n studojo \
-            -p '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":0,"maxUnavailable":1}}}}'
+            -p '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":1,"maxUnavailable":0}}}}'
           kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n studojo --timeout=10m || {
             echo "Rollout failed or timed out. Checking pod status..."
