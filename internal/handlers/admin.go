@@ -13,16 +13,16 @@ import (
 )
 
 // AdminMiddleware checks for a valid admin JWT or ADMIN_SECRET.
-// Accepts the token via Authorization header OR ?token= query param so that
-// browser-native requests (iframes, img tags) can authenticate without JS.
+// The token is read ONLY from the Authorization header. It used to be
+// accepted from ?token= too (for dashboard iframes), which put a long-lived
+// admin credential into ingress/proxy access logs and browser history
+// (audit AS-N02). The dashboard now fetches previews with the header and
+// renders them via srcdoc.
 // JWTs are verified against the site's published signing keys (see
 // admin_jwt.go); a decoded-but-unsigned token is rejected.
 func AdminMiddleware(adminSecret string, keys JWKSSource, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-		if token == "" {
-			token = r.URL.Query().Get("token")
-		}
 		if token == "" {
 			writeError(w, "unauthorized", http.StatusUnauthorized)
 			return

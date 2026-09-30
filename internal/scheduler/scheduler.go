@@ -23,6 +23,9 @@ type Scheduler struct {
 	backoff        time.Duration // how long to pause the batch on a hard 429
 	// data-health check name -> IST day it last paged ops (one alert per day)
 	dataHealthAlerted map[string]string
+	// leader election (see leader.go); tryLock is overridden in tests
+	lock    heldLock
+	tryLock func(ctx context.Context) (heldLock, bool, error)
 }
 
 // couponFallbackCode is the blanket coupon used only when minting a unique
@@ -95,26 +98,41 @@ func (sc *Scheduler) Run(ctx context.Context) {
 	defer behavioralTicker.Stop()
 	defer burnTicker.Stop()
 
-	// Process immediately on start
-	sc.processDue(ctx)
-	sc.runCatchup(ctx)
-	sc.checkApolloBurn(ctx)
-	sc.checkDataHealth(ctx)
+	defer func() {
+		if sc.lock != nil {
+			_ = sc.lock.Close()
+		}
+	}()
 
+	// Process immediately on start, if no other pod is already running the
+	// scheduler (during a rolling deploy the old pod still is).
+	if sc.isLeader(ctx) {
+		sc.processDue(ctx)
+		sc.runCatchup(ctx)
+		sc.checkApolloBurn(ctx)
+		sc.checkDataHealth(ctx)
+	}
+
+	// Every tick first confirms this pod still holds the scheduler lock; a
+	// tick that fires while another pod leads is dropped.
 	for {
+		var job func(context.Context)
 		select {
 		case <-ticker.C:
-			sc.processDue(ctx)
+			job = sc.processDue
 		case <-catchupTicker.C:
-			sc.runCatchup(ctx)
+			job = sc.runCatchup
 		case <-behavioralTicker.C:
-			sc.runBehavioral(ctx)
+			job = sc.runBehavioral
 		case <-burnTicker.C:
-			sc.checkApolloBurn(ctx)
+			job = sc.checkApolloBurn
 		case <-healthTicker.C:
-			sc.checkDataHealth(ctx)
+			job = sc.checkDataHealth
 		case <-ctx.Done():
 			return
+		}
+		if sc.isLeader(ctx) {
+			job(ctx)
 		}
 	}
 }

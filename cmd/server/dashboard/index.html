@@ -1321,7 +1321,8 @@
       </div>
     </div>
     <div class="flex-1 overflow-hidden rounded-b-2xl">
-      <iframe x-show="previewModal" :src="previewTemplate ? '/v1/admin/templates/'+encodeURIComponent(previewTemplate)+'/preview?token='+encodeURIComponent(authToken) : ''"
+      <iframe x-show="previewModal" x-effect="previewModal && fetchPreview(previewTemplate)" :srcdoc="previewHtml[previewTemplate] || ''"
+        sandbox="allow-popups allow-popups-to-escape-sandbox"
         class="w-full h-full border-none" referrerpolicy="no-referrer"></iframe>
     </div>
   </div>
@@ -1379,7 +1380,9 @@
         <div class="flex-1 min-h-0 overflow-hidden">
           <iframe
             :key="recipientLog?.template_name"
-            :src="recipientLog?.template_name ? '/v1/admin/templates/'+encodeURIComponent(recipientLog.template_name)+'/preview?token='+encodeURIComponent(authToken) : 'about:blank'"
+            x-effect="recipientModal && fetchPreview(recipientLog?.template_name)"
+            :srcdoc="previewHtml[recipientLog?.template_name] || ''"
+            sandbox="allow-popups allow-popups-to-escape-sandbox"
             class="w-full border-none" style="height:100%" referrerpolicy="no-referrer"></iframe>
         </div>
       </div>
@@ -1503,7 +1506,7 @@ function app() {
     // Modals
     sendModal: false, sendModalUser: null, sendModalTemplate: '', sendModalResult: '',
     historyModal: false, historyUser: null, userHistory: [],
-    previewModal: false, previewTemplate: '',
+    previewModal: false, previewTemplate: '', previewHtml: {},
     recipientModal: false, recipientLog: null, recipientHistory: [], recipientHistoryLoading: false,
 
     _chart: null, lastUpdated: null,
@@ -1814,6 +1817,21 @@ function app() {
 
     openPreview(template) {
       this.previewTemplate = template; this.previewModal = true
+    },
+
+    // Template previews are fetched with the Authorization header and shown
+    // via srcdoc. The admin token must never go in a URL (?token=), where it
+    // lands in access logs and history (audit AS-N02). The iframes are
+    // sandboxed without allow-scripts, so preview HTML cannot read the token.
+    async fetchPreview(name) {
+      if (!name || this.previewHtml[name] !== undefined) return
+      this.previewHtml = { ...this.previewHtml, [name]: '' }
+      let html = '<p style="font-family:sans-serif;color:#b91c1c">Preview failed to load.</p>'
+      try {
+        const r = await this.api('GET', '/v1/admin/templates/' + encodeURIComponent(name) + '/preview')
+        if (r.ok) html = await r.text()
+      } catch {}
+      this.previewHtml = { ...this.previewHtml, [name]: html }
     },
 
     async fireTrigger() {
