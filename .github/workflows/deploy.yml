@@ -126,6 +126,13 @@ jobs:
           # via a Postgres advisory lock, so the overlap cannot double-send.
           kubectl patch deployment/${{ env.SERVICE_NAME }} -n studojo \
             -p '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":1,"maxUnavailable":0}}}}'
+          # PRESTOP_DRAIN (audit AR-B01): the pod kept serving for a few seconds after
+          # SIGTERM while ingress-nginx still routed to it, so every rollout
+          # answered a burst of 502s to live users. Sleep before shutdown so
+          # the endpoint is removed first. Native sleep action (k8s >= 1.30),
+          # so it needs no shell in the image.
+          kubectl patch deployment/${{ env.SERVICE_NAME }} -n studojo --type strategic -p \
+            '{"spec":{"template":{"spec":{"containers":[{"name":"${{ env.SERVICE_NAME }}","lifecycle":{"preStop":{"sleep":{"seconds":10}}}}]}}}}'
           kubectl set image deployment/${{ env.SERVICE_NAME }} ${{ env.SERVICE_NAME }}=${{ env.REGISTRY }}/${{ env.SERVICE_NAME }}:${{ env.IMAGE_TAG }} -n studojo
           kubectl rollout status deployment/${{ env.SERVICE_NAME }} -n studojo --timeout=10m || {
             echo "Rollout failed or timed out. Checking pod status..."
