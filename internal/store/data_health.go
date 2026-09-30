@@ -194,7 +194,38 @@ var DataHealthChecks = []DataHealthCheck{
 			                  WHERE d.user_id = p.user_id AND e.status IN ('sent', 'replied')
 			                    AND coalesce(e.is_test, false) = false AND e.sent_at >= p.created_at)`,
 	},
+	// ── Recon of the 30 Sep audit: signals that were written but read by nobody ──
+	{
+		Name:      "lead_quality_low",
+		What:      "discovery runs whose lead batch the quality probe rated below 7/10 (the student saw it anyway)",
+		Fix:       "job-outreach-svc lead_collector_service.quality_probe_loop (UC-Q07): read system_events.metadata main_issue and stage for the pattern",
+		Threshold: 2,
+		query: `SELECT count(*) FROM system_events
+			WHERE event_type = 'lead_quality_low' AND created_at > now() - interval '24 hours'`,
+	},
+	{
+		Name:      "duplicate_leads",
+		What:      "new leads that repeat a person already stored for the same candidate (a repeated card, and the same hiring manager can be emailed twice)",
+		Fix:       "job-outreach-svc lead inserts (UC-Q36): uq_leads_candidate_apollo covers only rows with an apollo_id; check the path that wrote these",
+		Threshold: 0,
+		query: `SELECT count(*) FROM leads l
+			WHERE l.id > (SELECT coalesce(max(id), 0) - 250000 FROM leads)
+			  AND l.created_at BETWEEN now() - interval '24 hours' AND now() - interval '10 minutes'
+			  AND EXISTS (SELECT 1 FROM leads o WHERE o.candidate_id = l.candidate_id AND o.id < l.id
+			              AND ((l.apollo_id IS NOT NULL AND o.apollo_id = l.apollo_id)
+			                   OR (coalesce(l.linkedin_url, '') <> '' AND lower(o.linkedin_url) = lower(l.linkedin_url))))`,
+	},
+	{
+		Name:      "pods_crash_looping",
+		What:      "pod restart alerts raised in the cluster (they land only in the admin Ops Alerts list, where 3,500 went unread while keda crash-looped for 75 days)",
+		Fix:       "kubectl get pods -A; kubectl logs --previous on the pod named in admin.studojo.com/ops-alerts (IN-N04)",
+		Threshold: 0,
+		query:     `SELECT count(*) FROM ops_alerts WHERE created_at > now() - interval '24 hours'`,
+	},
 }
+
+// DataHealthQuery exposes a check's SQL to tests.
+func DataHealthQuery(c DataHealthCheck) string { return c.query }
 
 // CountDataHealthViolations runs one check.
 func (s *PostgresStore) CountDataHealthViolations(ctx context.Context, c DataHealthCheck) (int, error) {
