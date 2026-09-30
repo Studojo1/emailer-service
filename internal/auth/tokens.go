@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // TokenStore handles password reset token operations
@@ -199,8 +198,7 @@ func (ts *TokenStore) VerifyPassword(ctx context.Context, userID, password strin
 		return false, err
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-	return err == nil, nil
+	return CheckPassword(passwordHash, password), nil
 }
 
 // Errors
