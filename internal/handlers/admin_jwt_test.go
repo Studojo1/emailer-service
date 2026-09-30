@@ -6,6 +6,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -85,5 +88,40 @@ func TestParseEd25519JWKRejectsOtherKeyTypes(t *testing.T) {
 	}
 	if parseEd25519JWK(`{"kty":"OKP","crv":"Ed25519","x":"dG9vc2hvcnQ"}`) != nil {
 		t.Error("wrong-length key should be ignored")
+	}
+}
+
+// A valid admin credential in the query string must not authenticate: URLs
+// end up in access logs and browser history (audit AS-N02).
+func TestAdminMiddlewareIgnoresQueryToken(t *testing.T) {
+	_, priv, src := testKeypair(t)
+	adminKeys = jwksCache{}
+	good := mintToken(t, priv, "EdDSA", "admin", time.Now().Add(time.Hour).Unix(), true)
+	const secret = "test-admin-secret"
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusOK) })
+	h := AdminMiddleware(secret, src, ok)
+
+	cases := []struct {
+		name   string
+		target string
+		header string
+		want   int
+	}{
+		{"jwt in header passes", "/v1/admin/stats", "Bearer " + good, http.StatusOK},
+		{"secret in header passes", "/v1/admin/stats", "Bearer " + secret, http.StatusOK},
+		{"jwt in query is rejected", "/v1/admin/stats?token=" + url.QueryEscape(good), "", http.StatusUnauthorized},
+		{"secret in query is rejected", "/v1/admin/templates/x/preview?token=" + secret, "", http.StatusUnauthorized},
+		{"no credential is rejected", "/v1/admin/stats", "", http.StatusUnauthorized},
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest(http.MethodGet, c.target, nil)
+		if c.header != "" {
+			req.Header.Set("Authorization", c.header)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		if rec.Code != c.want {
+			t.Errorf("%s: got %d, want %d", c.name, rec.Code, c.want)
+		}
 	}
 }
