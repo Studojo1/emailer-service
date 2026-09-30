@@ -131,8 +131,39 @@ func TestCouponEmailsCarryTheCode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		if !strings.Contains(html, "outreach?coupon=SAVE20") {
-			t.Errorf("%s: outreach link does not carry the coupon", name)
+		if !strings.Contains(html, "outreach/results?coupon=SAVE20") {
+			t.Errorf("%s: link does not take the student to their leads with the coupon", name)
+		}
+	}
+}
+
+// Checkout-recovery emails go to people who already have leads. The /outreach
+// landing page's main button restarts resume upload, so these must link to
+// /outreach/results (their leads + pricing) instead (audit NEW-07).
+func TestCheckoutRecoveryEmailsLinkToLeads(t *testing.T) {
+	tr, err := NewTemplateRenderer("../../templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	landing := regexp.MustCompile(`studojo\.com/outreach(["?&%]|$)`)
+	for _, name := range []string{"cc-outreach-payment-page", "cc-outreach-convert1", "cc-outreach-convert2", "cc-outreach-coupon", "cc-cart-goat"} {
+		if err := tr.LoadTemplate(name); err != nil {
+			t.Fatalf("load %s: %v", name, err)
+		}
+		for _, click := range []string{"", "https://email.studojo.com/v1/email/click"} {
+			html, err := tr.Render(name, map[string]interface{}{"UserName": "A", "CouponCode": "SAVE20", "ClickBase": click})
+			if err != nil {
+				t.Fatalf("%s: %v", name, err)
+			}
+			// Undo urlquery on the click-tracked form (the whole HTML does not
+			// unescape cleanly: CSS carries bare % signs).
+			decoded := strings.NewReplacer("%3A", ":", "%2F", "/", "%3F", "?", "%3D", "=", "%26", "&").Replace(html)
+			if !strings.Contains(decoded, "studojo.com/outreach/results") {
+				t.Errorf("%s (click=%q): no link to /outreach/results", name, click)
+			}
+			if landing.MatchString(decoded) {
+				t.Errorf("%s (click=%q): still links to the /outreach landing page", name, click)
+			}
 		}
 	}
 }

@@ -42,7 +42,7 @@
       </div>
 
       <div class="cta-wrap">
-        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery (printf "https://studojo.com/outreach?coupon=%s" .CouponCode)}}{{else}}https://studojo.com/outreach?coupon={{urlquery .CouponCode}}{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
+        <a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery (printf "https://studojo.com/outreach/results?coupon=%s" .CouponCode)}}{{else}}https://studojo.com/outreach/results?coupon={{urlquery .CouponCode}}{{end}}" class="cta-button" style="">Finish checkout &rarr;</a>
       </div>
 
       <p class="body-text">You don't reach the payment page by accident. You're serious about this. Let's get you the rest of the way.</p>
