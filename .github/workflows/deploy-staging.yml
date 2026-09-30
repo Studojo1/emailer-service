@@ -73,6 +73,16 @@ jobs:
             --name ${{ secrets.AKS_CLUSTER_NAME }} \
             --overwrite-existing
 
+      - name: Secrets as secretKeyRef (audit ST-N07)
+        run: |
+          # Hand-set literals move into the staging app-secrets once (current
+          # values kept) and are referenced from then on. scripts/ci/secret_env.sh.
+          export NS=staging DEP=${{ env.SERVICE_NAME }}
+          . scripts/ci/secret_env.sh
+          secret_adopt INTERNAL_SECRET emailer-internal-secret
+          secret_adopt UNSUBSCRIBE_SECRET unsubscribe-secret
+          secret_audit
+
       - name: Deploy to Kubernetes
         run: |
           # Staging-only env (audit ST-N13): the ingress already sends CORS
