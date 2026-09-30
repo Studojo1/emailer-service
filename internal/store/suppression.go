@@ -25,6 +25,16 @@ func (s *PostgresStore) SuppressEmail(ctx context.Context, email, reason string)
 	return err
 }
 
+// RecordDeliveryReport stores that ACS reported a delivery outcome for one
+// message. Only the message id and status are kept, never the address.
+func (s *PostgresStore) RecordDeliveryReport(ctx context.Context, messageID, status string) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO email_delivery_reports (message_id, status) VALUES ($1, $2)`,
+		messageID, strings.ToLower(strings.TrimSpace(status)),
+	)
+	return err
+}
+
 // IsEmailSuppressed reports whether an address is on the suppression list. The
 // send path calls this before every send so a bounced/complained address is
 // never mailed again (protecting domain reputation).

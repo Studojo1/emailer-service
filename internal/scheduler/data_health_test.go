@@ -22,7 +22,8 @@ func TestDataHealthChecksAreWellFormed(t *testing.T) {
 		"sends_outside_window", "campaign_over_paid_credits", "emails_stuck_sending", "followup_after_reply",
 		"reply_check_stale", "unpaid_campaign_setup", "fresh_campaigns_low_reply_rate",
 		"launch_week_low_reply_rate", "paid_credits_idle", "paid_orders_no_delivery",
-		"lead_quality_low", "duplicate_leads", "pods_crash_looping"} {
+		"lead_quality_low", "duplicate_leads", "pods_crash_looping",
+		"delivery_reports_missing", "transactional_bounce_rate_high"} {
 		if !seen[want] {
 			t.Errorf("check %q was removed; it guards a failure that reached real students", want)
 		}
@@ -70,6 +71,27 @@ func TestReconSignalsAreRead(t *testing.T) {
 		}
 		if !strings.Contains(store.DataHealthQuery(c), frag) {
 			t.Errorf("check %s no longer reads %s", c.Name, frag)
+		}
+		delete(want, c.Name)
+	}
+	for name := range want {
+		t.Errorf("check %s was removed", name)
+	}
+}
+
+// AR-A03 (areas audit 30 Sep): ACS delivery reports never arrived, so bounces
+// were never suppressed. These checks must keep reading what the handler writes.
+func TestDeliveryReportChecksReadTheReportTable(t *testing.T) {
+	want := map[string]bool{"delivery_reports_missing": true, "transactional_bounce_rate_high": true}
+	for _, c := range store.DataHealthChecks {
+		if !want[c.Name] {
+			continue
+		}
+		if !strings.Contains(store.DataHealthQuery(c), "FROM email_delivery_reports") {
+			t.Errorf("check %s no longer reads email_delivery_reports", c.Name)
+		}
+		if c.Threshold != 0 {
+			t.Errorf("check %s must page on the first violation", c.Name)
 		}
 		delete(want, c.Name)
 	}

@@ -353,6 +353,18 @@ func main() {
 			reason TEXT NOT NULL DEFAULT '',         -- 'hard_bounce' | 'complaint' | ...
 			suppressed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
+		-- One row per ACS delivery report received (audit AR-A03). No address
+		-- is stored: the rows prove reports arrive at all and give the bounce
+		-- rate, which the data-health checks delivery_reports_missing and
+		-- transactional_bounce_rate_high page on.
+		CREATE TABLE IF NOT EXISTS email_delivery_reports (
+			id BIGSERIAL PRIMARY KEY,
+			message_id TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT '',        -- lower-cased ACS status
+			received_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		CREATE INDEX IF NOT EXISTS idx_email_delivery_reports_received
+			ON email_delivery_reports (received_at);
 		-- Marketing opt-outs (Privacy Policy v2.0 §14). Written by the signed
 		-- one-click unsubscribe link; every marketing send checks it (service
 		-- email never does). Keyed by user id and/or normalised address so people
