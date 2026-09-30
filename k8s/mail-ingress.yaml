@@ -1,3 +1,15 @@
+# Public ingress for email.studojo.com (applied by deploy.yml on every deploy).
+#
+# Only the routes that must be reachable from outside the cluster are listed
+# (audit AS-N02). Everything else the emailer serves (/v1/email/events,
+# send-template, bulk-send, policy-update, checkin-reminder, preferences,
+# forgot/reset/change-password) is service-to-service: in-cluster callers use
+# http://emailer-service:8087 and browsers go through the control-plane
+# gateway (api.studojo.com). Unlisted paths get nginx's 404 here.
+#
+# Adding a route below makes it PUBLIC. cmd/server/ingress_test.go fails if an
+# internal route becomes reachable or a public one (tracking, unsubscribe)
+# stops being reachable.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -16,8 +28,81 @@ spec:
     - host: email.studojo.com
       http:
         paths:
+          # Bare host redirects to the dashboard (/mail/).
           - path: /
+            pathType: Exact
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Email dashboard SPA (admin SSO from the admin panel header).
+          - path: /mail
             pathType: Prefix
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Dashboard API. Admin JWT signature-verified, Authorization header only.
+          - path: /v1/admin
+            pathType: Prefix
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Open-tracking pixel in every sent email.
+          - path: /v1/email/track
+            pathType: Prefix
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Click-tracking redirect in every sent email.
+          - path: /v1/email/click
+            pathType: Prefix
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # One-click unsubscribe (GET page + RFC 8058 POST).
+          - path: /v1/email/unsubscribe
+            pathType: Exact
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # GitHub Actions cron (webinar-link.yml). X-Internal-Secret gated.
+          - path: /v1/email/webinar-link-cron
+            pathType: Exact
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # ACS/Event Grid delivery-report webhook. X-Internal-Secret gated.
+          - path: /v1/email/delivery-report
+            pathType: Exact
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Provider inbound-reply webhook. X-Internal-Secret gated.
+          - path: /v1/email/inbound
+            pathType: Exact
+            backend:
+              service:
+                name: emailer-service
+                port:
+                  number: 8087
+          # Health check.
+          - path: /health
+            pathType: Exact
             backend:
               service:
                 name: emailer-service
