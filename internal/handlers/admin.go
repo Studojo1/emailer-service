@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -16,7 +15,9 @@ import (
 // AdminMiddleware checks for a valid admin JWT or ADMIN_SECRET.
 // Accepts the token via Authorization header OR ?token= query param so that
 // browser-native requests (iframes, img tags) can authenticate without JS.
-func AdminMiddleware(adminSecret string, next http.Handler) http.Handler {
+// JWTs are verified against the site's published signing keys (see
+// admin_jwt.go); a decoded-but-unsigned token is rejected.
+func AdminMiddleware(adminSecret string, keys JWKSSource, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 		if token == "" {
@@ -26,33 +27,12 @@ func AdminMiddleware(adminSecret string, next http.Handler) http.Handler {
 			writeError(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-		if (adminSecret != "" && token == adminSecret) || isAdminJWT(token) {
+		if (adminSecret != "" && token == adminSecret) || verifyAdminJWT(r.Context(), keys, token) {
 			next.ServeHTTP(w, r)
 			return
 		}
 		writeError(w, "unauthorized", http.StatusUnauthorized)
 	})
-}
-
-// isAdminJWT decodes the JWT payload and checks role == "admin" and not expired.
-// No signature verification — this is fine for an internal admin tool.
-func isAdminJWT(tokenStr string) bool {
-	parts := strings.Split(tokenStr, ".")
-	if len(parts) != 3 {
-		return false
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return false
-	}
-	var claims struct {
-		Role string `json:"role"`
-		Exp  int64  `json:"exp"`
-	}
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		return false
-	}
-	return claims.Role == "admin" && time.Now().Unix() < claims.Exp
 }
 
 // HandleAdminStats handles GET /v1/admin/stats
