@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/studojo/emailer-service/internal/store"
@@ -20,7 +21,8 @@ func TestDataHealthChecksAreWellFormed(t *testing.T) {
 	for _, want := range []string{"users_without_login", "resumes_without_profile", "duplicate_unused_candidates", "quiz_completed_without_roles",
 		"sends_outside_window", "campaign_over_paid_credits", "emails_stuck_sending", "followup_after_reply",
 		"reply_check_stale", "unpaid_campaign_setup", "fresh_campaigns_low_reply_rate",
-		"launch_week_low_reply_rate", "paid_credits_idle", "paid_orders_no_delivery"} {
+		"launch_week_low_reply_rate", "paid_credits_idle", "paid_orders_no_delivery",
+		"lead_quality_low", "duplicate_leads", "pods_crash_looping"} {
 		if !seen[want] {
 			t.Errorf("check %q was removed; it guards a failure that reached real students", want)
 		}
@@ -50,4 +52,28 @@ func TestFunnelStageWriteFailuresPage(t *testing.T) {
 		}
 	}
 	t.Error("check funnel_stage_write_failed was removed; it guards a failure that reached real students")
+}
+
+// Recon of the 30 Sep audit: UC-Q07 (low lead quality), UC-Q36 (duplicate
+// leads) and IN-N04 (pod crash loops) each wrote a signal that nobody read.
+// These checks must keep reading the tables those signals land in.
+func TestReconSignalsAreRead(t *testing.T) {
+	want := map[string]string{
+		"lead_quality_low":   "'lead_quality_low'",
+		"duplicate_leads":    "FROM leads",
+		"pods_crash_looping": "FROM ops_alerts",
+	}
+	for _, c := range store.DataHealthChecks {
+		frag, ok := want[c.Name]
+		if !ok {
+			continue
+		}
+		if !strings.Contains(store.DataHealthQuery(c), frag) {
+			t.Errorf("check %s no longer reads %s", c.Name, frag)
+		}
+		delete(want, c.Name)
+	}
+	for name := range want {
+		t.Errorf("check %s was removed", name)
+	}
 }
