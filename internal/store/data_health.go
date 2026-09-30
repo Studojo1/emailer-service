@@ -141,6 +141,59 @@ var DataHealthChecks = []DataHealthCheck{
 			WHERE c.started_at BETWEEN now() - interval '40 days' AND now() - interval '10 days'
 			GROUP BY c.id HAVING count(*) = 100) r WHERE r.rate < 0.015`,
 	},
+	{
+		Name:      "launch_week_low_reply_rate",
+		What:      "launch weeks (campaigns started 10-40 days ago) whose campaigns' first 100 emails, taken together, got replies from under 1.5% of recipients",
+		Fix:       "a whole week of fresh campaigns under-replying points at deliverability or copy, not one bad lead list; see audit PS-N03",
+		Threshold: 0,
+		query: `SELECT count(*) FROM (
+			SELECT date_trunc('week', c.started_at) AS wk,
+			       count(*) FILTER (WHERE x.status = 'replied' OR x.reply_received_at IS NOT NULL)::float / count(*) AS rate
+			FROM campaigns c JOIN LATERAL (
+				SELECT e.status, e.reply_received_at FROM emails_sent e
+				WHERE e.campaign_id = c.id AND e.followup_number = 0 AND coalesce(e.is_test, false) = false
+				  AND e.sent_at < now() - interval '7 days'
+				ORDER BY e.sent_at LIMIT 100) x ON true
+			WHERE c.started_at BETWEEN now() - interval '40 days' AND now() - interval '10 days'
+			GROUP BY 1 HAVING count(*) >= 100) w WHERE w.rate < 0.015`,
+	},
+	// ── Paid but not served (B2C audit 30 Sep 2026) ─────────────────────────
+	// These look back a 48-hour band rather than a backlog, so each case pages
+	// once when it crosses the line (two IST days, so a day already alerted for
+	// another case cannot swallow it) instead of repeating forever.
+	{
+		Name:      "paid_credits_idle",
+		What:      "paying customers who have had emails delivered before, now hold 50+ unused credits and have had no running campaign for 3-5 days",
+		Fix:       "they think they are done or short-changed; ask them to launch again (/outreach/campaign/setup). See audit PS-N06 / PP-P12 and job-outreach-svc campaign_notices",
+		Threshold: 0,
+		query: `SELECT count(*) FROM (
+			SELECT w.user_id,
+			       greatest((SELECT max(p.created_at) FROM payment_orders p
+			                 WHERE p.user_id = w.user_id AND p.status IN ('paid', 'completed') AND p.refunded_at IS NULL),
+			                (SELECT max(coalesce(c.completed_at, c.paused_at, c.started_at, c.created_at))
+			                 FROM campaigns c JOIN candidates d ON d.id = c.candidate_id WHERE d.user_id = w.user_id)) AS idle_since
+			FROM user_credits w
+			WHERE w.total_credits - w.used_credits >= 50
+			  AND EXISTS (SELECT 1 FROM payment_orders p WHERE p.user_id = w.user_id
+			              AND p.status IN ('paid', 'completed') AND p.refunded_at IS NULL AND p.amount_cents > 0)
+			  AND NOT EXISTS (SELECT 1 FROM campaigns c JOIN candidates d ON d.id = c.candidate_id
+			                  WHERE d.user_id = w.user_id AND c.status = 'running')
+			  AND EXISTS (SELECT 1 FROM emails_sent e JOIN campaigns c ON c.id = e.campaign_id JOIN candidates d ON d.id = c.candidate_id
+			              WHERE d.user_id = w.user_id AND e.status IN ('sent', 'replied') AND coalesce(e.is_test, false) = false)
+			) i WHERE i.idle_since BETWEEN now() - interval '5 days' AND now() - interval '3 days'`,
+	},
+	{
+		Name:      "paid_orders_no_delivery",
+		What:      "paid orders 5-7 days old with not one email delivered to a hiring manager since the payment",
+		Fix:       "the customer paid and got nothing: check launch (job-outreach-svc launch_nudge), Gmail connection and the campaign worker. See audit PP-P12 / PP-P05",
+		Threshold: 0,
+		query: `SELECT count(*) FROM payment_orders p
+			WHERE p.status IN ('paid', 'completed') AND p.refunded_at IS NULL AND p.amount_cents > 0
+			  AND p.created_at BETWEEN now() - interval '7 days' AND now() - interval '5 days'
+			  AND NOT EXISTS (SELECT 1 FROM emails_sent e JOIN campaigns c ON c.id = e.campaign_id JOIN candidates d ON d.id = c.candidate_id
+			                  WHERE d.user_id = p.user_id AND e.status IN ('sent', 'replied')
+			                    AND coalesce(e.is_test, false) = false AND e.sent_at >= p.created_at)`,
+	},
 }
 
 // CountDataHealthViolations runs one check.
