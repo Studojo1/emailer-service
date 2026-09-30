@@ -37,3 +37,17 @@ func TestOnlyProductionPages(t *testing.T) {
 		}
 	}
 }
+
+// UC-Q16 (B2C audit 30 Sep): a swallowed funnel write used to leave only a log
+// line; the stage_tracking_failed row it now writes must page.
+func TestFunnelStageWriteFailuresPage(t *testing.T) {
+	for _, c := range store.DataHealthChecks {
+		if c.Name == "funnel_stage_write_failed" {
+			if c.Threshold != 0 {
+				t.Errorf("funnel_stage_write_failed must page on the first failure, threshold is %d", c.Threshold)
+			}
+			return
+		}
+	}
+	t.Error("check funnel_stage_write_failed was removed; it guards a failure that reached real students")
+}

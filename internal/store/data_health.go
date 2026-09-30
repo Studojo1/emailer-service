@@ -58,6 +58,14 @@ var DataHealthChecks = []DataHealthCheck{
 			WHERE o.quiz_completed_at > now() - interval '24 hours'
 			  AND (c.target_roles IS NULL OR c.target_roles::text IN ('null', '[]'))`,
 	},
+	{
+		Name:      "funnel_stage_write_failed",
+		What:      "funnel/order writes that failed and were swallowed (on 23 Sep this lost 9 students' orders at upload for 8 hours)",
+		Fix:       "job-outreach-svc services/stage_tracking.safe_mark_stage: read system_events.metadata->>'error' for the cause (UC-Q16)",
+		Threshold: 0,
+		query: `SELECT count(*) FROM system_events
+			WHERE event_type = 'stage_tracking_failed' AND created_at > now() - interval '24 hours'`,
+	},
 	// ── Outreach sending (B2C audit 29 Sep 2026) ────────────────────────────
 	{
 		Name:      "sends_outside_window",
@@ -71,10 +79,12 @@ var DataHealthChecks = []DataHealthCheck{
 	{
 		Name:      "campaign_over_paid_credits",
 		What:      "campaigns that sent more paid first emails than credits reserved minus released",
-		Fix:       "job-outreach-svc campaign_worker._over_paid_cap (PP-P26) in _send_ready / _enrich_one",
+		Fix:       "job-outreach-svc campaign_worker._over_paid_cap (PP-P26) in _send_ready / _enrich_one; a legacy campaign with 0 reserved must go through adopt_legacy_reservation before it runs",
 		Threshold: 0,
+		// Includes credits_reserved = 0: legacy campaigns are capped at 0 new
+		// paid sends until a resume re-reserves for them (30 Sep).
 		query: `SELECT count(*) FROM campaigns c
-			WHERE c.credits_reserved > 0
+			WHERE c.credits_reserved IS NOT NULL
 			  AND EXISTS (SELECT 1 FROM emails_sent e WHERE e.campaign_id = c.id AND e.sent_at > now() - interval '24 hours'
 			              AND coalesce(e.is_test, false) = false AND e.followup_number = 0
 			              AND coalesce(e.replacement_reason, '') <> 'bounce')
