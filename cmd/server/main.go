@@ -598,7 +598,7 @@ func main() {
 	adminMux.HandleFunc("GET /v1/admin/signups", httpHandler.HandleAdminSignups)
 	adminMux.HandleFunc("GET /v1/admin/templates/{name}/preview", httpHandler.HandleAdminTemplatePreview)
 
-	mux.Handle("/v1/admin/", handlers.AdminMiddleware(adminSecret, adminMux))
+	mux.Handle("/v1/admin/", handlers.AdminMiddleware(adminSecret, pgStore, adminMux))
 
 	// Wrap mux with a handler that intercepts OPTIONS before routing
 	wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
