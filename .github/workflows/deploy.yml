@@ -79,7 +79,6 @@ jobs:
           ACS_EMAIL_CONNECTION_STRING_2: ${{ secrets.ACS_EMAIL_CONNECTION_STRING_2 }}
           ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
           UNSUBSCRIBE_SECRET: ${{ secrets.UNSUBSCRIBE_SECRET }}
-          EMAILER_INTERNAL_SECRET: ${{ secrets.EMAILER_INTERNAL_SECRET }}
         run: |
           # Every secret lives in app-secrets and reaches the pod through
           # secretKeyRef, never as a literal value in the Deployment spec, where
@@ -93,12 +92,16 @@ jobs:
           secret_put acs-email-connection-string-2 "$ACS_EMAIL_CONNECTION_STRING_2"
           secret_put emailer-admin-secret "$ADMIN_SECRET"
           secret_put unsubscribe-secret "$UNSUBSCRIBE_SECRET"
-          secret_put emailer-internal-secret "$EMAILER_INTERNAL_SECRET"
           secret_adopt AZURE_EMAIL_CONNECTION_STRING acs-email-connection-string
           secret_adopt AZURE_EMAIL_CONNECTION_STRING_2 acs-email-connection-string-2
           secret_adopt AZURE_EMAIL_CONNECTION_STRING_3 acs-email-connection-string-3
           secret_adopt ADMIN_SECRET emailer-admin-secret
           secret_adopt UNSUBSCRIBE_SECRET unsubscribe-secret
+          # INTERNAL_SECRET is shared by the frontend, control-plane,
+          # job-outreach-svc and cc-backend through app-secrets/emailer-internal-secret.
+          # It is not written from a GitHub secret here: pods read secretKeyRef at
+          # start, so changing it from one repo would split the services until
+          # every one restarted. Rotate it in app-secrets and restart them together.
           secret_adopt INTERNAL_SECRET emailer-internal-secret
           secret_audit
 
