@@ -222,6 +222,28 @@ var DataHealthChecks = []DataHealthCheck{
 		Threshold: 0,
 		query:     `SELECT count(*) FROM ops_alerts WHERE created_at > now() - interval '24 hours'`,
 	},
+	// ── Areas audit 30 Sep: ACS delivery reports (AR-A03) ──
+	{
+		Name:      "delivery_reports_missing",
+		What:      "we sent transactional email in the last day but ACS delivered no delivery report, so hard bounces are never suppressed and the bounce rate is invisible",
+		Fix:       "the Event Grid subscription from each ACS resource (Microsoft.Communication.EmailDeliveryReportReceived) to https://email.studojo.com/v1/email/delivery-report with the X-Internal-Secret header is missing or failing. See audit AR-A03",
+		Threshold: 0,
+		query: `SELECT CASE WHEN
+			  (SELECT count(*) FROM email_send_log WHERE sent_at BETWEEN now() - interval '24 hours' AND now() - interval '1 hour') >= 20
+			  AND NOT EXISTS (SELECT 1 FROM email_delivery_reports WHERE received_at > now() - interval '24 hours')
+			THEN 1 ELSE 0 END`,
+	},
+	{
+		Name:      "transactional_bounce_rate_high",
+		What:      "more than 5% of ACS delivery reports in the last day were bounces (Gmail and Yahoo throttle or spam-folder senders above a few percent)",
+		Fix:       "find the template or list sending to bad addresses (email_send_log by template_name); the bounced addresses are already suppressed. See audit AR-A03",
+		Threshold: 0,
+		query: `SELECT CASE WHEN count(*) >= 40 AND count(*) FILTER (WHERE status = 'bounced') * 100 > count(*) * 5
+			THEN count(*) FILTER (WHERE status = 'bounced') ELSE 0 END
+			FROM email_delivery_reports
+			WHERE received_at > now() - interval '24 hours'
+			  AND status IN ('delivered', 'bounced', 'suppressed', 'filteredspam', 'quarantined', 'failed')`,
+	},
 }
 
 // DataHealthQuery exposes a check's SQL to tests.
