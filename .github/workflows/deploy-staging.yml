@@ -106,7 +106,7 @@ jobs:
           # headers, so the app must not add a second set (prod sets no
           # CORS_ORIGINS either), and reset/verify links must point at
           # studojo.pro, not production.
-          kubectl set env deployment/${{ env.SERVICE_NAME }} -n staging CORS_ORIGINS- EMAIL_FRONTEND_URL=https://studojo.pro
+          kubectl set env deployment/${{ env.SERVICE_NAME }} -c ${{ env.SERVICE_NAME }} -n staging CORS_ORIGINS- EMAIL_FRONTEND_URL=https://studojo.pro
           # Zero-downtime rollout, same as prod (audit IN-N03).
           kubectl patch deployment/${{ env.SERVICE_NAME }} -n staging \
             -p '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":1,"maxUnavailable":0}}}}'
