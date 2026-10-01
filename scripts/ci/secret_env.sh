@@ -62,10 +62,26 @@ secret_adopt() {  # secret_adopt ENV KEY: move a hand-set literal into app-secre
   secret_ref "$1" "$2"
 }
 
+strip_init_env() {  # init containers only wait for postgres/rabbitmq and need no app env
+  # A `kubectl set env` without -c writes into EVERY container, init containers
+  # included, so secrets once set that way stayed behind there as literals
+  # after the main container moved to secretKeyRef (audit ST-N07, 1 Oct).
+  local n i
+  n=$(kubectl -n "$NS" get "deployment/$DEP" -o jsonpath='{range .spec.template.spec.initContainers[*]}{.name}{"\n"}{end}' | grep -c . || true)
+  for ((i = n - 1; i >= 0; i--)); do
+    if [ -n "$(kubectl -n "$NS" get "deployment/$DEP" -o jsonpath="{.spec.template.spec.initContainers[$i].env}")" ]; then
+      kubectl -n "$NS" patch "deployment/$DEP" --type=json \
+        -p "[{\"op\":\"remove\",\"path\":\"/spec/template/spec/initContainers/$i/env\"}]" >/dev/null
+      echo "$DEP in $NS: removed env from init container $i"
+    fi
+  done
+}
+
 secret_audit() {  # warn about any secret-looking env var still held as a literal
   local left
+  strip_init_env
   left=$(kubectl -n "$NS" get "deployment/$DEP" \
-    -o jsonpath="{range .spec.template.spec.containers[?(@.name=='$DEP')].env[?(@.value)]}{.name}{'\n'}{end}" |
+    -o jsonpath="{range .spec.template.spec.containers[?(@.name=='$DEP')].env[?(@.value)]}{.name}{'\n'}{end}{range .spec.template.spec.initContainers[*].env[?(@.value)]}{.name}{'\n'}{end}" |
     grep -E 'SECRET|TOKEN|PASSWORD|PEPPER|API_KEY|CONNECTION_STRING' || true)
   if [ -n "$left" ]; then
     echo "::warning::$DEP in $NS still holds literal secrets: $(echo "$left" | paste -sd, -)"

@@ -107,7 +107,7 @@ jobs:
 
       - name: Ensure ACS email env in deployment
         run: |
-          kubectl set env deployment/${{ env.SERVICE_NAME }} -n studojo \
+          kubectl set env deployment/${{ env.SERVICE_NAME }} -c ${{ env.SERVICE_NAME }} -n studojo \
             RESEND_API_KEY- \
             AZURE_EMAIL_SENDER_ADDRESS="Pranav from Studojo <pranav@support.studojo.com>" \
             EMAIL_SENDER_SUPPORT="Pranav from Studojo <pranav@support.studojo.com>" \

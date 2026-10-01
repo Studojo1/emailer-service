@@ -18,6 +18,23 @@ bad=$(awk '
   inset && !/\\[[:space:]]*$/ { inset = 0 }
 ' "${files[@]}")
 
+# `kubectl set env` with no -c writes into every container, init containers
+# included, where values outlive the move to secretKeyRef (ST-N07, 1 Oct).
+nocont=$(awk '
+  FNR == 1 { cmd = ""; inset = 0 }
+  /kubectl[[:space:]]+set[[:space:]]+env[[:space:]]+deployment/ { inset = 1; cmd = ""; start = FNR }
+  inset { cmd = cmd " " $0 }
+  inset && !/\\[[:space:]]*$/ {
+    if (cmd !~ /[[:space:]]-c[[:space:]]/ && cmd !~ /--containers/) printf "%s:%d: set env names no container\n", FILENAME, start
+    inset = 0
+  }
+' "${files[@]}")
+if [ -n "$nocont" ]; then
+  echo "kubectl set env must name the container with -c (it otherwise writes into init containers too):"
+  echo "$nocont"
+  exit 1
+fi
+
 if [ -n "$bad" ]; then
   echo "Literal secret written into a Deployment (use secret_put + secret_ref from scripts/ci/secret_env.sh):"
   echo "$bad"
