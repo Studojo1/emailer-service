@@ -17,9 +17,9 @@ import (
 	"github.com/studojo/emailer-service/internal/store"
 )
 
-// sendLeadsReady sends leads-ready, with the data the admin send builds, to a
-// local stand-in for the mail provider and returns the HTML it received: the
-// email as sent, tracking filled in and links tagged.
+// sendLeadsReady sends leads-ready, with the data the scheduler and the admin
+// send build, to a local stand-in for the mail provider and returns the HTML it
+// received: the email as sent, tracking filled in and links tagged.
 func sendLeadsReady(t *testing.T, trackingURL string) string {
 	t.Helper()
 	var mu sync.Mutex
