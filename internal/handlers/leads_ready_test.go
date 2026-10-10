@@ -111,3 +111,23 @@ func TestLeadsReadyButtonOpensResults(t *testing.T) {
 		t.Fatalf("click redirect = %d %q, want 302 %q", w.Code, w.Header().Get("Location"), results)
 	}
 }
+
+// Every line must hold for a student who has leads and has not paid:
+// WELCOME10 has no end date, nothing is drafted before payment, and the
+// email promises no setup time. No em or en dashes.
+func TestLeadsReadyCopy(t *testing.T) {
+	out := html.UnescapeString(sendLeadsReady(t, "https://email.studojo.com"))
+	for _, gone := range []string{"expires in 24 hours", "messages we drafted", "under 3 minutes", "Finish setup"} {
+		if strings.Contains(out, gone) {
+			t.Errorf("leads-ready still says %q", gone)
+		}
+	}
+	for _, want := range []string{"Hi Asha,", "1. Pick a pack.", "2. Connect your Gmail.", "3. Launch.", ">See your hiring managers</a>", "WELCOME10"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("leads-ready is missing %q", want)
+		}
+	}
+	if strings.ContainsAny(out, string([]rune{0x2013, 0x2014})) {
+		t.Error("leads-ready contains an em or en dash")
+	}
+}
