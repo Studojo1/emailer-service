@@ -644,16 +644,21 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 	}, http.StatusOK)
 }
 
+// LeadsReadyData is the leads-ready template data. /outreach/results routes the
+// student to their leads; the /outreach landing page's main button restarts
+// resume upload.
+func LeadsReadyData(frontendURL, userName string) map[string]interface{} {
+	return map[string]interface{}{
+		"UserName":    userName,
+		"OutreachURL": frontendURL + "/outreach/results",
+	}
+}
+
 // buildTemplateData returns the template name and data for a given email type
 func (h *Handler) buildTemplateData(emailType string, user *store.User) (string, map[string]interface{}) {
 	switch emailType {
 	case "leads-ready", "leads_ready":
-		// /outreach/results routes the student to their leads; the /outreach
-		// landing page's main button restarts resume upload.
-		return "leads-ready", map[string]interface{}{
-			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach/results",
-		}
+		return "leads-ready", LeadsReadyData(h.EmailFrontendURL, user.Name)
 	case "welcome":
 		return "welcome", map[string]interface{}{
 			"UserName":     user.Name,
