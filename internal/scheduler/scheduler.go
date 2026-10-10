@@ -361,7 +361,9 @@ func (sc *Scheduler) send(ctx context.Context, e store.ScheduledEmail) (rateLimi
 			"EffectiveDate": handlers.FormatEffectiveDate(effective),
 		}
 	case e.EmailType == "leads_ready":
-		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach"}
+		// /outreach/results routes the student to their leads; the /outreach
+		// landing page's main button restarts resume upload.
+		templateData = map[string]interface{}{"UserName": user.Name, "OutreachURL": sc.FrontendURL + "/outreach/results"}
 	case e.EmailType == "welcome":
 		templateData = map[string]interface{}{"UserName": user.Name, "DashboardURL": sc.FrontendURL + "/"}
 	default:

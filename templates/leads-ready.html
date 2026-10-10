@@ -31,7 +31,7 @@
 
 <p>Most people finish this in under 3 minutes.</p>
 
-<a href="{{.OutreachURL}}" class="btn">Finish setup</a>
+<a href="{{if .ClickBase}}{{.ClickBase}}?u={{urlquery .OutreachURL}}{{else}}{{.OutreachURL}}{{end}}" class="btn">Finish setup</a>
 
 <p>Also, use code <strong>WELCOME10</strong> at checkout for 10% off. It expires in 24 hours.</p>
 

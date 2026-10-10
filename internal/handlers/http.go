@@ -648,9 +648,11 @@ func (h *Handler) HandleBulkSend(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) buildTemplateData(emailType string, user *store.User) (string, map[string]interface{}) {
 	switch emailType {
 	case "leads-ready", "leads_ready":
+		// /outreach/results routes the student to their leads; the /outreach
+		// landing page's main button restarts resume upload.
 		return "leads-ready", map[string]interface{}{
 			"UserName":    user.Name,
-			"OutreachURL": h.EmailFrontendURL + "/outreach",
+			"OutreachURL": h.EmailFrontendURL + "/outreach/results",
 		}
 	case "welcome":
 		return "welcome", map[string]interface{}{
