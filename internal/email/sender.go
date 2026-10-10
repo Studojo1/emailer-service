@@ -101,7 +101,7 @@ func (s *Sender) RenderPreview(name string) (string, error) {
 	sample := map[string]interface{}{
 		"UserName":            "Alex",
 		"DashboardURL":        "https://studojo.com/",
-		"OutreachURL":         "https://studojo.com/outreach",
+		"OutreachURL":         "https://studojo.com/outreach/results",
 		"InternshipURL":       "https://studojo.com/outreach",
 		"ResumeName":          "My Resume.pdf",
 		"ImprovementsSummary": "Your resume was optimised with 5 key improvements.",
