@@ -62,7 +62,7 @@ func tagEmailURL(raw, campaign string) (string, bool) {
 		return u.String(), true
 	}
 
-	if !isStudojoHost(u.Hostname()) {
+	if !IsStudojoHost(u.Hostname()) {
 		return raw, false
 	}
 	if strings.HasPrefix(u.Path, "/api/") || strings.HasPrefix(u.Path, "/v1/") ||
@@ -86,7 +86,7 @@ func tagEmailURL(raw, campaign string) (string, bool) {
 	return u.String(), true
 }
 
-func isStudojoHost(h string) bool {
+func IsStudojoHost(h string) bool {
 	h = strings.ToLower(h)
 	return h == "studojo.com" || strings.HasSuffix(h, ".studojo.com") ||
 		h == "studojo.pro" || strings.HasSuffix(h, ".studojo.pro")

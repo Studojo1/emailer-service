@@ -754,7 +754,7 @@ func (h *Handler) HandleTrackClick(w http.ResponseWriter, r *http.Request) {
 	target := fallback
 	if dest != "" {
 		if u, err := url.Parse(dest); err == nil && (u.Scheme == "https" || u.Scheme == "http") &&
-			(strings.HasSuffix(u.Hostname(), "studojo.com") || strings.HasSuffix(u.Hostname(), "studojo.pro")) {
+			email.IsStudojoHost(u.Hostname()) {
 			target = dest
 		}
 	}
