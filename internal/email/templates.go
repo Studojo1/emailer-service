@@ -72,7 +72,7 @@ func (tr *TemplateRenderer) Render(name string, data interface{}) (string, error
 // RegisteredTemplates are the templates loaded at startup (and so sendable).
 var RegisteredTemplates = []string{
 	// ── Transactional (kept; not part of the retired engagement flow) ──
-	"welcome", "forgot-password", "verify-email", "resume-optimized", "internship-applied",
+	"welcome", "forgot-password", "verify-email", "login-code", "resume-optimized", "internship-applied",
 	"password-changed", "contact-form", "payment-thankyou", "service-update",
 	"leads-ready", "checkin-reminder",
 	// Outreach Dojo post-payment: paid but never launched (job-outreach-svc sweep),
