@@ -1305,6 +1305,8 @@ type SendTemplateRequest struct {
 	PlanName string `json:"plan_name"`
 	Amount   string `json:"amount"`
 	OrderID  string `json:"order_id"`
+	// Code fills login-code, the six-digit sign-in code for studojo.com/start.
+	Code string `json:"code"`
 }
 
 // HandleSendTemplate sends any registered template by name. Internal
@@ -1342,6 +1344,13 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 		"Amount":       req.Amount,
 		"OrderID":      req.OrderID,
 	}
+	if req.Template == "login-code" {
+		if !isSixDigits(req.Code) {
+			writeError(w, "code must be six digits", http.StatusBadRequest)
+			return
+		}
+		data["Code"] = req.Code
+	}
 	if req.ActionURL != "" {
 		if !strings.HasPrefix(req.ActionURL, "https://studojo.com/") && !strings.HasPrefix(req.ActionURL, "https://studojo.pro/") {
 			writeError(w, "action_url must be a studojo URL", http.StatusBadRequest)
@@ -1372,6 +1381,19 @@ func (h *Handler) HandleSendTemplate(w http.ResponseWriter, r *http.Request) {
 	// check could not confirm verify-email delivery for exactly this reason.
 	slog.Info("send-template sent", "template", req.Template, "to_domain", emailDomain(req.To))
 	writeJSON(w, map[string]string{"status": "sent", "to": req.To, "template": req.Template}, http.StatusOK)
+}
+
+// isSixDigits reports whether s is exactly six ASCII digits (a sign-in code).
+func isSixDigits(s string) bool {
+	if len(s) != 6 {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // emailDomain returns the part after "@", so logs can show where a send went
