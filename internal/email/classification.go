@@ -20,6 +20,7 @@ var serviceTemplates = map[string]bool{
 	// Account security
 	"forgot-password":  true,
 	"verify-email":     true,
+	"login-code":       true, // six-digit sign-in code for /start
 	"password-changed": true,
 	// Receipts and confirmations of the user's own action
 	"payment-thankyou":   true,

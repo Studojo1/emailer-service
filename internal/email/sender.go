@@ -73,6 +73,7 @@ type Sender struct {
 var transactionalTemplates = map[string]bool{
 	"forgot-password":    true,
 	"verify-email":       true,
+	"login-code":         true,
 	"password-changed":   true,
 	"payment-thankyou":   true,
 	"resume-optimized":   true,
@@ -182,7 +183,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 	// through the trusted support.studojo.com (.com) domain so Gmail places them in
 	// PRIMARY, not Promotions. The .pro welcome/promotions subdomains were getting
 	// tabbed into Promotions; the time-sensitive + onboarding emails belong in Primary.
-	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
+	case "payment-thankyou", "password-changed", "forgot-password", "verify-email", "login-code",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
 		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled", "outreach-campaign-finished",
@@ -206,7 +207,7 @@ func (s *Sender) fixedSenderForTemplate(templateName string) string {
 func (s *Sender) getSenderForTemplate(templateName string) string {
 	switch templateName {
 	// Transactional — support domain signals "not marketing" to Gmail
-	case "payment-thankyou", "password-changed", "forgot-password", "verify-email",
+	case "payment-thankyou", "password-changed", "forgot-password", "verify-email", "login-code",
 		"resume-optimized", "internship-applied", "contact-form",
 		"welcome", "leads-ready", "outreach-launch-nudge", "ops-alert",
 		"outreach-gmail-reconnect", "outreach-campaign-paused", "outreach-campaign-stalled", "outreach-campaign-finished",
@@ -470,6 +471,12 @@ func (s *Sender) getSubject(templateName string, data map[string]interface{}) (s
 		return "Reset your Studojo password", nil
 	case "verify-email":
 		return "Confirm your Studojo email", nil
+	case "login-code":
+		// The code in the subject shows in the inbox list and on lock screens.
+		if code, ok := data["Code"].(string); ok && code != "" {
+			return code + " is your Studojo sign-in code", nil
+		}
+		return "Your Studojo sign-in code", nil
 	case "resume-optimized":
 		return "Your resume has been optimized", nil
 	case "internship-applied":
