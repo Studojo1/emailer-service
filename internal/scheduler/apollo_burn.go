@@ -21,12 +21,14 @@ func apolloBurnThreshold() int {
 	return 400
 }
 
-// apolloBurnRecipients are the addresses paged on a burn alert. Override with a
-// comma-separated APOLLO_BURN_ALERT_RECIPIENTS.
+// apolloBurnRecipients are the addresses paged on a burn alert (and on the
+// data-health checks). Override with a comma-separated
+// APOLLO_BURN_ALERT_RECIPIENTS. Routine alerts go to pranavshastry4 only;
+// Jeremy and Pranav Hegde get new-ticket emails, not these (2026-10-15).
 func apolloBurnRecipients() []string {
 	raw := os.Getenv("APOLLO_BURN_ALERT_RECIPIENTS")
 	if raw == "" {
-		raw = "jeremy.zac@gmail.com,businessconnect.pranav@gmail.com"
+		raw = "pranavshastry4@gmail.com"
 	}
 	var out []string
 	for _, e := range strings.Split(raw, ",") {
