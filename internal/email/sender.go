@@ -63,6 +63,8 @@ type Sender struct {
 	limiter *rateLimiter // global ACS throttle shared by instant + scheduled sends
 
 	lastRetryAfter time.Duration // Retry-After parsed from the most recent 429, if any
+
+	paused bool // EMAILS_PAUSED: hold every send except the account emails (pause.go)
 }
 
 // transactionalTemplates are user-triggered, low-volume, time-sensitive emails.
@@ -335,6 +337,13 @@ func (s *Sender) prepareSend(to, uid, templateName string, data interface{}) (ma
 // SendTemplateEmail sends an email using a template
 func (s *Sender) SendTemplateEmail(ctx context.Context, to, templateName string, data interface{}) error {
 	uid, _ := ctx.Value(UserIDKey).(string)
+
+	// Email pause (pause.go): while EMAILS_PAUSED is on, only the account emails go out. Every path (scheduler,
+	// instant event, bulk, admin, internal API) sends through here, so this one check holds them all.
+	if s.pausedFor(templateName) {
+		slog.Info("skipping send: emails paused (EMAILS_PAUSED)", "template", templateName, "user_id", uid, "to_domain", domainOf(to))
+		return nil
+	}
 
 	// Suppression gate: never send to an address that has hard-bounced or filed a
 	// spam complaint. Continuing to mail dead/complained addresses is what wrecks

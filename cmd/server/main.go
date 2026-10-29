@@ -168,6 +168,11 @@ func main() {
 
 	// Initialize email sender
 	sender := email.NewSender(emailClient, renderer)
+	// Email pause (internal/email/pause.go): EMAILS_PAUSED=1 holds every send except the account emails.
+	if email.PausedFromEnv() {
+		sender.SetPaused(true)
+		slog.Warn("EMAILS_PAUSED is on: only sign-in, verification and password emails go out")
+	}
 
 	// Per-category sender addresses
 	supportSender := os.Getenv("EMAIL_SENDER_SUPPORT")
