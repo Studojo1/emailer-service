@@ -114,7 +114,10 @@ jobs:
             EMAIL_SENDER_WELCOME="Jeremy from Studojo <jeremy@welcome.studojo.pro>" \
             EMAIL_SENDER_PROMOTIONS="Vanshika from Studojo <vanshika@promotions.studojo.pro>" \
             TRACKING_BASE_URL="https://email.studojo.com" \
-            EMAIL_RATE_PER_HOUR="80"
+            EMAIL_RATE_PER_HOUR="80" \
+            EMAILS_PAUSED="1"
+          # EMAILS_PAUSED=1 (the owner, 29 Oct 2026): only sign-in, verification and password emails go out;
+          # everything else, team alerts included, is held (internal/email/pause.go). Set it to 0 to lift it.
 
       - name: Apply mail.studojo.com ingress
         run: |
